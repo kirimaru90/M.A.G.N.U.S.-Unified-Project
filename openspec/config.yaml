@@ -1,0 +1,34 @@
+schema: spec-driven
+
+context: |
+  Monorepo "Unified MAGNUS": one product, three separately-deployed apps under apps/.
+  The apps share one domain but keep their own folder, package.json, build, and deploy.
+  Capabilities are prefixed by their owning app so provenance is clear in a flat namespace:
+    - api-*      NestJS backend (apps/api)
+    - cms-*      backoffice / content-authoring SPA (apps/cms)
+    - emulator-* player-facing Fallout terminal emulator (apps/terminal)
+
+  Shared domain concepts (described from each app's angle under its own prefix):
+  campaigns, terminals (a JSON node/choice graph, "olonastri"), users, auth, and the
+  game state engine.
+
+  emulator app specifics: Vanilla HTML5 / CSS3 / JavaScript with no build step, marked.js
+  via CDN, served by Docker + nginx. Italian UI, docs, and example content. No backend, no
+  framework, no transpilation — pure static files. Manifest-driven JSON content loaded at
+  runtime.
+
+# OpenSpec rules are global to this folder. The rules below originate from the emulator app
+# and apply specifically to emulator-* spec work; scope them by that prefix when authoring.
+rules:
+  proposal:
+    - For emulator-* specs - proposals must not require changes to index.html unless the
+      feature cannot be achieved via content/data alone.
+    - For emulator-* specs - always include impact on the content-creator workflow (JSON
+      authoring experience).
+    - For emulator-* specs - reference Fallout lore-accurate naming where appropriate.
+  tasks:
+    - For emulator-* specs - each task must be independently verifiable by opening
+      index.html in a browser.
+    - For emulator-* specs - data/schema changes must include an example JSON snippet.
+    - For emulator-* specs - keep tasks scoped to one logical change (engine, manifest, or
+      content layer).

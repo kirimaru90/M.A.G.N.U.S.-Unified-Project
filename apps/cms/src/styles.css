@@ -1,0 +1,25 @@
+/* MAGNUS-CMS Backoffice — global stylesheet.
+   Tailwind preflight is intentionally disabled (see tailwind.config.js) because the
+   .bo-frame base styles supply our own reset/typography. Do not re-enable it. */
+
+@layer reset, tokens, tailwind-utilities;
+
+@import './styles/tokens.css' layer(tokens);
+
+@layer reset {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+  body {
+    background: var(--bo-bg);
+    color: var(--bo-text);
+  }
+}
+
+@layer tailwind-utilities {
+  @tailwind components;
+  @tailwind utilities;
+}

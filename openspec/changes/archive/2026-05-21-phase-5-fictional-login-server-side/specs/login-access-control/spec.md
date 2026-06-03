@@ -1,0 +1,147 @@
+## ADDED Requirements
+
+### Requirement: Server-side fictional credential validation
+The terminal client SHALL validate fictional-login attempts by sending the entered username and password to `POST /terminals/:id/fictional-login` for the active terminal. The client SHALL NOT compare passwords in JavaScript, and SHALL NOT depend on any `password` field being present in the loaded holotape payload. A fictional credential (password) SHALL never appear in any client-bound payload.
+
+#### Scenario: Validation delegated to the server
+- **WHEN** a player submits a fictional-login attempt (username + password)
+- **THEN** the client SHALL POST the username and password to `POST /terminals/:id/fictional-login` for the active terminal
+- **THEN** the client SHALL determine success or failure solely from the server response, with no client-side password comparison
+
+#### Scenario: No fictional credentials in client payloads
+- **WHEN** any holotape content is delivered to the client (e.g. `GET /terminals/:id/load`)
+- **THEN** no `login.users[]` entry SHALL contain a `password` field
+
+#### Scenario: Unlock recorded only after server success
+- **WHEN** the server returns a success response for a fictional-login attempt
+- **THEN** the client SHALL add the validated username to the in-memory session unlock set
+- **THEN** the client SHALL NOT persist that unlock across a page reload
+
+---
+
+## MODIFIED Requirements
+
+### Requirement: Login block in olonastro JSON schema
+The olonastro JSON schema SHALL support an optional `login` field on the root object and on any individual node object. In the canonical (authored, server-stored) document the `login` field SHALL have the following structure:
+
+```json
+"login": {
+  "users": [
+    { "username": "<string>", "password": "<string>" }
+  ]
+}
+```
+
+When this content is delivered to the terminal client via `GET /terminals/:id/load`, the server SHALL strip every `login.users[].password`, so the client receives only usernames:
+
+```json
+"login": {
+  "users": [
+    { "username": "<string>" }
+  ]
+}
+```
+
+A `login` field on the root object gates the entire file (applied before the `"start"` node is shown). A `login` field on an individual node gates only that node. Node-level `login` takes precedence over root-level `login` for that specific node. The client SHALL treat the presence of a `login.users` array (regardless of any `password` field) as the gate, and SHALL NOT read or rely on a `password` field.
+
+#### Scenario: Valid login block on root object
+- **WHEN** the loaded JSON contains a `login.users` array at the root level
+- **THEN** the engine SHALL treat the entire file as protected and apply the root login gate before navigating to `"start"`
+
+#### Scenario: Valid login block on a node
+- **WHEN** a node object contains a `login.users` array
+- **THEN** the engine SHALL apply that node's login gate instead of the root-level gate when navigating to that node
+
+#### Scenario: No login block present
+- **WHEN** neither the root object nor the target node contains a `login` field
+- **THEN** the engine SHALL navigate to the node without any login intercept (identical to current behaviour)
+
+#### Scenario: Delivered login block omits passwords
+- **WHEN** `GET /terminals/:id/load` returns a holotape whose root or a node carries a `login` block
+- **THEN** every entry in `login.users` SHALL contain a `username` and SHALL NOT contain a `password`
+- **THEN** the client SHALL still present the gate, populating the username `<select>` from the delivered usernames
+
+---
+
+### Requirement: Login intercept view
+When a user navigates to a protected node and no user from that node's `login.users` is currently authenticated, the engine SHALL display a dedicated login overlay before rendering the node content.
+
+The login view SHALL contain:
+- A heading `ACCESSO RISERVATO`
+- A `<select>` element pre-populated with the usernames from `login.users`; the user may select but not type a username
+- A `<input type="password">` field for entering the password
+- A submit button labelled `[ ACCEDI ]`
+- An error line (hidden initially) labelled `CREDENZIALI NON VALIDE`
+- A back button labelled `[ Torna al menu ]` whose behaviour depends on whether the login block is root-level or node-level (see scenarios below)
+
+Credential validation SHALL be performed by the server (see "Server-side fictional credential validation"); the overlay's markup and styling are unchanged from the prior client-side-validation behaviour.
+
+#### Scenario: Login view appears on first access to protected node
+- **WHEN** `loadNode` is called for a node that has a `login` field
+- **AND** no user from `login.users` is present in the session's authenticated user set
+- **THEN** the login overlay SHALL be shown, covering the terminal content
+- **THEN** the node's text and choices SHALL NOT be rendered until credentials are validated
+
+#### Scenario: Correct credentials submitted
+- **WHEN** the user selects a username and enters a password
+- **AND** the user clicks `[ ACCEDI ]`
+- **THEN** the engine SHALL submit the username and password to `POST /terminals/:id/fictional-login` for the active terminal
+- **THEN** on a success response the engine SHALL add that username to the session's authenticated user set
+- **THEN** the login overlay SHALL be hidden and the engine SHALL render the protected node normally
+
+#### Scenario: Incorrect password submitted
+- **WHEN** the user clicks `[ ACCEDI ]` with credentials the server rejects (e.g. an HTTP `401`)
+- **THEN** the `CREDENZIALI NON VALIDE` error line SHALL become visible
+- **THEN** the login overlay SHALL remain visible; no node content SHALL be rendered
+- **THEN** no username SHALL be added to the authenticated user set
+
+#### Scenario: Validation request fails for a non-credential reason
+- **WHEN** the user clicks `[ ACCEDI ]` and the validation request fails for a reason other than credential rejection (network failure, HTTP 5xx, or an unparseable response)
+- **THEN** an error message SHALL be shown and the login overlay SHALL remain visible
+- **THEN** no username SHALL be added to the authenticated user set
+
+#### Scenario: Submit disabled while a validation request is in flight
+- **WHEN** the user clicks `[ ACCEDI ]`
+- **THEN** the submit control SHALL be disabled until the request settles, so a duplicate submission cannot be issued for the same attempt
+- **THEN** on a failed attempt the control SHALL be re-enabled so the user can retry
+
+#### Scenario: Back button on root-level login view
+- **WHEN** the active login block is `terminalData.login` (root-level gate)
+- **AND** the user clicks `[ Torna al menu ]` on the login overlay
+- **THEN** the login overlay SHALL be hidden
+- **THEN** `initBoot()` SHALL be called, returning the user to the boot/file-selection screen
+
+#### Scenario: Back button on node-level login view — previous node exists
+- **WHEN** the active login block belongs to an individual node (not the root)
+- **AND** `navigationHistory` contains at least one prior node
+- **AND** the user clicks `[ Torna al menu ]` on the login overlay
+- **THEN** the login overlay SHALL be hidden
+- **THEN** the engine SHALL pop the current node from `navigationHistory` and navigate to the previous node using `loadNode(previousNode, true)`
+
+#### Scenario: Back button on node-level login view — no previous node
+- **WHEN** the active login block belongs to an individual node
+- **AND** `navigationHistory` is empty or contains only the current node (no reachable prior node)
+- **AND** the user clicks `[ Torna al menu ]`
+- **THEN** the login overlay SHALL be hidden
+- **THEN** `initBoot()` SHALL be called as a safe fallback
+
+---
+
+### Requirement: Enter key submits login form
+When the login intercept view is visible and focus is in the `#login-password` field, pressing the Enter key SHALL trigger the same credential-validation logic as clicking `[ ACCEDI ]` (i.e. the server validation call).
+
+#### Scenario: Enter key with correct credentials
+- **WHEN** the login screen is displayed
+- **AND** the user has selected a username and typed a password in `#login-password`
+- **AND** the user presses Enter
+- **THEN** the engine SHALL submit the credentials to `POST /terminals/:id/fictional-login` and, on a success response, dismiss the login overlay and proceed as if `[ ACCEDI ]` was clicked
+
+#### Scenario: Enter key with incorrect credentials
+- **WHEN** the login screen is displayed
+- **AND** the user presses Enter with credentials the server rejects
+- **THEN** the `CREDENZIALI NON VALIDE` error line SHALL become visible
+- **THEN** the login overlay SHALL remain visible, identical to the button-click path
+
+#### Scenario: Enter key listener re-registered on each showLoginView call
+- **WHEN** `showLoginView` is called multiple times in a session (e.g., navigating to different protected nodes)
+- **THEN** exactly one Enter key listener SHALL be active at a time (no duplicate firings)

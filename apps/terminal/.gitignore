@@ -1,0 +1,65 @@
+# ─── OS cruft ────────────────────────────────────────────────
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ─── Editors / IDEs ──────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# ─── Environment / secrets ───────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Node tooling (in case a build/test setup is added) ──────
+node_modules/
+.npm/
+.cache/
+.parcel-cache/
+.eslintcache
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# ─── Claude Code (personal, per-machine) ────────────────────
+.claude/settings.local.json
+
+# ─── Misc ────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp
+*.bak

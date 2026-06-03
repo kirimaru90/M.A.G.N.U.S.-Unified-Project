@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n '`character' openspec/changes/add-character-module/proposal.md)",
+      "Bash(mkdir -p apps/terminal/docs)",
+      "Bash(mv apps/terminal/openspec/project.md apps/terminal/openspec/specs.md apps/terminal/openspec/PROPOSE-PROMPTS.md apps/terminal/openspec/REWORK-PROMPTS.md apps/terminal/openspec/REWORK.md apps/terminal/docs/)",
+      "Bash(rm -rf apps/api/openspec apps/cms/openspec apps/terminal/openspec)",
+      "Bash([ -f \"apps/$app/README.md\" ])",
+      "Bash(awk '{print $NF}')"
+    ]
+  }
+}

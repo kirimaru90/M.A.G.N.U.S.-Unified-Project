@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Terminale RobCo</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#33ff00">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles/terminal.css">
+</head>
+<body class="crt">
+
+    <div id="campaign-select-screen" style="display:none"></div>
+
+    <div id="boot-screen" style="display:none"></div>
+
+    <div id="login-screen">
+        <h2>ACCESSO RISERVATO</h2>
+        <p id="login-error">CREDENZIALI NON VALIDE</p>
+        <select id="login-username"></select>
+        <input type="password" id="login-password" placeholder="PASSWORD">
+        <button class="choice-btn" id="login-submit">[ ACCEDI ]</button>
+        <button class="choice-btn" id="login-back">[ Torna al menu ]</button>
+    </div>
+
+    <div id="login-real-screen">
+        <h2>ACCESSO UTENTE ROBCO</h2>
+        <p id="login-real-error">CREDENZIALI NON VALIDE</p>
+        <input type="text" id="login-real-username" placeholder="UTENTE" autocomplete="username">
+        <input type="password" id="login-real-password" placeholder="PASSWORD" autocomplete="current-password">
+        <button class="choice-btn" id="login-real-submit">[ Accedi ]</button>
+        <button class="choice-btn" id="login-real-back">[ Annulla ]</button>
+    </div>
+
+    <div id="terminal-container">
+        <div id="screen-content"></div><span class="cursor">_</span>
+        <div id="choices-container"></div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
