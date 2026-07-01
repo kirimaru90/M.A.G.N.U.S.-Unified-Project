@@ -36,7 +36,28 @@ The file is git-ignored; the production build excludes it explicitly.
 | `npm run typecheck`   | `tsc --noEmit`                                        |
 | `npm run format`      | Format sources with Prettier                          |
 | `npm run format:check`| Prettier `--check`                                    |
+| `npm test`            | Run unit tests once (Vitest, headless jsdom) with coverage |
+| `npm run test:watch`  | Run unit tests in watch mode                          |
 | `npm run api:gen`     | Regenerate `src/api/generated/openapi-types.ts` from `reference/API-docs.json` |
+
+## Testing
+
+Unit tests run on Angular 21's built-in `@angular/build:unit-test` builder (Vitest), under
+jsdom — no browser binary required. Specs live next to their subject as `*.spec.ts`.
+
+```bash
+npm test          # single run, coverage on, exits non-zero if any spec fails
+npm run test:watch
+```
+
+Coverage is emitted to `coverage/magnus-backoffice/` (`coverage-summary.json` + `lcov.info`
+for tooling, plus a text summary in the console). A **global 70% line-coverage threshold**
+(`coverageThresholds` in `angular.json`) fails `npm test` if not met. Coverage is scored over
+the files imported by the run (v8 default), so importing source you don't assert on will pull
+the number down — cover what you touch.
+
+Per the OpenSpec rules in the root `openspec/config.yaml`, every `cms-*` change MUST add
+paired specs and keep `npm test` green (≥ 70% lines) before it can be archived.
 
 ## Project layout
 

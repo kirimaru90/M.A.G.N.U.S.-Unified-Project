@@ -58,6 +58,11 @@ coverage/
 # ─── Claude Code (personal, per-machine) ────────────────────
 .claude/settings.local.json
 
+# ─── Playwright (dev/test only) ──────────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
+
 # ─── Misc ────────────────────────────────────────────────────
 tmp/
 temp/

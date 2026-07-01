@@ -102,6 +102,17 @@
           "options": {
             "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
           }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "magnus-backoffice:build:development",
+            "tsConfig": "tsconfig.spec.json",
+            "runner": "vitest",
+            "coverage": true,
+            "coverageReporters": ["text-summary", "json-summary", "lcov"],
+            "coverageThresholds": { "lines": 70 }
+          }
         }
       }
     }

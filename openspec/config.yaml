@@ -26,9 +26,37 @@ rules:
     - For emulator-* specs - always include impact on the content-creator workflow (JSON
       authoring experience).
     - For emulator-* specs - reference Fallout lore-accurate naming where appropriate.
+
+    # Testing: every change must plan its tests up front.
+    - For all specs - the proposal MUST include a "Testing" section naming the behaviors
+      under test and the layer (unit / integration / e2e). A change that genuinely cannot
+      be tested must state why, explicitly.
+    - For api-* specs - state which behaviors get unit specs (src/**/*.spec.ts) and which
+      need e2e (test/*.e2e-spec.ts) against the in-memory Mongo (mongodb-memory-server; no
+      external DB).
+    - For cms-* specs - state which components/services get specs. If the Vitest runner is
+      not yet wired, the proposal must depend on enable-cms-testing.
+    - For emulator-* specs - state how the change is verified by an automated Playwright
+      test that loads index.html and asserts on the live DOM. This supersedes manual
+      browser checks wherever practical; if the Playwright harness is not yet present,
+      depend on enable-emulator-testing.
   tasks:
     - For emulator-* specs - each task must be independently verifiable by opening
       index.html in a browser.
     - For emulator-* specs - data/schema changes must include an example JSON snippet.
     - For emulator-* specs - keep tasks scoped to one logical change (engine, manifest, or
       content layer).
+
+    # Testing: tests are mandatory task steps; apply is not done until green.
+    - For all specs - every task group that adds or changes behavior MUST include a paired
+      test task in the same change. A change is NOT complete, and MUST NOT be archived,
+      while any test is red.
+    - For api-* specs - the final task MUST run `npm test` from apps/api/api and, when
+      endpoints or persistence change, `npm run test:e2e`, confirming all pass. Changed
+      files MUST meet >= 80% line coverage via `npm run test:cov`.
+    - For cms-* specs - the final task MUST run `npm test` from apps/cms and confirm pass,
+      meeting >= 70% line coverage. Requires the Vitest runner; blocked until
+      enable-cms-testing is archived.
+    - For emulator-* specs - the final task MUST run `npx playwright test` from
+      apps/terminal and confirm all pass. Requires Playwright; blocked until
+      enable-emulator-testing is archived.
