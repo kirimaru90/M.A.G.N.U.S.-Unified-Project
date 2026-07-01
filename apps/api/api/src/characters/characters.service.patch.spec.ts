@@ -236,3 +236,57 @@ describe('patchResources — purged-field reflection', () => {
     expect(result.ignored).toEqual([]);
   });
 });
+
+// Task 5.3: PUT is a full-document replace of mutable sections — omitting a
+// sub-field of special/resources/inventory clears it (no partial merge).
+describe('update (PUT) — full-document replace', () => {
+  it('special replaces wholesale: omitted SPECIAL keys are cleared', async () => {
+    const char = makeMockChar();
+    const svc = makeService(char);
+    const result = await svc.update(
+      String(char.campaignId),
+      String(char._id),
+      { special: { strength: 9 } as never },
+      adminActor,
+    );
+    // strength is set; the other six keys the client omitted are gone (not merged).
+    expect(result.special).toEqual({ strength: 9 });
+    expect(result.special.endurance).toBeUndefined();
+  });
+
+  it('resources replaces wholesale: omitted resource keys are cleared', async () => {
+    const char = makeMockChar();
+    const svc = makeService(char);
+    const result = await svc.update(
+      String(char.campaignId),
+      String(char._id),
+      { resources: { caps: 1 } as never },
+      adminActor,
+    );
+    expect(result.resources).toEqual({ caps: 1 });
+    expect(result.resources.bobbleheads).toBeUndefined();
+  });
+
+  it('inventory replaces wholesale: omitted arrays become empty', async () => {
+    const char = makeMockChar({
+      inventory: {
+        weapons: [{ id: 'w0', name: 'old' }],
+        equip: [{ id: 'e0', name: 'oldequip' }],
+        consumables: [],
+        other: [],
+      },
+    });
+    const svc = makeService(char);
+    const result = await svc.update(
+      String(char.campaignId),
+      String(char._id),
+      { inventory: { weapons: [{ id: 'w1', name: 'new' }] } as never },
+      adminActor,
+    );
+    expect(result.inventory.weapons).toEqual([{ id: 'w1', name: 'new' }]);
+    // equip was present before but omitted from the PUT body → cleared.
+    expect(result.inventory.equip).toEqual([]);
+    expect(result.inventory.consumables).toEqual([]);
+    expect(result.inventory.other).toEqual([]);
+  });
+});

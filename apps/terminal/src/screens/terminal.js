@@ -5,7 +5,7 @@ import {
     getLastTypingEndAt,
     typeWriterHTML,
 } from '../engine/typewriter.js';
-import { typingSound, clickSound, selectionSound } from '../engine/sounds.js';
+import { typingSound, clickSound, selectionSound, hoverSound } from '../engine/sounds.js';
 import { pushHistory, popHistory, peekHistory, getHistoryLength, clearHistory } from '../engine/back-history.js';
 import { getLoggedInUser } from '../engine/login-fictional.js';
 import { getSnapshot } from '../state/store.js';
@@ -26,7 +26,7 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
     }
 
     function addBtnSounds(btn) {
-        btn.addEventListener('mouseenter', selectionSound);
+        btn.addEventListener('mouseenter', hoverSound);
         btn.addEventListener('click', () => { clickSound(); });
     }
 
@@ -81,7 +81,9 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
         pendingStateError = false;
         choicesEl.style.display = 'none';
         choicesEl.innerHTML = '';
-        const speed = seenNodes.has(nodeId) ? ENGINE_CONFIG.typingSpeed * 0.25 : ENGINE_CONFIG.typingSpeed;
+        // Previously-seen nodes render instantly (0 ms/char) via typeWriterHTML's
+        // speed === 0 fast path; first visits type at the normal speed.
+        const speed = seenNodes.has(nodeId) ? 0 : ENGINE_CONFIG.typingSpeed;
         seenNodes.add(nodeId);
         const htmlContent = marked.parse(view.text || '');
         if (htmlContent.trim()) typingSound.start();

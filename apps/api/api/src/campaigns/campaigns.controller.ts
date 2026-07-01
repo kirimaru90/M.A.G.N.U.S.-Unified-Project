@@ -70,6 +70,7 @@ export class CampaignsController {
   }
 
   @Post(':id/activate')
+  @HttpCode(200)
   @UseGuards(JwtOptionalGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Toggle campaign isActive (admin)' })

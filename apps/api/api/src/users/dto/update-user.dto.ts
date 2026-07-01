@@ -1,4 +1,5 @@
 import {
+  Allow,
   IsEnum,
   IsOptional,
   IsString,
@@ -26,4 +27,18 @@ export class UpdateUserDto {
   @IsOptional()
   @IsEnum(['admin', 'player'])
   role?: 'admin' | 'player';
+
+  // Server-owned fields: accepted-and-ignored so clients that echo back a full
+  // user object do not get a 400 from the global forbidNonWhitelisted pipe.
+  // @Allow() whitelists them without validating; the service never reads them.
+  @ApiPropertyOptional({ description: 'Server-owned; accepted but ignored.' })
+  @Allow()
+  lastCampaignId?: string | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Server-owned; accepted but ignored.',
+  })
+  @Allow()
+  unlockedHiddenIds?: string[];
 }

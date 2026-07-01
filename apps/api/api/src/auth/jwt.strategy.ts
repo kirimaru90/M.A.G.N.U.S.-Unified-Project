@@ -19,7 +19,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('jwtSecret') ?? 'fallback',
+      // Mirror the sign side: the secret resolves from the single `jwtSecret`
+      // config value, and the fallback here matches the config's own default
+      // (configuration.ts) so a missing JWT_SECRET verifies with the exact
+      // secret it was signed with. A divergent fallback would make every token
+      // silently fail verification.
+      secretOrKey:
+        configService.get<string>('jwtSecret') ?? 'change-me-in-production',
     });
   }
 

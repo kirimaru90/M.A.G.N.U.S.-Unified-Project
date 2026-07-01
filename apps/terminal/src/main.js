@@ -23,7 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
     applyConfig(DEFAULT_CONFIG);
 
     // Mount the CRT wave engine and register it with the config service.
-    const crtWave = mountCrtWave(document.body, {}, { startEnabled: DEFAULT_CONFIG.crtEffectsEnabled });
+    // Overlays and the phosphor-wave rows are scoped to the terminal container
+    // (spec: injected overlays are direct children of #terminal-container).
+    const terminalContainer = document.getElementById('terminal-container');
+    const crtWave = mountCrtWave(terminalContainer, {}, { startEnabled: DEFAULT_CONFIG.crtEffectsEnabled });
     setCrtWaveHandle(crtWave);
 
     let currentCampaign = null;

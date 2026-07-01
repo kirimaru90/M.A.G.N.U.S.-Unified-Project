@@ -1,4 +1,4 @@
-import { initSound, clickSound, selectionSound } from '../engine/sounds.js';
+import { initSound, clickSound, hoverSound } from '../engine/sounds.js';
 import { makeNavHandler } from '../engine/keynav.js';
 import { apiGet } from '../api/client.js';
 import { isAuthenticated, getUser } from '../api/session.js';
@@ -37,7 +37,7 @@ export async function mountTerminalList(rootEl, opts) {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
         btn.textContent = `[ ${terminal.title} ]`;
-        btn.addEventListener('mouseenter', selectionSound);
+        btn.addEventListener('mouseenter', hoverSound);
         btn.onclick = () => { clickSound(); onTerminalSelected(terminal.id); };
         rootEl.appendChild(btn);
     });
@@ -160,7 +160,7 @@ export async function mountTerminalList(rootEl, opts) {
     hiddenSubmitEl.className = 'choice-btn';
     hiddenSubmitEl.id = 'hidden-submit';
     hiddenSubmitEl.textContent = '[ CARICA ]';
-    hiddenSubmitEl.addEventListener('mouseenter', selectionSound);
+    hiddenSubmitEl.addEventListener('mouseenter', hoverSound);
     rootEl.appendChild(hiddenSubmitEl);
 
     const hiddenErrorEl = document.createElement('p');
@@ -173,7 +173,7 @@ export async function mountTerminalList(rootEl, opts) {
     const backBtn = document.createElement('button');
     backBtn.className = 'choice-btn';
     backBtn.textContent = '[ Indietro ]';
-    backBtn.addEventListener('mouseenter', selectionSound);
+    backBtn.addEventListener('mouseenter', hoverSound);
     backBtn.onclick = () => { clickSound(); onBack(); };
     rootEl.appendChild(backBtn);
 
@@ -259,7 +259,7 @@ function _appendAuthButton(container, rootEl, opts) {
         const name = user && (user.username || user.name);
         btn.setAttribute('aria-label', name ? `Disconnetti utente ${name}` : 'Disconnetti utente');
     }
-    btn.addEventListener('mouseenter', selectionSound);
+    btn.addEventListener('mouseenter', hoverSound);
 
     btn.onclick = async () => {
         clickSound();

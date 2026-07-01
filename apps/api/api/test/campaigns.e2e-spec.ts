@@ -170,4 +170,21 @@ describe('CampaignsModule (e2e)', () => {
     const gone = await campaignModel.findById(id).lean();
     expect(gone).toBeNull();
   });
+
+  // Task 5.1: activate is a 200 (not the NestJS POST-default 201).
+  it('POST /campaigns/:id/activate → 200 and toggles isActive', async () => {
+    const camp = await campaignModel.create({
+      name: 'ToActivate',
+      isActive: false,
+      isPublic: true,
+    });
+    const res = await app.inject({
+      method: 'POST',
+      url: `/campaigns/${camp._id}/activate`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const updated = await campaignModel.findById(camp._id).lean();
+    expect(updated?.isActive).toBe(true);
+  });
 });

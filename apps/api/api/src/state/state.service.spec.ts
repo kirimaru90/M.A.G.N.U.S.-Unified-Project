@@ -551,3 +551,88 @@ describe('StateService — patchCampaignSchema', () => {
     ).rejects.toThrow(BadRequestException);
   });
 });
+
+// Task 6.2/6.3: every state read/mutate/reset path returns 404 for a missing
+// terminal/campaign — verified at the service layer, independent of the guard
+// layer that normally masks it.
+describe('StateService — missing entity yields 404', () => {
+  let service: StateService;
+  let terminalModel: ReturnType<typeof mockTerminalModel>;
+  let campaignModel: ReturnType<typeof mockCampaignModel>;
+
+  // Valid 24-char hex strings so any downstream Types.ObjectId use is safe.
+  const CAMPAIGN_ID = '507f1f77bcf86cd799439011';
+  const TERMINAL_ID = '507f1f77bcf86cd799439012';
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        StateService,
+        { provide: getModelToken(Campaign.name), useFactory: mockCampaignModel },
+        { provide: getModelToken(Terminal.name), useFactory: mockTerminalModel },
+      ],
+    }).compile();
+
+    service = module.get(StateService);
+    terminalModel = module.get(getModelToken(Terminal.name));
+    campaignModel = module.get(getModelToken(Campaign.name));
+
+    // findById always resolves to null → the entity does not exist.
+    terminalModel.findById.mockReturnValue({ lean: () => Promise.resolve(null) });
+    campaignModel.findById.mockReturnValue({ lean: () => Promise.resolve(null) });
+  });
+
+  afterEach(() => jest.clearAllMocks());
+
+  it('getTerminalState → 404', async () => {
+    await expect(service.getTerminalState(TERMINAL_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('mutateTerminalState → 404', async () => {
+    await expect(
+      service.mutateTerminalState(TERMINAL_ID, [
+        { key: 'local.x', op: 'set', value: 1 },
+      ]),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('resetTerminalState → 404', async () => {
+    await expect(service.resetTerminalState(TERMINAL_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('resetTerminalStateKey → 404', async () => {
+    await expect(
+      service.resetTerminalStateKey(TERMINAL_ID, 'x'),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('getCampaignState → 404', async () => {
+    await expect(service.getCampaignState(CAMPAIGN_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('mutateCampaignState → 404', async () => {
+    await expect(
+      service.mutateCampaignState(CAMPAIGN_ID, [
+        { key: 'global.x', op: 'set', value: 1 },
+      ]),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('resetCampaignState → 404', async () => {
+    await expect(service.resetCampaignState(CAMPAIGN_ID)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('resetCampaignStateKey → 404', async () => {
+    await expect(
+      service.resetCampaignStateKey(CAMPAIGN_ID, 'x'),
+    ).rejects.toThrow(NotFoundException);
+  });
+});

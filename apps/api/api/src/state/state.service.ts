@@ -250,12 +250,13 @@ export class StateService {
 
   async getTerminalState(terminalId: string) {
     const terminal = await this.terminalModel.findById(terminalId).lean();
-    return stateToFlat(terminal!.state);
+    if (!terminal) throw new NotFoundException('Terminal not found');
+    return stateToFlat(terminal.state);
   }
 
   async mutateTerminalState(terminalId: string, mutations: MutationItemDto[]) {
     const terminal = await this.terminalModel.findById(terminalId).lean();
-    if (!terminal) throw new BadRequestException('Terminal not found');
+    if (!terminal) throw new NotFoundException('Terminal not found');
 
     const stateMap = terminal.state as unknown as Record<string, StateEntry>;
     const plan = this.parseMutations(stateMap, mutations, 'local');
@@ -293,7 +294,7 @@ export class StateService {
 
   async resetTerminalState(terminalId: string) {
     const terminal = await this.terminalModel.findById(terminalId).lean();
-    if (!terminal) throw new BadRequestException('Terminal not found');
+    if (!terminal) throw new NotFoundException('Terminal not found');
 
     const stateMap = terminal.state as unknown as Record<string, StateEntry>;
     const $set: Record<string, unknown> = {};
@@ -312,7 +313,7 @@ export class StateService {
 
   async resetTerminalStateKey(terminalId: string, key: string) {
     const terminal = await this.terminalModel.findById(terminalId).lean();
-    if (!terminal) throw new BadRequestException('Terminal not found');
+    if (!terminal) throw new NotFoundException('Terminal not found');
 
     const stateMap = terminal.state as unknown as Record<string, StateEntry>;
     const entry = stateMap[key];
@@ -335,12 +336,13 @@ export class StateService {
 
   async getCampaignState(campaignId: string) {
     const campaign = await this.campaignModel.findById(campaignId).lean();
-    return stateToFlat(campaign!.state);
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    return stateToFlat(campaign.state);
   }
 
   async mutateCampaignState(campaignId: string, mutations: MutationItemDto[]) {
     const campaign = await this.campaignModel.findById(campaignId).lean();
-    if (!campaign) throw new BadRequestException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
     const stateMap = campaign.state as unknown as Record<string, StateEntry>;
     const plan = this.parseMutations(stateMap, mutations, 'global');
@@ -377,7 +379,7 @@ export class StateService {
 
   async resetCampaignState(campaignId: string) {
     const campaign = await this.campaignModel.findById(campaignId).lean();
-    if (!campaign) throw new BadRequestException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
     const stateMap = campaign.state as unknown as Record<string, StateEntry>;
     const $set: Record<string, unknown> = {};
@@ -412,7 +414,7 @@ export class StateService {
 
   async resetCampaignStateKey(campaignId: string, key: string) {
     const campaign = await this.campaignModel.findById(campaignId).lean();
-    if (!campaign) throw new BadRequestException('Campaign not found');
+    if (!campaign) throw new NotFoundException('Campaign not found');
 
     const stateMap = campaign.state as unknown as Record<string, StateEntry>;
     const entry = stateMap[key];

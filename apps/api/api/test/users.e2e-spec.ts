@@ -163,4 +163,33 @@ describe('UsersModule (e2e)', () => {
     });
     expect(res.statusCode).toBe(409);
   });
+
+  // Task 5.2: server-owned fields are accepted-and-ignored (200), not 400 from
+  // the global forbidNonWhitelisted pipe.
+  it('PUT /users/:id → 200 accepting-and-ignoring lastCampaignId/unlockedHiddenIds', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/users',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      payload: { username: 'echouser', password: 'securepass', role: 'player' },
+    });
+    const { id } = JSON.parse(created.body);
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: `/users/${id}`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+      payload: {
+        username: 'echouser2',
+        lastCampaignId: '507f1f77bcf86cd799439011',
+        unlockedHiddenIds: ['h1', 'h2'],
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.username).toBe('echouser2');
+    // Server-owned fields are ignored, not persisted onto the response.
+    expect(body.lastCampaignId).toBeUndefined();
+    expect(body.unlockedHiddenIds).toBeUndefined();
+  });
 });

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'robco-v8';
+const CACHE_VERSION = 'robco-v9';
 const CONTENT_CACHE = 'robco-content-v1';
 
 const MARKED_CDN = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
@@ -7,7 +7,10 @@ const MARKED_CDN = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
 // SW can classify cross-origin API requests without baking a URL into this file.
 const API_ORIGIN = new URL(self.location).searchParams.get('api');
 
-const SHELL_URLS = [
+// Genuinely-required shell assets — same-origin files the app cannot run
+// without. These are fetched atomically via cache.addAll during install; a 404
+// here is a real deploy error and SHOULD fail the install.
+const REQUIRED_SHELL_URLS = [
   './',
   './index.html',
   './manifest.webmanifest',
@@ -20,6 +23,8 @@ const SHELL_URLS = [
   './suoni/old-typing.mp3',
   './suoni/selection.mp3',
   './suoni/typing.mp3',
+  './suoni/hover.mp3',
+  './suoni/init.mp3',
   './src/main.js',
   './src/api/config.js',
   './src/api/client.js',
@@ -35,6 +40,13 @@ const SHELL_URLS = [
   './src/screens/login-fictional.js',
   './src/styles/terminal.css',
 ];
+
+// Optional shell assets — cached individually (best-effort) so a single failed
+// fetch (e.g. the cross-origin marked.js CDN being unreachable at install time)
+// cannot reject the whole install.
+const OPTIONAL_SHELL_URLS = [MARKED_CDN];
+
+const SHELL_URLS = [...REQUIRED_SHELL_URLS, ...OPTIONAL_SHELL_URLS];
 
 // Normalised shell URL set for fast O(1) lookup in classify().
 const SHELL_URL_SET = new Set(
@@ -92,8 +104,12 @@ function classify(request) {
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(async (cache) => {
-      await cache.addAll(SHELL_URLS);
-      await cache.add(MARKED_CDN).catch(() => {});
+      // Required shell is atomic — only these determine install success.
+      await cache.addAll(REQUIRED_SHELL_URLS);
+      // Optional assets are best-effort; a failure here does not reject install.
+      await Promise.all(
+        OPTIONAL_SHELL_URLS.map((u) => cache.add(u).catch(() => {}))
+      );
     }).then(() => self.skipWaiting())
   );
 });

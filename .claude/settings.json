@@ -68,7 +68,13 @@
       "Bash(grep -niB0 -A12 \"Slice 5\\\\|placeholder\\\\|Editor del contenuto\" cms-terminals-crud/spec.md)",
       "Bash(grep -niB1 -A10 \"meta.id.*json\\\\|filename\\\\|nome del file\\\\|scaricato\" cms-terminals-import-export/spec.md)",
       "Bash(git ls-tree *)",
-      "Bash(node \"C:/Users/PDA88~1.DIP/AppData/Local/Temp/claude/c--Users-p-dipersio-Documents-Progetti-Unified-MAGNUS/e7b666dc-4014-41f0-a27d-06febbc699ba/scratchpad/repair-headers.mjs\")"
+      "Bash(node \"C:/Users/PDA88~1.DIP/AppData/Local/Temp/claude/c--Users-p-dipersio-Documents-Progetti-Unified-MAGNUS/e7b666dc-4014-41f0-a27d-06febbc699ba/scratchpad/repair-headers.mjs\")",
+      "Bash(find . -path ./node_modules -prune -o -name \"*.ts\" \\\\\\( -name \"campaigns.controller.ts\" -o -name \"characters.service.ts\" -o -name \"jwt.strategy.ts\" -o -name \"auth.module.ts\" -o -name \"state.service.ts\" \\\\\\) -print)",
+      "Bash(find . -path ./node_modules -prune -o -name \"*.ts\" -path \"*users*\" -print)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
+      "Bash(npm test *)",
+      "Bash(git stash *)",
+      "Bash(mkdir -p openspec/changes/archive)"
     ]
   }
 }

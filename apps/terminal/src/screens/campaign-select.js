@@ -1,6 +1,6 @@
 import { apiGet } from '../api/client.js';
 import { makeNavHandler } from '../engine/keynav.js';
-import { initSound, clickSound, selectionSound } from '../engine/sounds.js';
+import { initSound, clickSound, hoverSound } from '../engine/sounds.js';
 import { isAuthenticated, getUser } from '../api/session.js';
 
 // API field names follow the server contract in reference/Swagger API.html.
@@ -88,7 +88,7 @@ function _renderEmpty(rootEl, opts) {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
     btn.textContent = '[ Riprova ]';
-    btn.addEventListener('mouseenter', selectionSound);
+    btn.addEventListener('mouseenter', hoverSound);
     btn.onclick = () => { clickSound(); mountCampaignSelect(rootEl, opts); };
     rootEl.appendChild(btn);
     focusables.push(btn);
@@ -102,7 +102,7 @@ function _renderError(rootEl, onRetry, setKeyHandler) {
     const btn = document.createElement('button');
     btn.className = 'choice-btn';
     btn.textContent = '[ Riprova ]';
-    btn.addEventListener('mouseenter', selectionSound);
+    btn.addEventListener('mouseenter', hoverSound);
     btn.onclick = () => { clickSound(); onRetry(); };
     rootEl.appendChild(btn);
     setKeyHandler(makeNavHandler([btn]));
@@ -115,7 +115,7 @@ function _appendCampaignButtons(rootEl, campaigns, opts) {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
         btn.textContent = `[ ${campaign.name} ]`;
-        btn.addEventListener('mouseenter', selectionSound);
+        btn.addEventListener('mouseenter', hoverSound);
         btn.onclick = () => { clickSound(); onCampaignSelected(campaign); };
         rootEl.appendChild(btn);
         return btn;
@@ -174,7 +174,7 @@ function _appendAuthButton(container, rootEl, focusables, opts) {
         const name = user && (user.username || user.name);
         btn.setAttribute('aria-label', name ? `Disconnetti utente ${name}` : 'Disconnetti utente');
     }
-    btn.addEventListener('mouseenter', selectionSound);
+    btn.addEventListener('mouseenter', hoverSound);
 
     btn.onclick = async () => {
         clickSound();

@@ -54,13 +54,39 @@
         /* scanlinesEnabled: false → JS adds .no-scanlines to body */
         body.no-scanlines .crt::before { display: none; }
 
-        /* CRT vignette — injected on <body> by crt-wave.js, fixed so it darkens
-           the whole viewport above every screen (below the .crt scanline layer
-           at z-index 100 and the controls panel at 200). */
+        /* CRT vignette — injected into #terminal-container by crt-wave.js, fixed so
+           it darkens the whole viewport above every screen (below the scanline
+           layer at z-index 100 and the controls panel at 200). */
         .crt-vignette {
             position: fixed; inset: 0;
             pointer-events: none; z-index: 99;
         }
+
+        /* Injected scanline / flicker overlays (crt-wave.js) — mirror the
+           .crt::before/::after pseudo-elements but live as real divs inside the
+           terminal container so they can be spec-inspected. While mounted, the
+           pseudo-elements are suppressed (body.crt-injected) to avoid doubling. */
+        .crt-scanlines {
+            position: fixed; inset: 0; pointer-events: none; z-index: 100;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+        }
+        body.no-scanlines .crt-scanlines { display: none; }
+
+        .crt-flicker {
+            position: fixed; inset: 0; pointer-events: none; z-index: 100;
+            background: rgba(51, 255, 0, 0.05);
+            animation: crt-flicker var(--crt-flicker-period, 10s) step-start infinite;
+        }
+        body.crt-flicker-off .crt-flicker { animation: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .crt-flicker { animation: none; }
+        }
+
+        /* Injected overlays take precedence inside the terminal container. */
+        body.crt-injected .crt::before,
+        body.crt-injected .crt::after { display: none; }
 
         /* Live CRT controls panel */
         #crt-controls {

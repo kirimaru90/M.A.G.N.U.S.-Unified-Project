@@ -153,10 +153,13 @@ export class CharactersService {
     const existing = await this.loadOr404(campaignId, characterId);
     const s = this.scrubUpdate(dto, actor);
 
+    // PUT is a full-document replace (not a partial merge): when a mutable
+    // section is present it replaces the stored section wholesale, so omitting a
+    // sub-field clears it. (skills/perks/status/inventory below likewise replace.)
     const set: Record<string, unknown> = {};
     if (s.name !== undefined) set.name = s.name;
     if (s.species !== undefined) set.species = s.species;
-    if (s.special) set.special = { ...existing.special, ...s.special };
+    if (s.special) set.special = s.special;
     if (s.skills) set.skills = s.skills;
     if (s.perks) set.perks = assignIds(s.perks);
     if (s.actionPoints) {
@@ -173,16 +176,14 @@ export class CharactersService {
       if (s.status.criticalState !== undefined)
         set.criticalState = s.status.criticalState;
     }
-    if (s.resources) set.resources = { ...existing.resources, ...s.resources };
+    if (s.resources) set.resources = s.resources;
     if (s.inventory) {
       const inv = s.inventory;
       set.inventory = {
-        weapons: assignIds(inv.weapons ?? existing.inventory.weapons),
-        equip: assignIds(inv.equip ?? existing.inventory.equip),
-        consumables: assignIds(
-          inv.consumables ?? existing.inventory.consumables,
-        ),
-        other: assignIds(inv.other ?? existing.inventory.other),
+        weapons: assignIds(inv.weapons ?? []),
+        equip: assignIds(inv.equip ?? []),
+        consumables: assignIds(inv.consumables ?? []),
+        other: assignIds(inv.other ?? []),
       };
     }
 

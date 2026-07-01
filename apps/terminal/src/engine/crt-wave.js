@@ -19,10 +19,21 @@ function collectRows(rootEl) {
 }
 
 function injectOverlays(containerEl) {
+    // Three non-interactive CRT overlays as direct children of the container.
+    // While these are mounted, the global .crt::before/::after pseudo-elements
+    // are suppressed (body.crt-injected) so the injected divs take precedence
+    // and the effects do not render twice.
+    const scanlines = document.createElement('div');
+    scanlines.className = 'crt-scanlines';
     const vignette = document.createElement('div');
     vignette.className = 'crt-vignette';
+    const flicker = document.createElement('div');
+    flicker.className = 'crt-flicker';
+    containerEl.appendChild(scanlines);
     containerEl.appendChild(vignette);
-    return { vignette };
+    containerEl.appendChild(flicker);
+    document.body.classList.add('crt-injected');
+    return { scanlines, vignette, flicker };
 }
 
 function setVignette(vignetteEl, strength) {
@@ -85,7 +96,7 @@ function stripRowStyles(rows) {
 export function mountCrtWave(containerEl, userParams, { startEnabled = true } = {}) {
     const params = Object.assign({}, DEFAULT_PARAMS, userParams);
 
-    const { vignette } = injectOverlays(containerEl);
+    const { scanlines, vignette, flicker } = injectOverlays(containerEl);
     setVignette(vignette, params.vignetteStrength);
 
     const rows = collectRows(containerEl);
@@ -129,7 +140,10 @@ export function mountCrtWave(containerEl, userParams, { startEnabled = true } = 
 
     function destroy() {
         disable();
+        scanlines.remove();
         vignette.remove();
+        flicker.remove();
+        document.body.classList.remove('crt-injected');
     }
 
     function respawn(newParams) {
