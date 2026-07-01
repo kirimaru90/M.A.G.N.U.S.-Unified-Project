@@ -1,3 +1,11 @@
+# cms-campaigns-crud Specification
+
+## Purpose
+
+Campaigns list table with dialog-based create/edit, active toggle, confirm-gated delete, and a guarded /campaigns/:id detail page hosting the players panel, syncing the current-campaign workspace.
+
+## Requirements
+
 ### Requirement: Campaigns list page displays all campaigns in a PrimeNG table
 The `/campaigns` route SHALL render a PrimeNG `<p-table>` listing all campaigns returned by `GET /campaigns`. The table SHALL include columns: **Nome** (name), **Attiva** (`isActive` badge), **Pubblica** (`isPublic` badge), and **Azioni** (row action buttons). Both active and inactive campaigns SHALL be shown. The page SHALL display a loading state while the request is in flight and an empty-state message when the list is empty.
 

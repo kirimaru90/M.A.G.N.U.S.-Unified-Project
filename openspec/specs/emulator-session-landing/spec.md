@@ -1,3 +1,11 @@
+# emulator-session-landing Specification
+
+## Purpose
+
+Authenticated direct landing into the last campaign's terminal list via a resolvable lastCampaignId from /auth/me, firing on boot rehydrate and campaign-select login, with campaign-selection fallback otherwise.
+
+## Requirements
+
 ### Requirement: Authenticated last-campaign landing
 When an authenticated user is present with a resolvable `lastCampaignId`, the client SHALL route the user directly into that campaign's terminal-list screen, skipping the campaign-selection screen. `lastCampaignId` is read from the in-memory `/auth/me` user object (`getUser()`); the client SHALL NOT write `lastCampaignId` or issue any new endpoint to record it. Resolution SHALL be performed against the user's `GET /campaigns` list: the client finds the campaign whose `id` equals `lastCampaignId`, and uses that full campaign object (`id`, `name`, `isPublic`) to mount the terminal list through the same path a manual campaign selection uses (`onCampaignSelected`).
 

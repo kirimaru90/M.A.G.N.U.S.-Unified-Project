@@ -1,3 +1,11 @@
+# emulator-hidden-terminal-access Specification
+
+## Purpose
+
+Secret-name input on the terminal-list screen submitting server-mediated GET by-hidden-id lookups (the only meta.hiddenId surface), with existence-non-leaking errors and terminal-id-keyed loads and mutations.
+
+## Requirements
+
 ### Requirement: Secret-name input on the terminal-list screen
 The terminal-list screen (mounted from a selected campaign) SHALL include a text input field and a submit mechanism (Enter key or a button labelled `[ CARICA ]`) positioned below the visible terminal list. The input SHALL be labelled or accompanied by the placeholder text `INSERISCI NOME ARCHIVIO`. The input SHALL be present regardless of whether any hidden terminals exist on the server (its presence does not reveal whether hidden terminals exist).
 

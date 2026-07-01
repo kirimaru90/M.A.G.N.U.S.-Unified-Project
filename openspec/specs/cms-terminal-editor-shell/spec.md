@@ -1,3 +1,11 @@
+# cms-terminal-editor-shell Specification
+
+## Purpose
+
+Form-based terminal content editor sourcing the campaign schema from cache, mirroring the canonical schema in a reactive form tree, with serialize/validate/PUT save, inline validation, dirty/discard handling, and null-scope tolerance.
+
+## Requirements
+
 ### Requirement: Editor sources the campaign global schema from the cached current campaign
 The terminal editor SHALL build its campaign global-variable schema (`campaignGlobalSchema` — the set of declarable global variables offered to the author) from `CurrentCampaignService.currentCampaign()?.state`, NOT by issuing its own `GET /campaigns/:id` on mount. When `currentCampaign()` is `null` (e.g. a deep link before rehydration completes), the editor SHALL render with an empty global schema and SHALL recompute once the signal is populated. After a global-schema write (`PATCH /campaigns/:id/state/schema`, which returns the updated `{ state }`), the cached `currentCampaign().state` SHALL be updated when the patched campaign is current, so the editor reflects the new declarations without a page reload.
 

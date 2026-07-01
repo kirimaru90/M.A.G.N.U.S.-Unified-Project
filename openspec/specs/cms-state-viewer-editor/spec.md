@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-state-viewer-editor Specification
+
+## Purpose
+
+Terminal-local and campaign-global state panels merging schema with runtime values, type-matched inline value overrides via single-atom mutate calls, Zod pre-validation, and a StateApiService mediating all state calls.
+
+## Requirements
 
 ### Requirement: Terminal local state panel
 

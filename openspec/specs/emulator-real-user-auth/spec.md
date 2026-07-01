@@ -1,3 +1,11 @@
+# emulator-real-user-auth Specification
+
+## Purpose
+
+Real-user bearer-token session lifecycle (login/logout/rehydrate), credential-attaching API client, Accedi/Esci auth actions, post-login campaign refresh, non-leaking errors, and authenticated public/private campaign grouping.
+
+## Requirements
+
 ### Requirement: Anonymous campaign view is the default
 The Terminal SHALL operate without a real-user session by default. When no session is present, requests SHALL be issued anonymously (no `Authorization` header) and the campaign-selection screen SHALL show only what the server returns for an anonymous request (active public campaigns).
 

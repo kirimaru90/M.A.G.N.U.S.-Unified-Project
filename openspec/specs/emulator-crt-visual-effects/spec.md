@@ -1,3 +1,11 @@
+# emulator-crt-visual-effects Specification
+
+## Purpose
+
+Full-viewport non-interactive CRT scanline/subpixel overlay above all screens, config-driven subtle continuous flicker with a zero-disables period, and independently toggleable static scanlines.
+
+## Requirements
+
 ### Requirement: Global CRT scanline overlay above all screens
 The application SHALL render a single full-viewport CRT overlay carrying the
 scanline gradient and RGB subpixel mask, and this overlay SHALL render visually

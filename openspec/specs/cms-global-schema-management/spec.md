@@ -1,3 +1,11 @@
+# cms-global-schema-management Specification
+
+## Purpose
+
+Campaign-owned global-variable schema read from the campaign state map, batched add/update/rename/delete via PATCH /state/schema, read-only terminal references by name, and 409 cross-reference conflict modals.
+
+## Requirements
+
 ### Requirement: Campaign owns the global variable schema
 
 Global variables SHALL be owned by the campaign. Both their **declarations** (`type`, `default`, `values?`) and their **current values** SHALL be read from the campaign document's `state` map (`GET /campaigns/:id` → `state`, shaped `name → { type, default, value, values? }`); the global panel SHALL build its rows from that single map and SHALL NOT depend on the flat `GET /campaigns/:id/state` for this purpose. All schema **writes** SHALL go through a single batched endpoint, `PATCH /campaigns/:id/state/schema`, with a body of `{ ops: StateSchemaOp[] }`, where each op is `{ action: 'add' | 'update' | 'delete', name, rename?, entry?, value? }` and `entry` is `{ type, default, values? }`. A `CampaignGlobalSchemaApiService` SHALL mediate the write via a single method, `patchSchema(campaignId, ops)`, returning the `{ state }` flat post-update snapshot. Components SHALL NOT call `HttpClient` directly for schema operations, and SHALL NOT call any `/campaigns/:id/global-schema` route (it no longer exists). Terminals SHALL reference global variables by name only and SHALL NOT own their declarations.

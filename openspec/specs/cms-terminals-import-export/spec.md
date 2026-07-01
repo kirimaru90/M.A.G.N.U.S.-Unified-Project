@@ -1,3 +1,11 @@
+# cms-terminals-import-export Specification
+
+## Purpose
+
+Terminal import dialog with JSON file/textarea and schema validation, a validate-only check action, list-refreshing import, and a detail-page export that downloads pretty-printed round-trippable JSON.
+
+## Requirements
+
 ### Requirement: Import dialog accepts a .json file via PrimeNG file upload
 The terminals list page SHALL expose an "Importa terminale" button that opens a dialog containing a JSON textarea and a PrimeNG `<p-fileupload mode="basic">` restricted to `accept=".json,application/json"` with a 1 MB size limit. The textarea SHALL be the single source of truth for the content that gets imported. Selecting a file SHALL populate the textarea rather than triggering an import: when the file's contents parse as JSON the textarea SHALL be filled with the value re-serialized with a 2-space indent, and when they do not parse the textarea SHALL be filled with the raw file text unchanged. File selection SHALL NOT call the import API and SHALL NOT surface validation errors. The dialog SHALL show no destination-campaign picker — the upload target is always the campaign in the current route (`/campaigns/:campaignId/terminals`). The textarea SHALL use PrimeNG `pInputTextarea` and the dialog actions SHALL use the backoffice `bo-btn` button classes, consistent with the rest of the backoffice.
 
@@ -65,11 +73,11 @@ On a 2xx response from `POST /campaigns/:campaignId/terminals/import`, the dialo
 - **THEN** the dialog stays open and renders a non-blocking error message including the API error body when present
 
 ### Requirement: Export button on the detail page downloads a JSON file
-The terminal detail page SHALL expose an "Esporta" button. Clicking it SHALL call `POST /terminals/:id/export` and trigger a browser download of the returned JSON, pretty-printed with a 2-space indent. The download filename SHALL be `<terminal.meta.id>.json`.
+The terminal detail page SHALL expose an "Esporta" button. Clicking it SHALL call `POST /terminals/:id/export` and trigger a browser download of the returned JSON, pretty-printed with a 2-space indent. Because `meta.id` is deliberately stripped from exported terminals and is not available client-side, the download filename SHALL be derived from a stable client-side identifier: `<hiddenId>.json` when the terminal has a `hiddenId`, otherwise a slug of the terminal title (e.g. `<title-slug>.json`).
 
 #### Scenario: Export triggers a download
 - **WHEN** the admin clicks "Esporta" on `/terminals/t1`
-- **THEN** `POST /terminals/t1/export` is called and the browser downloads a file named `<meta.id>.json` whose contents are the API response serialized as JSON with 2-space indent
+- **THEN** `POST /terminals/t1/export` is called and the browser downloads a file whose name is the terminal's `hiddenId` slug (or a title slug when no `hiddenId` exists), with contents equal to the API response serialized as JSON with 2-space indent
 
 #### Scenario: Export error surfaces a toast
 - **WHEN** the export API responds with a non-2xx status

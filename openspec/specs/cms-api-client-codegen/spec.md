@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-api-client-codegen Specification
+
+## Purpose
+
+OpenAPI-driven generation of a committed, regenerable typed API client and DTOs that route through Angular HttpClient with an injected base URL.
+
+## Requirements
 
 ### Requirement: Typed API client is generated from the OpenAPI spec
 The project SHALL provide a TypeScript API client and DTO types generated from `reference/API-docs.json`. The generation tool (e.g., `orval`, `openapi-typescript`, or `ng-openapi-gen`) is chosen by the proposer and justified in `design.md`.

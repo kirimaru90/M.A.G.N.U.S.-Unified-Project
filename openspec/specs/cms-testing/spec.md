@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-testing Specification
+
+## Purpose
+
+Runnable Vitest unit-test suite for apps/cms via npm test with machine-readable coverage, enabling the mandatory cms-* changed-file test gate.
+
+## Requirements
 
 ### Requirement: Runnable unit-test suite
 The backoffice SPA (`apps/cms`) SHALL provide a unit-test suite runnable via `npm test`,

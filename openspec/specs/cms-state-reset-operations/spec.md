@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-state-reset-operations Specification
+
+## Purpose
+
+Per-variable, all-local, all-global, and entire-campaign state reset operations with blast-radius-scaled confirmations (including a retype-name gate) and client-orchestrated campaign-wide reset reporting.
+
+## Requirements
 
 ### Requirement: Reset a single variable to its default
 

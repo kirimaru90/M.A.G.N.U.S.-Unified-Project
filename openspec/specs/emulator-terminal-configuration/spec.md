@@ -1,4 +1,10 @@
-## ADDED Requirements
+# emulator-terminal-configuration Specification
+
+## Purpose
+
+DEFAULT_CONFIG-anchored active-config store with applyConfig propagation, client sanitize/deep-merge resolution, lifecycle load triggers, sparse user PUT saves, reset, admin campaign apply, and Options/Wave-Tuner screens.
+
+## Requirements
 
 ### Requirement: Configuration schema and defaults
 

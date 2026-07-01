@@ -1,4 +1,10 @@
-## ADDED Requirements
+# emulator-crt-font-config Specification
+
+## Purpose
+
+APP_CONFIG-driven font selection between self-hosted Fixedsys Excelsior and CDN Share Tech Mono with graceful fallbacks, plus phosphorColor-driven --phosphor-rgb/--terminal-green CSS custom properties.
+
+## Requirements
 
 ### Requirement: Runtime font configuration via APP_CONFIG
 The system SHALL read a `useModernFont` boolean from a `APP_CONFIG` object exported by `src/config.js`. When `useModernFont` is `false` (the default), the terminal SHALL use Fixedsys Excelsior as the primary font. When `useModernFont` is `true`, the terminal SHALL use Share Tech Mono as the primary font.

@@ -1,3 +1,11 @@
+# emulator-state-mutations Specification
+
+## Purpose
+
+apiPost helper and scope-routed state mutations (local->terminal, global->campaign) with mutation body shapes, mixed-list splitting, response-replaces-scope, rejection refresh/re-render, and on_enter/choice.set dispatch rules.
+
+## Requirements
+
 ### Requirement: apiPost helper in the API client wrapper
 `src/api/client.js` SHALL expose an `apiPost(path, body)` function that issues a `POST` request with a JSON-serialized body. The function SHALL share the base-URL resolution, JSON response parsing, and normalized `ApiError` shape (`kind: 'network' | 'http' | 'parse'`) with the existing `apiGet`. The request SHALL send `Content-Type: application/json` and `Accept: application/json`.
 

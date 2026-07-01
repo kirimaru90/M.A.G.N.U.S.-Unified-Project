@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-users-crud Specification
+
+## Purpose
+
+Users list table with dialog create, rename/role edit, separate password-reset action, confirm-gated delete, and a guarded user-detail page showing the assignments panel for players or an admin notice.
+
+## Requirements
 
 ### Requirement: Users list page displays all users in a PrimeNG table
 The `/users` route SHALL render a PrimeNG `<p-table>` listing all users returned by `GET /users`. The table SHALL include columns: **Nome utente** (`username`), **Ruolo** (`role` shown as an `admin` / `player` badge), and **Azioni** (row action buttons: edit, reset password, delete). Both admin and player users SHALL appear in the same list. The page SHALL display a loading state while the request is in flight and an empty-state message when the list is empty.

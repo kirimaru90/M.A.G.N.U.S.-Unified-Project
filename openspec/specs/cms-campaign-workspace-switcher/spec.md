@@ -1,3 +1,11 @@
+# cms-campaign-workspace-switcher Specification
+
+## Purpose
+
+Topbar PrimeNG dropdown listing cached campaigns that sets CurrentCampaignService (upgrading to the full state DTO), persists selection to localStorage, and restores it on reload.
+
+## Requirements
+
 ### Requirement: Topbar workspace switcher renders a PrimeNG dropdown listing all campaigns
 The topbar SHALL contain a `CampaignWorkspaceSwitcherComponent` rendered between the `.bo-crumbs` and the `.bo-topbar-right` group. The component SHALL display a PrimeNG `<p-select>` dropdown populated with all campaigns from `CurrentCampaignService.campaigns()` (the shared cached list), NOT from its own `GET /campaigns` request. The dropdown SHALL show campaign names as option labels. When `CurrentCampaignService.currentCampaign()` is non-null, the matching campaign SHALL be pre-selected. When null, the placeholder text "Seleziona campagna" SHALL be shown.
 

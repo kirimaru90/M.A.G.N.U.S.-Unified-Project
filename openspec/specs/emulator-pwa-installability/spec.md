@@ -1,3 +1,9 @@
+# emulator-pwa-installability Specification
+
+## Purpose
+
+PWA installability via a web app manifest, a versioned service worker pre-caching the shell with three-class request classification, never caching authenticated responses, stale-while-revalidate public content, logout flush, and offline fallbacks.
+
 ## Requirements
 
 ### Requirement: Web app manifest declares installability metadata

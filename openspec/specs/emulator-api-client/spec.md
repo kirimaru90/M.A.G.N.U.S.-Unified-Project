@@ -1,3 +1,11 @@
+# emulator-api-client Specification
+
+## Purpose
+
+Single src/api/client.js fetch wrapper with base-URL-resolved apiGet, JSON handling, session-aware bearer-token auth (robco_session), and a normalized ApiError shape with network/http/parse kinds surfacing 401/403 via status.
+
+## Requirements
+
 ### Requirement: Single fetch wrapper module
 The system SHALL expose a single module at `src/api/client.js` that all API callers in the Terminal use to issue HTTP requests. Modules outside `src/api/` SHALL NOT call `fetch` directly against the RobCo API. This requirement covers the existence and uniqueness of the wrapper; the wrapper's surface area is defined in the requirements below.
 
@@ -31,12 +39,16 @@ The wrapper SHALL send `Accept: application/json` on every request and SHALL par
 - **WHEN** the wrapper issues any request
 - **THEN** the request SHALL include the header `Accept: application/json`
 
-### Requirement: Anonymous mode — no Authorization header
-In this phase, the wrapper SHALL NOT attach an `Authorization` header to any request. The wrapper SHALL NOT read from `localStorage`, `sessionStorage`, or cookies to construct credentials. (Real-user authentication is introduced in a later phase.)
+### Requirement: Attaches a bearer token when a session exists
+The wrapper SHALL attach an `Authorization: Bearer <token>` header to a request when — and only when — a real-user session token is present (read from `sessionStorage` under the `robco_session` key, via the session module). When no session token exists, the wrapper SHALL issue the request anonymously with no `Authorization` header, and SHALL NOT read cookies to construct credentials.
 
-#### Scenario: No auth header on any request
-- **WHEN** the wrapper issues a request to any endpoint
+#### Scenario: Anonymous request when no session
+- **WHEN** the wrapper issues a request and no session token is stored
 - **THEN** the request SHALL NOT include an `Authorization` header
+
+#### Scenario: Authorized request when a session exists
+- **WHEN** a real-user session token is stored and the wrapper issues a request
+- **THEN** the request SHALL include an `Authorization: Bearer <token>` header carrying that token
 
 ### Requirement: Normalized error shape with discriminated kinds
 On any failure, the wrapper SHALL throw an `ApiError` (or otherwise reject) with at minimum a `kind` field whose value is one of `network`, `http`, or `parse`, and additional fields as specified below.

@@ -1,3 +1,11 @@
+# emulator-state-store Specification
+
+## Purpose
+
+Single in-memory src/state/store.js owning the {local,global} snapshot, seeded from the load envelope, with synchronous non-live accessors, scope-replacing apply, single-scope async refresh, and no persistence.
+
+## Requirements
+
 ### Requirement: Single in-memory state store module
 The system SHALL expose a single module at `src/state/store.js` that owns the `{ local, global }` state snapshot for the active terminal session. Modules outside `src/state/` SHALL NOT maintain their own parallel copies of state variables; they SHALL read state exclusively through the store's exported accessors.
 

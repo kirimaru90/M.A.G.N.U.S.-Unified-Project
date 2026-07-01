@@ -1,3 +1,11 @@
+# emulator-keyboard-navigation Specification
+
+## Purpose
+
+Arrow-key wrapping focus in the choices panel with auto-focus and scroll-into-view, Enter confirmation with post-typing cooldown, and contextual Escape for skip/back/disconnect.
+
+## Requirements
+
 ### Requirement: Arrow key focus navigation within choices panel
 The system SHALL allow the user to move focus between buttons in `#choices-container` using `ArrowDown` and `ArrowUp` keys. Focus SHALL wrap around: pressing `ArrowDown` on the last button SHALL move focus to the first, and pressing `ArrowUp` on the first button SHALL move focus to the last. The keyboard listener SHALL be scoped to the choices panel and SHALL be replaced each time `showChoices()` is called to prevent listener accumulation.
 

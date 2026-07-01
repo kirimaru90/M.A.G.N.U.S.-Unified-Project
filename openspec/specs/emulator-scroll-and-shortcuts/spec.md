@@ -1,3 +1,11 @@
+# emulator-scroll-and-shortcuts Specification
+
+## Purpose
+
+Scrollable terminal document on desktop and mobile, arrow-key focus without native scroll, needs-based focus scroll-into-view, w/s page-scroll shortcuts, and a shared text-input-focus guard for letter shortcuts.
+
+## Requirements
+
 ### Requirement: Document is scrollable on desktop and mobile
 
 Once the terminal screen is visible, the document SHALL be vertically scrollable on both desktop and mobile, regardless of viewport width. The previous desktop-only `overflow: hidden` lock on `body, html` SHALL no longer apply when the terminal screen is shown. The CRT scanline overlay SHALL continue to cover the visible viewport at all scroll positions.

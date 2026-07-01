@@ -1,3 +1,11 @@
+# emulator-conditional-variants Specification
+
+## Purpose
+
+Pure condition evaluator (leaf operators and and/or/not combinators) and a node-resolver that picks the first matching variant, merges variant overrides non-mutatively, and renders before dispatching on_enter mutations.
+
+## Requirements
+
 ### Requirement: Pure condition evaluator at src/state/conditions.js
 The system SHALL expose a single module at `src/state/conditions.js` that evaluates the structured condition grammar from ARCHITECTURE.md §8.6. The module SHALL export a pure function `evaluate(condition, snapshot) -> boolean`. The evaluator SHALL NOT issue network requests, read from the store directly, or have any side effects.
 

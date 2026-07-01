@@ -1,3 +1,11 @@
+# cms-terminal-recursive-editors Specification
+
+## Purpose
+
+Recursive condition builder (leaf/and/or/not, canonical var/op/value with legacy migrate-on-write) and recursive mutation editor (set/increment/toggle) reused across on_enter, choice.set, and input components.
+
+## Requirements
+
 ### Requirement: Recursive condition builder component
 The editor SHALL provide a single recursive condition-builder component bound to a `FormGroup` carrying a synthetic `kind` discriminator (`leaf | and | or | not`). For `kind = leaf` it SHALL render a **`var`** (scope-prefixed variable) input, an operator selector (`eq | neq | gt | lt | gte | lte | in`), and a value editor. For `kind = and | or` it SHALL render a `FormArray` of child conditions, each rendered by recursively instancing the same component, and SHALL offer actions to **add a leaf**, **add an AND group**, **add an OR group**, and **remove** a node. For `kind = not` it SHALL render its **single** child condition recursively under a "NOT" label, with the add-child actions hidden so the one-child invariant holds; authoring a `not` from a blank builder (a convert-to-NOT action) is out of scope for this change — a `not` node enters the builder only via load.
 

@@ -1,3 +1,11 @@
+# cms-terminal-metadata-state-users-editor Specification
+
+## Purpose
+
+Terminal editor sections for metadata (title/public/hiddenId), local/global state declarations with unique names and enum values, and cleartext fictional-user rows.
+
+## Requirements
+
 ### Requirement: Metadata editor
 The editor SHALL provide a metadata section with a **Titolo** text input (required, min length 1) bound to `meta.title`, a **Pubblico** checkbox bound to `meta.public`, and an editable **ID nascosto** text input bound to `meta.hiddenId` (optional). The server-owned `meta.id` SHALL NOT be displayed in the metadata section and SHALL NOT be serialized back on save.
 

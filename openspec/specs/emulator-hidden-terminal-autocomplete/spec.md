@@ -1,3 +1,11 @@
+# emulator-hidden-terminal-autocomplete Specification
+
+## Purpose
+
+CRT-styled autocomplete for the hidden-terminal input sourced from non-public terminal hiddenIds, with filtering, keyboard interaction coexisting with global nav, and unchanged free-text by-hidden-id submission.
+
+## Requirements
+
 ### Requirement: Visited-hidden source derived from non-public `terminal.hiddenId`
 The terminal-list screen SHALL derive its visited-hidden list locally from `GET /campaigns/:id/terminals`, which returns a bare array of terminal objects. It SHALL collect the `hiddenId` value from every **non-public** entry in the array that carries one (i.e. `!t.isPublic && t.hiddenId`), in array order, and use the resulting list as the autocomplete data source. Entries with `isPublic: true` SHALL be excluded from the autocomplete data source even when they carry a `hiddenId`, because public terminals are already discoverable via the visible button list. The screen SHALL NOT consume `unlockedHiddenIds` from `/auth/me` for this purpose.
 

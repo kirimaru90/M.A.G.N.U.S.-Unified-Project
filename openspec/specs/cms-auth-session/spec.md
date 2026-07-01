@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-auth-session Specification
+
+## Purpose
+
+Signal-based AuthService with localStorage JWT persistence, GET /auth/me session restore, Bearer interceptor, 401 clear-and-redirect, route guard, login/logout flows, and accessToken extraction.
+
+## Requirements
 
 ### Requirement: Signal-based AuthService exposes session state
 The application SHALL provide an `AuthService` exposing the session as Signals: `isAuthenticated: Signal<boolean>`, `currentUser: Signal<User | null>`, and `token: Signal<string | null>`. The signals MUST update synchronously when login, session restore, or logout occurs so that bound templates and guards react without manual change detection.
@@ -83,7 +89,7 @@ The application SHALL provide a functional route guard (e.g., `canActivate`) tha
 - **THEN** the user lands on `/login`
 
 ### Requirement: Login screen with plain admin aesthetic
-The application SHALL provide a `/login` route rendering a PrimeNG-based form with username and password inputs and a submit button. On successful submit, the user SHALL be navigated to `/campaigns`. On failed submit (`401` from `/auth/login`), the form SHALL display an inline error message and the user SHALL remain on `/login`. The visual style MUST be a plain administrative form — it SHALL NOT use the Fallout/CRT terminal styling reserved for the player-facing Terminal app.
+The application SHALL provide a `/login` route rendering a `.bo-*` admin form — a `.bo-card` containing a Reactive Form using `.bo-input` controls and a `.bo-btn.primary` submit — with username and password inputs and a submit button. On successful submit, the user SHALL be navigated to `/campaigns`. On failed submit (`401` from `/auth/login`), the form SHALL display an inline error message and the user SHALL remain on `/login`. The visual style MUST be the `.bo-*` admin aesthetic — it SHALL NOT use the Fallout/CRT (`.bo-crt`) terminal styling reserved for the player-facing Terminal app.
 
 #### Scenario: Successful login navigates to /campaigns
 - **WHEN** the user submits the login form with credentials that the API accepts
@@ -95,7 +101,7 @@ The application SHALL provide a `/login` route rendering a PrimeNG-based form wi
 
 #### Scenario: No CRT styling
 - **WHEN** inspecting the login screen's rendered styles
-- **THEN** it uses standard PrimeNG/Tailwind admin styling without the green-on-black scanline/glow effects used by the Terminal player app
+- **THEN** it uses the `.bo-*` admin styling (a `.bo-card` with `.bo-input` controls and a `.bo-btn.primary` submit) without the green-on-black scanline/glow effects used by the Terminal player app
 
 ### Requirement: Logout clears state and returns to /login
 The application SHALL expose a logout action that calls `POST /auth/logout`, clears all auth state regardless of the HTTP outcome, and navigates to `/login`.

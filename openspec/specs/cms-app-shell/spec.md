@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-app-shell Specification
+
+## Purpose
+
+Authenticated bo-* topbar/sidebar/content shell with breadcrumbs, workspace switcher, theme toggle, user chip, logout, guarded /campaigns and /users routes, root redirect, and a login screen excluded from the shell.
+
+## Requirements
 
 ### Requirement: Authenticated app shell with bo-* topbar, sidebar, and content area
 For authenticated users, the application SHALL render an app shell composed of `.bo-topbar`, `.bo-sidebar` (inside a `.bo-body` flex container), and a `<main class="bo-main">` containing `.bo-page-header` and `.bo-content` with the router outlet. The shell SHALL NOT render on the `/login` route — `/login` renders directly inside `.bo-frame` without `.bo-topbar` or `.bo-sidebar`.

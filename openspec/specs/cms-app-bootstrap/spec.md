@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-app-bootstrap Specification
+
+## Purpose
+
+Angular standalone-signals workspace bootstrap with strict TypeScript, ESLint/Prettier, Zod, environment-injected API base URL, and the bo-* design system layered with Tailwind and light/dark theming.
+
+## Requirements
 
 ### Requirement: Angular workspace with standalone bootstrap and signals
 The project SHALL provide an Angular workspace using the latest stable Angular release, bootstrapped with the standalone API (no `NgModule`-based root), and configured for Angular Signals as the default reactive primitive.
@@ -34,7 +40,7 @@ The workspace SHALL include an ESLint configuration covering Angular + TypeScrip
 - **THEN** it exits with status `0` and reports no formatting violations
 
 ### Requirement: bo-* design system is installed and active
-The application SHALL adopt the `.bo-*` design system. `src/styles/tokens.css` is the **authoritative, maintained** design-system sheet: it contains both the CSS-variable token definitions (palette, typography, sizing) and the `.bo-*` component style rules, and is the file edited when design-system rules change. `reference/design/tokens.css` is the original design snapshot from which `src/styles/tokens.css` was seeded; the two MAY drift and `reference/design/tokens.css` MAY be updated opportunistically to mirror intentional changes, but it is NOT an enforced byte-for-byte source of truth. `src/styles/tokens.css` SHALL be imported by `src/styles.css`, which is wired into the build via `angular.json`. PrimeNG, PrimeIcons, `@primeng/themes`, and PrimeFlex SHALL NOT be installed.
+The application SHALL adopt the `.bo-*` design system for its chrome and layout. `src/styles/tokens.css` is the **authoritative, maintained** design-system sheet: it contains both the CSS-variable token definitions (palette, typography, sizing) and the `.bo-*` component style rules, and is the file edited when design-system rules change. `reference/design/tokens.css` is the original design snapshot from which `src/styles/tokens.css` was seeded; the two MAY drift and `reference/design/tokens.css` MAY be updated opportunistically to mirror intentional changes, but it is NOT an enforced byte-for-byte source of truth. `src/styles/tokens.css` SHALL be imported by `src/styles.css`, which is wired into the build via `angular.json`. The `.bo-*` layer coexists with PrimeNG: PrimeNG (with `@primeng/themes`/`@primeuix/themes` and PrimeIcons) MAY be used for data-oriented components (tables, multiselect, confirm dialogs, toasts), while `.bo-*` remains authoritative for frame, topbar, sidebar, buttons, inputs, cards, and pills.
 
 #### Scenario: Token sheet is present and authoritative
 - **WHEN** inspecting the design-system stylesheet
@@ -44,9 +50,9 @@ The application SHALL adopt the `.bo-*` design system. `src/styles/tokens.css` i
 - **WHEN** inspecting `src/styles/tokens.css`
 - **THEN** it contains style rules for at minimum `.bo-frame`, `.bo-topbar`, `.bo-sidebar`, `.bo-btn` (with `.primary`, `.ghost`, `.danger`, `.icon` variants), `.bo-input`, `.bo-card`, `.bo-card-head`, `.bo-pill` (with `.active`, `.warn`, `.danger` variants), `.bo-table`, and `.bo-nav`
 
-#### Scenario: PrimeNG and PrimeFlex are absent
-- **WHEN** inspecting `package.json`
-- **THEN** none of `primeng`, `primeicons`, `@primeng/themes`, or `primeflex` are listed as dependencies, and no PrimeNG code appears in the application source tree
+#### Scenario: PrimeNG coexists with the bo-* layer
+- **WHEN** inspecting `package.json` and the application source
+- **THEN** PrimeNG MAY be present and used for data components, and the `.bo-*` component rules remain the authoritative styling for the app chrome (frame/topbar/sidebar/buttons/inputs/cards/pills)
 
 #### Scenario: Custom components render correctly
 - **WHEN** an element with class `bo-btn primary` is rendered in the browser

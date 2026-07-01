@@ -1,4 +1,10 @@
-## ADDED Requirements
+# emulator-testing Specification
+
+## Purpose
+
+Non-invasive Playwright end-to-end harness for apps/terminal running the shipped app in bundled Chromium with a boot-and-navigate smoke test, enabling the mandatory emulator-* test gate.
+
+## Requirements
 
 ### Requirement: Automated end-to-end harness for the emulator
 The emulator app (`apps/terminal`) SHALL provide a Playwright end-to-end test suite,

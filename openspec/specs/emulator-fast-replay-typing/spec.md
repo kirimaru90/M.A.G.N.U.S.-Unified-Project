@@ -1,3 +1,11 @@
+# emulator-fast-replay-typing Specification
+
+## Purpose
+
+Session-scoped seenNodes tracking that renders previously-seen nodes instantly (0 ms/char) while first-visit nodes type at normal speed, cleared on reload.
+
+## Requirements
+
 ### Requirement: Session-scoped seen-nodes tracking
 The engine SHALL maintain a session-scoped Set of node IDs (`seenNodes`) that have been rendered at least once. This Set SHALL be initialised empty at page load, populated whenever `renderNode` is called, and SHALL NOT be persisted across page reloads.
 

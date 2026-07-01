@@ -1,4 +1,10 @@
-## ADDED Requirements
+# emulator-crt-phosphor-wave Specification
+
+## Purpose
+
+Injected non-interactive CRT overlays and a config-driven per-row Gaussian phosphor brightness/glow wave engine with calmed flicker, runtime enable/disable with style reset, reduced-motion honoring, and vignette init.
+
+## Requirements
 
 ### Requirement: Phosphor wave overlay injection
 The system SHALL inject three absolutely-positioned overlay `div` elements — `.crt-scanlines`, `.crt-vignette`, `.crt-flicker` — as direct children of the terminal container via JavaScript. All overlays SHALL have `pointer-events: none`. The existing CSS `::before` / `::after` pseudo-element scanlines MAY remain for non-terminal screens; the injected overlays take precedence inside the terminal container.

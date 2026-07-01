@@ -1,3 +1,11 @@
+# cms-terminals-crud Specification
+
+## Purpose
+
+Campaign-scoped terminals list with sortable columns, dialog create producing a valid schema stub, confirm-gated delete, a metadata-and-editor detail page, and a TerminalsApiService that maps/unwraps API shapes.
+
+## Requirements
+
 ### Requirement: Terminals list page is scoped to a campaign
 The route `/campaigns/:campaignId/terminals` SHALL render a PrimeNG `<p-table>` listing every terminal returned by `GET /campaigns/:campaignId/terminals`. The table SHALL include the following columns, in this order:
 
@@ -66,14 +74,14 @@ The terminals list page SHALL expose a "Nuovo terminale" button. Clicking it SHA
 - **WHEN** the dialog constructs the stub for a given title and public flag
 - **THEN** `TerminalContentSchema.safeParse` succeeds against the generated stub before any network call
 
-### Requirement: Terminal detail page shows metadata and editor placeholder
-The route `/terminals/:id` SHALL fetch the terminal via a **single** `GET /terminals/:id` and render a metadata panel showing: title, public flag, the parent campaign name, and a last-updated label if the API includes one. The parent campaign name SHALL be resolved **synchronously** from `CurrentCampaignService.currentCampaign()` (mirroring the page's back-link); the page SHALL NOT issue a second `GET /terminals/:id` (or any extra request) solely to derive the campaign name. The page SHALL display a non-interactive placeholder element where the editor will live, labelled "Editor del contenuto disponibile nello Slice 5". The page SHALL expose an "Esporta" action button (see `terminals-import-export` capability).
+### Requirement: Terminal detail page shows metadata and editor
+The route `/terminals/:id` SHALL fetch the terminal via a **single** `GET /terminals/:id` and render a metadata panel showing: title, public flag, the parent campaign name, and a last-updated label if the API includes one. The parent campaign name SHALL be resolved **synchronously** from `CurrentCampaignService.currentCampaign()` (mirroring the page's back-link); the page SHALL NOT issue a second `GET /terminals/:id` (or any extra request) solely to derive the campaign name. The page SHALL mount the full content editor (owned by the `cms-terminal-editor-shell` capability) in place of the terminal body; it SHALL NOT render a "Slice 5" placeholder. The page SHALL expose an "Esporta" action button (see `cms-terminals-import-export` capability).
 
 The detail page SHALL consume the unwrapped `TerminalContent` emitted by `TerminalsApiService.get`, reading metadata as `t.meta.title`, `t.meta.public`, and `t.meta.hiddenId`. The page MUST NOT crash with `Cannot read properties of undefined` when the underlying `GET /terminals/:id` response is the wrapper envelope, because the service has already unwrapped it.
 
 #### Scenario: Detail page renders metadata
 - **WHEN** the admin navigates to `/terminals/t1`
-- **THEN** the page renders the terminal's title, public flag badge, parent campaign label, and the editor placeholder
+- **THEN** the page renders the terminal's title, public flag badge, parent campaign label, and the mounted content editor
 
 #### Scenario: Single terminal fetch
 - **WHEN** the detail page loads `/terminals/t1`
@@ -83,9 +91,9 @@ The detail page SHALL consume the unwrapped `TerminalContent` emitted by `Termin
 - **WHEN** `GET /terminals/t1` returns the wrapper envelope `{ id, campaignId, title, content: { meta: { title: "guida", public: true } }, ... }`
 - **THEN** the detail header renders the title and public badge with no runtime error (no `Cannot read properties of undefined` on `meta`)
 
-#### Scenario: Editor placeholder visible
+#### Scenario: Editor is mounted, no placeholder
 - **WHEN** the detail page is rendered
-- **THEN** an element with the text "Editor del contenuto disponibile nello Slice 5" is present where the editor will be added in Slice 5
+- **THEN** the content editor is present and no "Editor del contenuto disponibile nello Slice 5" placeholder element exists
 
 #### Scenario: Not-found state
 - **WHEN** `GET /terminals/:id` returns 404

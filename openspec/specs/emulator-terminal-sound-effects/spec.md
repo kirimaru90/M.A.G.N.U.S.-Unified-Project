@@ -1,3 +1,11 @@
+# emulator-terminal-sound-effects Specification
+
+## Purpose
+
+Sound helpers with graceful fallback, startup/data-terminal/hover one-shots, a renderNode-scoped typing loop stopped on every completion/abort/back-to-boot path and suppressed during login, plus global enable and master volume.
+
+## Requirements
+
 ### Requirement: Sound helpers with graceful fallback
 The engine SHALL expose two internal factory functions. `createSound(path)` returns a zero-argument play function for one-shot sounds. `createLoopSound(path)` returns an object with `start()` and `stop()` methods for continuous looping sounds. In both cases, if the audio file at `path` is unavailable, if the browser prevents playback, or if any media-element API call throws synchronously, the returned function(s) SHALL do nothing and SHALL NOT throw or log any error.
 
@@ -26,46 +34,46 @@ The engine SHALL expose two internal factory functions. `createSound(path)` retu
 
 ---
 
-### Requirement: Startup sound on boot screen initialisation
-The engine SHALL play the startup sound once at the beginning of `initBoot()`. The sound SHALL be loaded from `suoni/init.mp3`. If the file is absent or playback is blocked, `initBoot()` SHALL continue normally with no error.
+### Requirement: Startup sound on boot/menu screen initialisation
+The engine SHALL play the startup sound once when a boot/menu screen mounts — at the beginning of `mountCampaignSelect()` and `mountTerminalList()` (the `initSound` helper). The sound SHALL be loaded from `suoni/init.mp3`. If the file is absent or playback is blocked, the screen SHALL continue mounting normally with no error.
 
-#### Scenario: Startup sound plays on page load
-- **WHEN** the page loads and `window.onload` fires `initBoot()`
-- **THEN** the startup sound SHALL play once at the start of `initBoot()`
-- **THEN** the boot screen UI SHALL render normally regardless of whether the sound played
+#### Scenario: Startup sound plays on entry to the first menu screen
+- **WHEN** the app boots and the first menu screen mounts (`mountCampaignSelect()`, or `mountTerminalList()` when landing directly on a campaign)
+- **THEN** the startup sound SHALL play once at the start of that mount
+- **THEN** the menu UI SHALL render normally regardless of whether the sound played
 
-#### Scenario: Startup sound plays on return to boot screen
-- **WHEN** `initBoot()` is called again (e.g., via a "[ Torna al menu ]" button)
+#### Scenario: Startup sound plays on return to the menu
+- **WHEN** a boot/menu screen is mounted again (e.g., via a "[ Torna al menu ]" / back action that re-runs `mountTerminalList()` or `mountCampaignSelect()`)
 - **THEN** the startup sound SHALL play again
 
 #### Scenario: Startup sound file absent
 - **WHEN** `suoni/init.mp3` does not exist
-- **THEN** `initBoot()` SHALL complete normally with no error or console warning
+- **THEN** the boot/menu screen mount SHALL complete normally with no error or console warning
 
 ---
 
 ### Requirement: Data-terminal sound on file selection
-The engine SHALL play the data-terminal sound once at the start of `loadServerFile()`, before the fetch begins, while the "ESTRAZIONE DATI IN CORSO…" loading indicator is visible. The data-terminal sound SHALL be loaded from `suoni/data_terminal.mp3`. `startSystem()` SHALL no longer play the data-terminal sound.
+The engine SHALL play the data-terminal sound once at the start of `playTerminalData()`, while the "ESTRAZIONE DATI IN CORSO…" loading indicator is visible. The data-terminal sound SHALL be loaded from `suoni/data_terminal.mp3` (the `dataTerminalSound` helper). The node-render path (`terminal.loadNode('start')`) SHALL NOT separately play the data-terminal sound.
 
-#### Scenario: Data-terminal sound plays when a file is selected
-- **WHEN** the user selects a terminal file from the boot menu
-- **AND** `loadServerFile` is invoked
-- **THEN** the data-terminal sound SHALL play once immediately, before the fetch
+#### Scenario: Data-terminal sound plays when a terminal is selected
+- **WHEN** the user selects a terminal from the terminal-list menu
+- **AND** `playTerminalData` is invoked with the loaded terminal data
+- **THEN** the data-terminal sound SHALL play once immediately at the start of `playTerminalData`
 - **THEN** the loading indicator "ESTRAZIONE DATI IN CORSO…" SHALL be visible while the sound plays
 
-#### Scenario: Data-terminal sound does not play in startSystem
-- **WHEN** `startSystem()` is called after a successful file load
-- **THEN** `dataTerminalSound()` SHALL NOT be called inside `startSystem`
+#### Scenario: Data-terminal sound does not replay on node render
+- **WHEN** `terminal.loadNode('start')` runs to render the first node after a successful load
+- **THEN** `dataTerminalSound()` SHALL NOT be called again by the node-render path
 
 #### Scenario: Data-terminal sound file absent
 - **WHEN** `suoni/data_terminal.mp3` does not exist
-- **THEN** `loadServerFile()` SHALL complete normally with no error or console warning
+- **THEN** `playTerminalData()` SHALL complete normally with no error or console warning
 
 ---
 
 ### Requirement: Typing sound loop scoped to renderNode
 
-The typing sound loop SHALL start at the entry of `renderNode()` and SHALL stop at every defined termination point: when the `typeWriterHTML` callback fires for natural completion or for a user-initiated skip; AND when the typing animation is cancelled via the abort helper (`abortCurrentTyping()` or equivalent) on any back-to-boot path. The typing sound SHALL NOT be started in `startSystem()` or in button click handlers. The typing sound SHALL only play when `renderNode` is invoked directly, ensuring it is always tied to visible text being typed.
+The typing sound loop SHALL start at the entry of `renderNode()` and SHALL stop at every defined termination point: when the `typeWriterHTML` callback fires for natural completion or for a user-initiated skip; AND when the typing animation is cancelled via the abort helper (`abortCurrentTyping()` or equivalent) on any back-to-boot path. The typing sound SHALL NOT be started by the terminal-load path (`playTerminalData()`) or in button click handlers. The typing sound SHALL only play when `renderNode` is invoked directly, ensuring it is always tied to visible text being typed.
 
 #### Scenario: Typing sound starts when a node begins rendering
 
@@ -91,10 +99,10 @@ The typing sound loop SHALL start at the entry of `renderNode()` and SHALL stop 
 - **THEN** `typingSound.stop()` SHALL be called as part of the same abort path
 - **THEN** the completion callback from the cancelled animation SHALL NOT subsequently restart the typing sound
 
-#### Scenario: Typing sound does not start in startSystem
+#### Scenario: Typing sound does not start on terminal load
 
-- **WHEN** `startSystem()` is called
-- **THEN** `typingSound.start()` SHALL NOT be called inside `startSystem`
+- **WHEN** `playTerminalData()` is called to load a terminal
+- **THEN** `typingSound.start()` SHALL NOT be called by the load path (only later, when `renderNode` runs)
 
 #### Scenario: Typing sound does not start on button click
 
@@ -120,9 +128,9 @@ The typing sound SHALL NOT play while a login screen is displayed. When a node r
 - **THEN** the typing animation SHALL play normally
 
 #### Scenario: Typing sound silent when root login is required at system start
-- **WHEN** `loadServerFile` finds a top-level `login` block in the terminal data
+- **WHEN** `playTerminalData` finds a top-level `login` block in the terminal data
 - **AND** the user is not already logged in
-- **THEN** the login screen SHALL be displayed before `startSystem` is called
+- **THEN** the login screen SHALL be displayed before the start node is rendered
 - **THEN** `typingSound.start()` SHALL NOT be called until `renderNode` is invoked after login success
 
 ---
@@ -142,7 +150,7 @@ Every `.choice-btn` element created during `showChoices` SHALL have a `mouseente
 
 ### Requirement: Typing sound silenced on every back-to-boot transition
 
-Every code path that transitions the application back to the boot screen SHALL call the abort helper (`abortCurrentTyping()` or equivalent), which guarantees `typingSound.stop()` has been called before `bootScreen.style.display = 'flex'` is applied. The abort helper SHALL also be invoked unconditionally at the entry of `initBoot()` as a defence-in-depth measure. Covered paths SHALL include at minimum: `disconnectTerminal()`, the root login's "Torna al menu" button, the catch/error fall-throughs of `initBoot` and `loadServerFile`, and any future re-entry into the boot screen.
+Every code path that transitions the application back to the boot/menu screen SHALL call the abort helper (`abortCurrentTyping()` or equivalent), which guarantees `typingSound.stop()` has been called before the boot/menu screen is shown. The abort helper SHALL also be invoked when the app returns to a menu screen (e.g., `showCampaignSelect()` calls it at its entry before `mountCampaignSelect()`) as a defence-in-depth measure. Covered paths SHALL include at minimum: `disconnectTerminal()`, the root login's "Torna al menu" button, the catch/error fall-throughs of the terminal-load path (`playTerminalData` / `handleTerminalSelected`), and any future re-entry into the boot/menu screen.
 
 #### Scenario: Disconnect mid-typing silences the sound on the boot screen
 
@@ -156,16 +164,16 @@ Every code path that transitions the application back to the boot screen SHALL c
 - **AND** the previous tape had an in-flight typing animation
 - **THEN** the typing sound SHALL be silent on the boot screen
 
-#### Scenario: initBoot defensively stops the typing sound
+#### Scenario: Returning to the menu defensively stops the typing sound
 
-- **WHEN** `initBoot()` is invoked
-- **THEN** the abort helper SHALL be called at the entry of `initBoot`
-- **THEN** `typingSound.stop()` SHALL have been called by the time the boot UI renders
+- **WHEN** the app transitions back to a menu screen (e.g., `showCampaignSelect()` runs before `mountCampaignSelect()`)
+- **THEN** the abort helper SHALL be called as part of that transition
+- **THEN** `typingSound.stop()` SHALL have been called by the time the menu UI renders
 - **THEN** if no typing was in flight, the call SHALL be a harmless no-op
 
-#### Scenario: Error fall-through during loadServerFile silences the sound
+#### Scenario: Error fall-through during terminal load silences the sound
 
-- **WHEN** `loadServerFile` enters its catch block
+- **WHEN** `playTerminalData` (or `handleTerminalSelected`) enters its catch block
 - **AND** the previous tape had an in-flight typing animation
 - **THEN** the typing sound SHALL be silent under the error UI rendered by the catch block
 

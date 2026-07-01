@@ -1,3 +1,11 @@
+# emulator-input-components Specification
+
+## Purpose
+
+Node input components replacing choices, rendered focused after typing, submitting a raw-string set mutation, evaluating post-mutation branches to navigate, with single-flight, error recovery, and stateless-holotape inertness.
+
+## Requirements
+
 ### Requirement: Input component declaration shape
 A node MAY declare a `components` array in the holotape JSON, either at the top level or within a variant entry. An input component is an entry of that array with `type: "input"`. The entry SHALL declare:
 

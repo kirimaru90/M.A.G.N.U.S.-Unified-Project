@@ -1,3 +1,11 @@
+# cms-terminal-nodes-editor Specification
+
+## Purpose
+
+Terminal editor nodes section: ordered id-keyed node list, Markdown text with preview, on_enter mutations, choices, full-node tabbed variants, accent styling, per-node login multiselect, and input components.
+
+## Requirements
+
 ### Requirement: Nodes editor as an ordered, id-keyed list
 The editor SHALL render `nodes` as an ordered `FormArray` of node groups, each carrying an explicit `id` control plus the node's content. Adding and removing nodes SHALL use the `FormArray`. Node `id`s SHALL be required and unique; a duplicate or empty id SHALL surface an inline error. On save the array SHALL be reduced back to a `Record<id, node>` keyed by `id` in array order. The list SHALL NOT be allowed to become empty (the schema requires at least one node).
 

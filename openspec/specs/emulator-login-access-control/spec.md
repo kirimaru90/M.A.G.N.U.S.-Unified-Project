@@ -1,3 +1,11 @@
+# emulator-login-access-control Specification
+
+## Purpose
+
+Server-validated fictional-login gating (root- or node-level) with a CRT login overlay, session-scoped authenticated-user set, already-connected acknowledgement, half-speed typing, and Enter-to-submit.
+
+## Requirements
+
 ### Requirement: Server-side fictional credential validation
 The terminal client SHALL validate fictional-login attempts by sending the entered username and password to `POST /terminals/:id/fictional-login` for the active terminal. The client SHALL NOT compare passwords in JavaScript, and SHALL NOT depend on any `password` field being present in the loaded holotape payload. A fictional credential (password) SHALL never appear in any client-bound payload.
 

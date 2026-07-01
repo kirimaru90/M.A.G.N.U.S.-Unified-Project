@@ -1,4 +1,10 @@
-## ADDED Requirements
+# cms-campaign-player-assignments Specification
+
+## Purpose
+
+Player-campaign membership panels on both user-detail and campaign-detail views, with multi-select add, confirm-gated remove, and cross-view consistency after round-trips.
+
+## Requirements
 
 ### Requirement: User detail view exposes a campaigns assignments panel for player users
 On the `/users/:id` route, when the user's role is `player`, the page SHALL render an `<app-user-campaigns-panel>` component titled **Campagne assegnate**. The panel SHALL list the campaigns the player belongs to (one row per campaign showing **Nome** and a remove control) plus a multi-select picker — a PrimeNG `<p-multiselect>` or `<p-select>` — populated with the campaigns the player is NOT yet assigned to. The panel SHALL be hidden for admin users. The membership list SHALL be derived by combining `GET /campaigns` (full campaigns list) with `GET /campaigns/:id/players` for each campaign (or an equivalent client-side join), so the panel reflects the live assignment state.

@@ -1,3 +1,11 @@
+# emulator-typing-animation-flow Specification
+
+## Purpose
+
+Centralised ENGINE_CONFIG tunables and a typing-animation handle with skip/cancel, Enter/Escape/click/tap skip with click-guard, post-typing Enter cooldown, viewport cursor-follow, and abort on every back-to-boot path.
+
+## Requirements
+
 ### Requirement: Centralised engine configuration constants
 
 The engine SHALL expose a single `ENGINE_CONFIG` object near the existing `typingSpeed` definition that aggregates all author-tunable runtime constants, including at minimum `typingSpeed`, `postTypingEnterCooldownMs`, and `scrollStepPx`. New tunables introduced by features in this change SHALL be added to this object rather than declared as scattered local constants.

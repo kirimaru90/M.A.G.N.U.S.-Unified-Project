@@ -1,4 +1,10 @@
-## ADDED Requirements
+# api-configuration Specification
+
+## Purpose
+
+Sparse, domain-namespaced opaque configuration blobs on campaigns and users, with campaign/user deep-merge resolution, wholesale per-domain PUT replacement, and structural envelope validation.
+
+## Requirements
 
 ### Requirement: Layered configuration storage
 The API SHALL persist a free-form `configuration` object on both campaign and user records. The object SHALL be sparse and namespaced by domain (this capability defines only the `terminal` domain). The server SHALL treat configuration values as opaque — it SHALL NOT validate, coerce, or interpret the keys or value types within a domain. Both fields SHALL default to an empty object and SHALL be additive (existing records read as `{}`).

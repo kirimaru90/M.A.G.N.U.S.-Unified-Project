@@ -1,3 +1,11 @@
+# cms-current-campaign-service Specification
+
+## Purpose
+
+Root CurrentCampaignService exposing the current full-state campaign and a shared cached campaigns list, with setCurrent/refresh/clear, localStorage persistence, and single-GET localStorage rehydration.
+
+## Requirements
+
 ### Requirement: CurrentCampaignService exposes currentCampaign signal, setCurrent, and clear
 `CurrentCampaignService` SHALL be a root-level `Injectable` exposing:
 - `currentCampaign: Signal<CampaignDto | null>` — the currently selected campaign or `null` when none is selected. When non-null, the DTO SHALL be the **full** campaign document including its `state` map (populated via `GET /campaigns/:id`).

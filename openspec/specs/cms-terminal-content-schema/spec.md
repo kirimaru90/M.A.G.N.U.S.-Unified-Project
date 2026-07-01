@@ -1,3 +1,11 @@
+# cms-terminal-content-schema Specification
+
+## Purpose
+
+Canonical Zod/TypeScript Terminal Content schema module covering meta, typed state declarations, cleartext login users, node maps, choices, input components, recursive conditions, and typed mutations.
+
+## Requirements
+
 ### Requirement: Canonical Terminal Content schema is defined in a single domain module
 A single module SHALL export the canonical Terminal Content schema as paired TypeScript types and a Zod schema. The module SHALL live at `src/app/domain/terminal-schema.ts`. The TypeScript types SHALL be derived from the Zod schema via `z.infer` so the two cannot drift. The module SHALL be importable by any feature module (notably Slice 5's terminal editor) without depending on HTTP, routing, or feature-specific code.
 

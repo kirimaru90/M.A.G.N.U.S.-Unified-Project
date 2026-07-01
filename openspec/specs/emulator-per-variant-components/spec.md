@@ -1,3 +1,11 @@
+# emulator-per-variant-components Specification
+
+## Purpose
+
+Variant-level components arrays that override or fall back to node-level components in the resolved view without mutating the node or variant objects.
+
+## Requirements
+
 ### Requirement: Variant components override node-level components
 When the resolver selects a variant (matching or default), the variant's `components` array SHALL replace the node's top-level `components` in the resolved view. If the selected variant does not declare a `components` field, the resolver SHALL fall back to the node's top-level `components`. The resolver SHALL NOT modify the underlying node or variant objects.
 
