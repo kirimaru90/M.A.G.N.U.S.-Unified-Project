@@ -1,0 +1,2573 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Real-user login — returns a 24h JWT",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "summary": "Client-side logout (stateless, always 204)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Current session info",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "UsersController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all users (admin)",
+        "tags": [
+          "users"
+        ]
+      },
+      "post": {
+        "operationId": "UsersController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a user (admin)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UsersController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get user by id (admin)",
+        "tags": [
+          "users"
+        ]
+      },
+      "put": {
+        "operationId": "UsersController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update user (admin)",
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete user (admin)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/configuration": {
+      "get": {
+        "operationId": "UserConfigurationController_getConfiguration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get own configuration (authenticated)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/configuration/terminal": {
+      "put": {
+        "operationId": "UserConfigurationController_setTerminalDomain",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace own terminal configuration domain (authenticated)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/campaigns": {
+      "get": {
+        "operationId": "CampaignsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List campaigns (actor-dependent)",
+        "tags": [
+          "campaigns"
+        ]
+      },
+      "post": {
+        "operationId": "CampaignsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create campaign (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}": {
+      "get": {
+        "operationId": "CampaignsController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign detail",
+        "tags": [
+          "campaigns"
+        ]
+      },
+      "put": {
+        "operationId": "CampaignsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCampaignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update campaign (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      },
+      "delete": {
+        "operationId": "CampaignsController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete campaign + cascade (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/activate": {
+      "post": {
+        "operationId": "CampaignsController_toggleActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Toggle campaign isActive (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/players": {
+      "get": {
+        "operationId": "CampaignsController_listPlayers",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List players assigned to campaign (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      },
+      "post": {
+        "operationId": "CampaignsController_addPlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPlayerDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign player to campaign (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/players/{playerId}": {
+      "delete": {
+        "operationId": "CampaignsController_removePlayer",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playerId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove player from campaign (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/state": {
+      "get": {
+        "operationId": "CampaignStateController_getState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get campaign global state",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/state/mutate": {
+      "post": {
+        "operationId": "CampaignStateController_mutateState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutateStateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mutate campaign global state",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/state/reset": {
+      "post": {
+        "operationId": "CampaignStateController_resetState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reset all campaign global state + all terminals (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/state/{key}/reset": {
+      "post": {
+        "operationId": "CampaignStateController_resetStateKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reset single campaign state variable (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/state/schema": {
+      "patch": {
+        "operationId": "CampaignStateController_patchSchema",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StateSchemaPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schema patched; returns flat state snapshot"
+          },
+          "400": {
+            "description": "Validation error or empty ops"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "404": {
+            "description": "Campaign or variable not found"
+          },
+          "409": {
+            "description": "Delete references a terminal, or rename target collision"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add/update/delete campaign state schema variables (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/configuration": {
+      "get": {
+        "operationId": "CampaignConfigurationController_getConfiguration",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get effective campaign configuration (campaign ⊕ user)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/configuration/terminal": {
+      "put": {
+        "operationId": "CampaignConfigurationController_setTerminalDomain",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace campaign terminal configuration domain (admin)",
+        "tags": [
+          "campaigns"
+        ]
+      }
+    },
+    "/campaigns/{id}/terminals": {
+      "get": {
+        "operationId": "TerminalsController_listByCampaign",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List terminals in campaign",
+        "tags": [
+          "terminals"
+        ]
+      },
+      "post": {
+        "operationId": "TerminalsController_create",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create terminal in campaign (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/campaigns/{id}/terminals/import": {
+      "post": {
+        "operationId": "TerminalsController_import",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Import terminal from JSON (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/campaigns/{id}/terminals/by-hidden-id/{hiddenId}": {
+      "get": {
+        "operationId": "TerminalsController_loadByHiddenId",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hiddenId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Load hidden terminal by hiddenId slug",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}": {
+      "get": {
+        "operationId": "TerminalsController_detail",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Terminal detail (fictional users visible to admin only)",
+        "tags": [
+          "terminals"
+        ]
+      },
+      "put": {
+        "operationId": "TerminalsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TerminalContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update terminal (admin)",
+        "tags": [
+          "terminals"
+        ]
+      },
+      "delete": {
+        "operationId": "TerminalsController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete terminal (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/export": {
+      "post": {
+        "operationId": "TerminalsController_export",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export terminal as full JSON (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/load": {
+      "get": {
+        "operationId": "TerminalsController_load",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Load terminal for playback (content + state)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/fictional-login": {
+      "post": {
+        "operationId": "TerminalsController_fictionalLogin",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FictionalLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Validate fictional user credentials",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/state": {
+      "get": {
+        "operationId": "TerminalsController_getState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get terminal local state",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/state/mutate": {
+      "post": {
+        "operationId": "TerminalsController_mutateState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MutateStateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Mutate terminal local state",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/state/reset": {
+      "post": {
+        "operationId": "TerminalsController_resetState",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reset all terminal local state (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/state/{key}/reset": {
+      "post": {
+        "operationId": "TerminalsController_resetStateKey",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reset single terminal state variable (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/terminals/{id}/state/schema": {
+      "patch": {
+        "operationId": "TerminalsController_patchSchema",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StateSchemaPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schema patched; returns flat state snapshot"
+          },
+          "400": {
+            "description": "Validation error or empty ops"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "404": {
+            "description": "Terminal or variable not found"
+          },
+          "409": {
+            "description": "Rename target collision"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add/update/delete terminal state schema variables (admin)",
+        "tags": [
+          "terminals"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters": {
+      "get": {
+        "operationId": "CharactersController_list",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List characters in campaign (actor-scoped)",
+        "tags": [
+          "characters"
+        ]
+      },
+      "post": {
+        "operationId": "CharactersController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCharacterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create character",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}": {
+      "get": {
+        "operationId": "CharactersController_findById",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get character detail",
+        "tags": [
+          "characters"
+        ]
+      },
+      "put": {
+        "operationId": "CharactersController_update",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCharacterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Full character update",
+        "tags": [
+          "characters"
+        ]
+      },
+      "delete": {
+        "operationId": "CharactersController_softDelete",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-delete character",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/special": {
+      "patch": {
+        "operationId": "CharactersController_patchSpecial",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSpecialDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch SPECIAL stats (admin-only writes)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/skills": {
+      "patch": {
+        "operationId": "CharactersController_patchSkills",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSkillsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch skills (admin-only writes)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/perks": {
+      "patch": {
+        "operationId": "CharactersController_patchPerks",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPerksDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch perks (admin-only writes)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/status": {
+      "patch": {
+        "operationId": "CharactersController_patchStatus",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch status (conditions + criticalState)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/action-points": {
+      "patch": {
+        "operationId": "CharactersController_patchActionPoints",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchActionPointsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch action points",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/inventory": {
+      "patch": {
+        "operationId": "CharactersController_patchInventory",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchInventoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch inventory items",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/resources": {
+      "patch": {
+        "operationId": "CharactersController_patchResources",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchResourcesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Patch resource counters",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "M.A.G.N.U.S. API",
+    "description": "Server-side API for the M.A.G.N.U.S. Project",
+    "version": "1.1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "alice"
+          },
+          "password": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "player"
+            ]
+          }
+        },
+        "required": [
+          "username",
+          "password",
+          "role"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "alice"
+          },
+          "password": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "player"
+            ]
+          },
+          "lastCampaignId": {
+            "type": "object",
+            "description": "Server-owned; accepted but ignored."
+          },
+          "unlockedHiddenIds": {
+            "description": "Server-owned; accepted but ignored.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": false
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCampaignDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AddPlayerDto": {
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "description": "ID of the player user to assign"
+          }
+        },
+        "required": [
+          "playerId"
+        ]
+      },
+      "MutationItemDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "local.access_count"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "set",
+              "increment",
+              "toggle"
+            ]
+          },
+          "value": {
+            "type": "object",
+            "description": "Value for set operation"
+          },
+          "by": {
+            "type": "number",
+            "description": "Increment amount for increment operation"
+          }
+        },
+        "required": [
+          "key",
+          "op"
+        ]
+      },
+      "MutateStateDto": {
+        "type": "object",
+        "properties": {
+          "mutations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MutationItemDto"
+            }
+          }
+        },
+        "required": [
+          "mutations"
+        ]
+      },
+      "EntryShapeDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "boolean",
+              "number",
+              "enum",
+              "string"
+            ]
+          },
+          "default": {
+            "type": "object",
+            "description": "Default value; must match type"
+          },
+          "values": {
+            "description": "Required and non-empty when type is \"enum\"",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "type",
+          "default"
+        ]
+      },
+      "StateSchemaOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "delete"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New name for rename (update only)"
+          },
+          "entry": {
+            "description": "Required for add/update",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EntryShapeDto"
+              }
+            ]
+          },
+          "value": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "action",
+          "name"
+        ]
+      },
+      "StateSchemaPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StateSchemaOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "MetaDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "hiddenId": {
+            "type": "string",
+            "description": "Human-authored slug for hidden-terminal lookup"
+          },
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Server-injected mirror of the top-level id; must NOT be sent on input."
+          },
+          "public": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "StateDeclarationDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "LoginBlockDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "TerminalContentDto": {
+        "type": "object",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/MetaDto"
+          },
+          "state": {
+            "$ref": "#/components/schemas/StateDeclarationDto"
+          },
+          "login": {
+            "$ref": "#/components/schemas/LoginBlockDto"
+          },
+          "nodes": {
+            "type": "object",
+            "description": "Node map (key → node object)"
+          }
+        },
+        "required": [
+          "meta",
+          "nodes"
+        ]
+      },
+      "FictionalLoginDto": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ]
+      },
+      "CreateCharacterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "species": {
+            "type": "string",
+            "enum": [
+              "human",
+              "ghoul",
+              "super_mutant",
+              "robot"
+            ]
+          },
+          "userId": {
+            "type": "string",
+            "description": "Owner user id — required for admins, ignored for players"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PatchSpecialDto": {
+        "type": "object",
+        "properties": {
+          "strength": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "perception": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "endurance": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "charisma": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "intelligence": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "agility": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "luck": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          }
+        }
+      },
+      "SkillItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Catalog slug (e.g. \"lockpick\")"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "competent",
+              "expert",
+              "master"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "level"
+        ]
+      },
+      "PatchActionPointsDto": {
+        "type": "object",
+        "properties": {
+          "paMax": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paCurrent": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paTrackedBy": {
+            "type": "string",
+            "enum": [
+              "agility",
+              "endurance"
+            ]
+          }
+        }
+      },
+      "ConditionItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Omit to create; provide to update"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required when creating (no id)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "minor",
+              "major"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateStatusDto": {
+        "type": "object",
+        "properties": {
+          "positiveConditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionItemDto"
+            }
+          },
+          "negativeConditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionItemDto"
+            }
+          },
+          "criticalState": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PerkItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Omit to create; provide to update"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required when creating (no id)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        }
+      },
+      "PatchResourcesDto": {
+        "type": "object",
+        "properties": {
+          "caps": {
+            "type": "number",
+            "minimum": 0
+          },
+          "bobbleheads": {
+            "type": "number",
+            "minimum": 0
+          },
+          "scraps": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "TagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "core",
+              "extra"
+            ]
+          },
+          "damaged": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "WeaponEquipItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Omit to create; provide to update"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required when creating (no id)"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagDto"
+            }
+          },
+          "broken": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ConsumableGenericItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Omit to create; provide to update"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required when creating (no id)"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "UpdateInventoryDto": {
+        "type": "object",
+        "properties": {
+          "weapons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeaponEquipItemDto"
+            }
+          },
+          "equip": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeaponEquipItemDto"
+            }
+          },
+          "consumables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsumableGenericItemDto"
+            }
+          },
+          "other": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsumableGenericItemDto"
+            }
+          }
+        }
+      },
+      "UpdateCharacterDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "species": {
+            "type": "string",
+            "enum": [
+              "human",
+              "ghoul",
+              "super_mutant",
+              "robot"
+            ]
+          },
+          "special": {
+            "$ref": "#/components/schemas/PatchSpecialDto"
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillItemDto"
+            }
+          },
+          "actionPoints": {
+            "$ref": "#/components/schemas/PatchActionPointsDto"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UpdateStatusDto"
+          },
+          "perks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PerkItemDto"
+            }
+          },
+          "resources": {
+            "$ref": "#/components/schemas/PatchResourcesDto"
+          },
+          "inventory": {
+            "$ref": "#/components/schemas/UpdateInventoryDto"
+          }
+        }
+      },
+      "PatchSkillsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillItemDto"
+            }
+          },
+          "deletedIds": {
+            "description": "Catalog slugs to detach",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PatchPerksDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PerkItemDto"
+            }
+          },
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConditionCollectionDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionItemDto"
+            }
+          },
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PatchStatusDto": {
+        "type": "object",
+        "properties": {
+          "positiveConditions": {
+            "$ref": "#/components/schemas/ConditionCollectionDto"
+          },
+          "negativeConditions": {
+            "$ref": "#/components/schemas/ConditionCollectionDto"
+          },
+          "criticalState": {
+            "type": "boolean"
+          }
+        }
+      },
+      "WeaponEquipCollectionDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WeaponEquipItemDto"
+            }
+          },
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConsumableGenericCollectionDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConsumableGenericItemDto"
+            }
+          },
+          "deletedIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PatchInventoryDto": {
+        "type": "object",
+        "properties": {
+          "weapons": {
+            "$ref": "#/components/schemas/WeaponEquipCollectionDto"
+          },
+          "equip": {
+            "$ref": "#/components/schemas/WeaponEquipCollectionDto"
+          },
+          "consumables": {
+            "$ref": "#/components/schemas/ConsumableGenericCollectionDto"
+          },
+          "other": {
+            "$ref": "#/components/schemas/ConsumableGenericCollectionDto"
+          }
+        }
+      }
+    }
+  }
+}

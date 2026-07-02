@@ -69,7 +69,12 @@ import { TerminalStatePanelComponent } from './terminal-state-panel';
           </table>
         </div>
 
-        <app-terminal-editor [terminalId]="terminalId" [content]="t" (saved)="saveVersion.update(v => v + 1)" />
+        <app-terminal-editor
+          [terminalId]="terminalId"
+          [content]="t"
+          [fictionalUsers]="fictionalUsers()"
+          (saved)="saveVersion.update(v => v + 1)"
+        />
 
         <app-terminal-state-panel [terminalId]="terminalId" [refreshTrigger]="saveVersion()" />
       } @else {
@@ -91,8 +96,8 @@ export class TerminalDetailPage {
   protected readonly notFound = signal(false);
   protected readonly saveVersion = signal(0);
 
-  protected readonly terminal = toSignal(
-    this.terminalsApi.get(this.terminalId).pipe(
+  private readonly envelope = toSignal(
+    this.terminalsApi.getEnvelope(this.terminalId).pipe(
       catchError((err) => {
         if (err?.status === 404) {
           this.notFound.set(true);
@@ -101,6 +106,9 @@ export class TerminalDetailPage {
       }),
     ),
   );
+
+  protected readonly terminal = computed(() => this.envelope()?.content ?? null);
+  protected readonly fictionalUsers = computed(() => this.envelope()?.fictionalUsers ?? []);
 
   protected readonly campaignName = computed(() => this.currentCampaign.currentCampaign()?.name ?? null);
 

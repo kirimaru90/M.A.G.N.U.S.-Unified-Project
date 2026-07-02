@@ -8,6 +8,7 @@ import type {
   TerminalContent,
   TerminalNode,
 } from '../../../domain/terminal-schema';
+import type { FictionalUserCredential } from '../../../core/terminal/terminal.types';
 
 // ── Types for the form raw value ─────────────────────────────────────────────
 
@@ -406,15 +407,19 @@ function serializeStateScope(rows: StateVarRow[]): Record<string, unknown> {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function toForm(content: TerminalContent): FormGroup {
+export function toForm(content: TerminalContent, fictionalUsers: FictionalUserCredential[] = []): FormGroup {
   const localVars = Object.entries(content.state.local ?? {}).map(([name, v]) =>
     makeStateVarGroup(name, v as { type: string; default: unknown; values?: string[] }),
   );
   const globalVars = Object.entries(content.state.global ?? {}).map(([name, v]) =>
     makeStateVarGroup(name, v as { type: string; default: unknown; values?: string[] }),
   );
+  const passwordByUsername = new Map(fictionalUsers.map((u) => [u.username, u.password]));
   const users = (content.login.users ?? []).map((u) =>
-    new FormGroup({ username: new FormControl(u.username), password: new FormControl(u.password) }),
+    new FormGroup({
+      username: new FormControl(u.username),
+      password: new FormControl(passwordByUsername.get(u.username) ?? ''),
+    }),
   );
   const nodes = Object.entries(content.nodes).map(([id, node]) => makeNodeGroup(id, node));
 
@@ -461,7 +466,10 @@ export function toContent(raw: ReturnType<FormGroup['getRawValue']>): unknown {
       global: serializeStateScope(raw.stateGlobal as StateVarRow[]),
     },
     login: {
-      users: (raw.users as UserRow[]).map((u) => ({ username: u.username, password: u.password })),
+      users: (raw.users as UserRow[]).map((u) => {
+        const password = u.password?.trim();
+        return password ? { username: u.username, password: u.password } : { username: u.username };
+      }),
     },
     nodes,
   };

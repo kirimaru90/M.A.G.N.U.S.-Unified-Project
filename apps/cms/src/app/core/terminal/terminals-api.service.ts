@@ -56,10 +56,8 @@ export class TerminalsApiService {
     return this.http.delete<void>(`${this.base}/terminals/${id}`);
   }
 
-  update(id: string, content: TerminalContent): Observable<TerminalContent> {
-    return this.http
-      .put<TerminalDetailEnvelope>(`${this.base}/terminals/${id}`, content)
-      .pipe(map((r) => r.content));
+  update(id: string, content: TerminalContent): Observable<TerminalDetailEnvelope> {
+    return this.http.put<TerminalDetailEnvelope>(`${this.base}/terminals/${id}`, content);
   }
 
   export(id: string): Observable<TerminalContent> {

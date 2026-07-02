@@ -19,7 +19,11 @@ import {
 } from '../campaigns/schemas/campaign.schema';
 import { StateEntry } from '../campaigns/schemas/campaign.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
-import { TerminalContentDto, StateVarDto } from './dto/terminal-content.dto';
+import {
+  TerminalContentDto,
+  StateVarDto,
+  FictionalUserDto,
+} from './dto/terminal-content.dto';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 function isDuplicateKeyError(error: unknown): boolean {
@@ -43,6 +47,10 @@ function stateToFlat(state: Record<string, StateEntry>) {
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(state)) result[k] = v.value;
   return result;
+}
+
+function isBlankPassword(password: string | undefined | null): boolean {
+  return password === undefined || password === null || password.trim() === '';
 }
 
 function stripContent(
@@ -178,6 +186,84 @@ export class TerminalsService {
     return content;
   }
 
+  /**
+   * Reconcile a terminal's `fictionalUsers` rows against an incoming `login.users`
+   * list with password-preserving semantics: a blank/omitted password keeps the
+   * existing stored password for that username (or, for a brand-new username,
+   * is rejected). Usernames absent from the incoming list are removed.
+   */
+  private async reconcileFictionalUsers(
+    terminalId: Types.ObjectId,
+    users: FictionalUserDto[] | undefined,
+  ): Promise<void> {
+    const incoming = users ?? [];
+    const existing = await this.fictionalUserModel.find({ terminalId }).lean();
+    const existingUsernames = new Set(existing.map((u) => u.username));
+
+    const toUpsert: { username: string; password: string }[] = [];
+    for (const u of incoming) {
+      if (!isBlankPassword(u.password)) {
+        toUpsert.push({ username: u.username, password: u.password! });
+      } else if (!existingUsernames.has(u.username)) {
+        throw new BadRequestException(
+          `Fictional user "${u.username}" requires a password`,
+        );
+      }
+      // else: blank/omitted password for an existing username -> keep unchanged
+    }
+
+    const incomingUsernames = new Set(incoming.map((u) => u.username));
+    const toRemove = existing
+      .filter((u) => !incomingUsernames.has(u.username))
+      .map((u) => u.username);
+
+    if (toRemove.length > 0) {
+      await this.fictionalUserModel.deleteMany({
+        terminalId,
+        username: { $in: toRemove },
+      });
+    }
+    for (const u of toUpsert) {
+      await this.fictionalUserModel.updateOne(
+        { terminalId, username: u.username },
+        { $set: { password: u.password } },
+        { upsert: true },
+      );
+    }
+  }
+
+  private async buildDetailEnvelope(
+    terminal: Terminal & { _id: Types.ObjectId; campaignId: Types.ObjectId },
+    actor?: AuthenticatedUser,
+  ) {
+    const base = {
+      id: String(terminal._id),
+      campaignId: String(terminal.campaignId),
+      title: terminal.title,
+      content: withInjectedMetaId(stripContent(terminal.content), terminal._id),
+      state: stateToFlat(
+        terminal.state as unknown as Record<string, StateEntry>,
+      ),
+      createdAt: terminal.createdAt,
+      updatedAt: terminal.updatedAt,
+    };
+
+    if (actor?.role === 'admin') {
+      const fictionalUsers = await this.fictionalUserModel
+        .find({ terminalId: terminal._id })
+        .lean();
+      return {
+        ...base,
+        fictionalUsers: fictionalUsers.map((u) => ({
+          username: u.username,
+          password: u.password,
+        })),
+      };
+    }
+
+    return base;
+  }
+
   async create(campaignId: string, dto: TerminalContentDto) {
     if (!Types.ObjectId.isValid(campaignId)) throw new NotFoundException();
     this.validateNodeGraph(dto.nodes);
@@ -200,22 +286,12 @@ export class TerminalsService {
       throw error;
     }
 
-    // Persist fictional users
-    if (dto.login?.users?.length) {
-      await this.fictionalUserModel.deleteMany({ terminalId: terminal._id });
-      await this.fictionalUserModel.insertMany(
-        dto.login.users.map((u) => ({
-          terminalId: terminal._id,
-          username: u.username,
-          password: u.password,
-        })),
-      );
-    }
+    await this.reconcileFictionalUsers(terminal._id, dto.login?.users);
 
     return this.toSummary(terminal.toObject());
   }
 
-  async update(id: string, dto: TerminalContentDto) {
+  async update(id: string, dto: TerminalContentDto, actor?: AuthenticatedUser) {
     this.validateNodeGraph(dto.nodes);
     const existing = await this.terminalModel.findById(id).lean();
     if (!existing) throw new NotFoundException();
@@ -271,20 +347,10 @@ export class TerminalsService {
       throw error;
     }
 
-    // Replace fictional users
-    await this.fictionalUserModel.deleteMany({ terminalId: existing._id });
-    if (dto.login?.users?.length) {
-      await this.fictionalUserModel.insertMany(
-        dto.login.users.map((u) => ({
-          terminalId: existing._id,
-          username: u.username,
-          password: u.password,
-        })),
-      );
-    }
+    await this.reconcileFictionalUsers(existing._id, dto.login?.users);
 
     if (!updated) throw new NotFoundException();
-    return this.toSummary(updated);
+    return this.buildDetailEnvelope(updated, actor);
   }
 
   async delete(id: string) {
@@ -342,33 +408,7 @@ export class TerminalsService {
   async detail(id: string, actor?: AuthenticatedUser) {
     const terminal = await this.terminalModel.findById(id).lean();
     if (!terminal) throw new NotFoundException();
-
-    const base = {
-      id: String(terminal._id),
-      campaignId: String(terminal.campaignId),
-      title: terminal.title,
-      content: withInjectedMetaId(stripContent(terminal.content), terminal._id),
-      state: stateToFlat(
-        terminal.state as unknown as Record<string, StateEntry>,
-      ),
-      createdAt: terminal.createdAt,
-      updatedAt: terminal.updatedAt,
-    };
-
-    if (actor?.role === 'admin') {
-      const fictionalUsers = await this.fictionalUserModel
-        .find({ terminalId: terminal._id })
-        .lean();
-      return {
-        ...base,
-        fictionalUsers: fictionalUsers.map((u) => ({
-          username: u.username,
-          password: u.password,
-        })),
-      };
-    }
-
-    return base;
+    return this.buildDetailEnvelope(terminal, actor);
   }
 
   async load(id: string, actor?: AuthenticatedUser) {

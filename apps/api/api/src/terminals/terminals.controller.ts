@@ -97,8 +97,12 @@ export class TerminalsController {
   @UseGuards(JwtOptionalGuard, AdminGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update terminal (admin)' })
-  update(@Param('id') id: string, @Body() dto: TerminalContentDto) {
-    return this.terminalsService.update(id, dto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: TerminalContentDto,
+    @Request() req: { user?: AuthenticatedUser },
+  ) {
+    return this.terminalsService.update(id, dto, req.user);
   }
 
   @Delete('terminals/:id')

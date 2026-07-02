@@ -74,8 +74,9 @@ export class FictionalUserDto {
   @IsString()
   username: string;
 
+  @IsOptional()
   @IsString()
-  password: string;
+  password?: string;
 }
 
 export class LoginBlockDto {

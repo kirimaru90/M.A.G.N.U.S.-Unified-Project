@@ -335,6 +335,193 @@ describe('TerminalsModule (e2e)', () => {
     expect(fail.statusCode).toBe(401);
   });
 
+  describe('PUT /terminals/:id password-preserving reconcile', () => {
+    async function createTerminalWithUser(password = 'robco123') {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T', public: true },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico', password }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      return JSON.parse(cr.body).id as string;
+    }
+
+    it('2.1 update returns an envelope with password-free content and fictionalUsers for admin', async () => {
+      const id = await createTerminalWithUser();
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T updated' },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico', password: 'robco123' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+
+      expect(body.isPublic).toBeUndefined();
+      expect(body.viewCount).toBeUndefined();
+      expect(body.content).toBeDefined();
+      const loginUsers = body.content.login?.users as
+        | { username: string; password?: unknown }[]
+        | undefined;
+      expect(loginUsers?.[0]?.username).toBe('tecnico');
+      expect(loginUsers?.[0]?.password).toBeUndefined();
+      expect(body.fictionalUsers).toEqual([
+        { username: 'tecnico', password: 'robco123' },
+      ]);
+    });
+
+    it('2.2 updating with a non-empty password persists it', async () => {
+      const id = await createTerminalWithUser('old');
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T', public: true },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico', password: 'robco123' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(res.statusCode).toBe(200);
+
+      const login = await app.inject({
+        method: 'POST',
+        url: `/terminals/${id}/fictional-login`,
+        payload: { username: 'tecnico', password: 'robco123' },
+      });
+      expect(login.statusCode).toBe(200);
+
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      expect(JSON.parse(detail.body).fictionalUsers).toEqual([
+        { username: 'tecnico', password: 'robco123' },
+      ]);
+    });
+
+    it('2.3 empty/omitted password for an existing user preserves the stored password (200, no error)', async () => {
+      const id = await createTerminalWithUser('robco123');
+
+      const withEmpty = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T', public: true },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico', password: '' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(withEmpty.statusCode).toBe(200);
+      expect(JSON.parse(withEmpty.body).fictionalUsers).toEqual([
+        { username: 'tecnico', password: 'robco123' },
+      ]);
+
+      const withOmitted = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T', public: true },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(withOmitted.statusCode).toBe(200);
+      expect(JSON.parse(withOmitted.body).fictionalUsers).toEqual([
+        { username: 'tecnico', password: 'robco123' },
+      ]);
+    });
+
+    it('2.4 a brand-new username with an empty password returns 400 (update and create/import)', async () => {
+      const id = await createTerminalWithUser();
+
+      const updateRes = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Reconcile T', public: true },
+          state: { local: {}, global: {} },
+          login: {
+            users: [
+              { username: 'tecnico', password: 'robco123' },
+              { username: 'nuovo', password: '' },
+            ],
+          },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(updateRes.statusCode).toBe(400);
+
+      const createRes = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Brand new blank' },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'nuovo', password: '' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(createRes.statusCode).toBe(400);
+    });
+
+    it('2.5 dropping a username removes its credential; remaining users unaffected', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Multi user T' },
+          state: { local: {}, global: {} },
+          login: {
+            users: [
+              { username: 'tecnico', password: 'robco123' },
+              { username: 'ospite', password: 'guest' },
+            ],
+          },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      const { id } = JSON.parse(cr.body);
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Multi user T' },
+          state: { local: {}, global: {} },
+          login: { users: [{ username: 'tecnico', password: 'robco123' }] },
+          nodes: { start: { text: '', choices: [] } },
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).fictionalUsers).toEqual([
+        { username: 'tecnico', password: 'robco123' },
+      ]);
+    });
+  });
+
   describe('by-hidden-id slug lookup', () => {
     let privateCampaignId: string;
     let campaign2Id: string;

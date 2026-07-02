@@ -51,7 +51,7 @@ export const StateDeclarationSchema = z.object({
  */
 export const LoginUserSchema = z.object({
   username: z.string(),
-  password: z.string(),
+  password: z.string().optional(),
 });
 
 export const LoginBlockSchema = z.object({

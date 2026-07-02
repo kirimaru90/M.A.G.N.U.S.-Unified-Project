@@ -7,6 +7,7 @@ import { TerminalsApiService } from '../../../core/terminal/terminals-api.servic
 import { CurrentCampaignService } from '../../../core/campaign/current-campaign.service';
 import type { TerminalContent } from '../../../domain/terminal-schema';
 import { TerminalContentSchema } from '../../../domain/terminal-schema';
+import type { FictionalUserCredential } from '../../../core/terminal/terminal.types';
 import type { StateEntryShape } from '../../../core/state/state.types';
 import { resolveControlByPath, toContent, toForm } from './terminal-form';
 import { MetadataSectionComponent } from './metadata-section';
@@ -76,6 +77,7 @@ import { NodesSectionComponent } from './nodes-section';
 export class TerminalEditorComponent implements OnInit {
   @Input({ required: true }) terminalId!: string;
   @Input({ required: true }) content!: TerminalContent;
+  @Input() fictionalUsers: FictionalUserCredential[] = [];
   @Output() readonly saved = new EventEmitter<void>();
 
   private readonly terminalsApi = inject(TerminalsApiService);
@@ -108,7 +110,7 @@ export class TerminalEditorComponent implements OnInit {
   }
 
   private buildForm(content: TerminalContent): void {
-    this.form = toForm(content);
+    this.form = toForm(content, this.fictionalUsers);
     this.addRequiredValidators();
     this.dirty = false;
     this.form.valueChanges.subscribe(() => {
@@ -198,9 +200,10 @@ export class TerminalEditorComponent implements OnInit {
     }
 
     this.terminalsApi.update(this.terminalId, result.data).subscribe({
-      next: (saved) => {
-        this.baseline = saved;
-        this.buildForm(saved);
+      next: (envelope) => {
+        this.baseline = envelope.content;
+        this.fictionalUsers = envelope.fictionalUsers;
+        this.buildForm(this.baseline);
         this.saved.emit();
         this.messageService.add({
           severity: 'success',

@@ -31,13 +31,18 @@ export interface TerminalListItem {
  * The backend wraps the canonical `TerminalContent` in an envelope; we unwrap
  * at the service boundary so consumers continue to operate on `TerminalContent`.
  */
+export interface FictionalUserCredential {
+  username: string;
+  password: string;
+}
+
 export interface TerminalDetailEnvelope {
   id: string;
   campaignId: string;
   title: string;
   content: TerminalContent;
   state: Record<string, unknown>;
-  fictionalUsers: unknown[];
+  fictionalUsers: FictionalUserCredential[];
   createdAt: string;
   updatedAt?: string;
 }

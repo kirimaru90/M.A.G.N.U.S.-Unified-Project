@@ -74,7 +74,26 @@
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\(p.scripts,null,2\\)\\)\")",
       "Bash(npm test *)",
       "Bash(git stash *)",
-      "Bash(mkdir -p openspec/changes/archive)"
+      "Bash(mkdir -p openspec/changes/archive)",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).dependencies['@angular/core']\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(claude --version)",
+      "PowerShell(Get-Command claude -ErrorAction SilentlyContinue)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(grep -Hm1 ^description: '/c/Users/p.dipersio/Documents/Progetti/Unified MAGNUS/.claude/skills/*/SKILL.md')",
+      "Bash(find '/c/Users/p.dipersio/Documents/Progetti/Unified MAGNUS' -maxdepth 2 -iname CLAUDE.md -o -iname docker-compose*.yml)",
+      "Bash(find '/c/Users/p.dipersio/Documents/Progetti/Unified MAGNUS/apps/api/api' -maxdepth 1 -iname .env*)",
+      "Bash(docker version *)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(npx --yes playwright install chromium --dry-run)",
+      "Bash(timeout 40 bash -c 'until curl -sf http://localhost:3000 >/dev/null 2>&1 || grep -q \"Nest application successfully started\\\\|error\" /tmp/api-server.log 2>/dev/null; do sleep 1; done')",
+      "Bash(curl -sv http://localhost:3000/)",
+      "Bash(curl -sv http://localhost:3000/terminals)",
+      "Bash(curl -s -X POST http://localhost:3000/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"minad\"}')",
+      "Bash(timeout 90 bash -c 'until curl -sf http://localhost:4200 >/dev/null 2>&1; do sleep 2; done')",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>console.log\\(JSON.stringify\\(JSON.parse\\(d\\),null,2\\)\\)\\)\")"
     ]
   }
 }
