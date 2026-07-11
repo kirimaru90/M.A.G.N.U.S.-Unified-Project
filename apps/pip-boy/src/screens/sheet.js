@@ -1,5 +1,5 @@
 import { mount, esc } from '../engine/render.js';
-import { showSheetNav, setCriticalChrome } from '../engine/chrome.js';
+import { showSheetNav, setCriticalChrome, setEditorChrome } from '../engine/chrome.js';
 import { isAdmin, logout, getUser } from '../api/session.js';
 import { patchActionPoints } from '../api/characters.js';
 import { clamp, paSourceLabel } from '../sheet/model.js';
@@ -48,7 +48,6 @@ export function renderSheet(root, opts) {
         ${warning ? `<div class="pb-offline-banner" id="pb-sheet-warning">${esc(warning)}</div>` : ''}
         <div class="pb-tabs" id="pb-tabs">
             ${TABS.map((t) => `<button class="pb-tab" data-tab="${t.key}">${t.label}</button>`).join('')}
-            ${canEdit ? '<button class="pb-tab pb-tab--editor" id="pb-editor-toggle" title="Modalità editor">✎</button>' : ''}
         </div>
         <div id="pb-sheet-strip"></div>
         <div class="pb-screen-content" id="pb-sheet-content"></div>
@@ -59,13 +58,20 @@ export function renderSheet(root, opts) {
         </div>
     `);
 
-    // The reference puts navigation in the case status bar, not the sheet header.
+    // The reference puts navigation — and the owner/admin `✎` toggle — in the
+    // case status bar, not the sheet header.
     showSheetNav({
         onBack: onBackToCharacters,
         onLogout: async () => {
             await logout();
             onLogout();
         },
+        onToggleEdit: () => {
+            editMode = !editMode;
+            renderStrip();
+            renderActiveTab();
+        },
+        canEdit,
     });
 
     const headerEl = root.querySelector('#pb-sheet-header');
@@ -73,7 +79,6 @@ export function renderSheet(root, opts) {
     const stripEl = root.querySelector('#pb-sheet-strip');
     const footerTabEl = root.querySelector('#pb-footer-tab');
     const footerCapsEl = root.querySelector('#pb-footer-caps');
-    const editorToggle = root.querySelector('#pb-editor-toggle');
 
     const ap = () => character.actionPoints ?? {};
 
@@ -121,6 +126,9 @@ export function renderSheet(root, opts) {
             stripEl.innerHTML = '';
         }
         setCriticalChrome(!!character.status?.criticalState);
+        // The green editor ring mirrors the strip; setEditorChrome yields to the
+        // amber critical ring when both apply.
+        setEditorChrome(editMode);
     }
 
     function renderFooter() {
@@ -178,15 +186,6 @@ export function renderSheet(root, opts) {
             renderActiveTab();
         });
     });
-
-    if (editorToggle) {
-        editorToggle.addEventListener('click', () => {
-            editMode = !editMode;
-            editorToggle.classList.toggle('active', editMode);
-            renderStrip();
-            renderActiveTab();
-        });
-    }
 
     renderHeader();
     renderStrip();

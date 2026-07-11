@@ -87,10 +87,13 @@ body {
 
 /* ── Case + screen skeleton ─────────────────────────────────────── */
 
+/* The case fills the body's content box — the viewport minus the small uniform
+   `body` padding (the "tiny margin") — in every orientation, with no fixed pixel
+   `max-width`/`max-height` cap that would leave it floating in dead space on a
+   large viewport. Internal scrolling stays inside `.pb-screen-content`. */
 .pb-case {
     width: 100%;
-    max-width: 460px;
-    height: min(96dvh, 960px);
+    height: 100%;
     background: var(--case-gradient);
     border: 1px solid #333829;
     border-radius: 26px;
@@ -102,13 +105,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
-}
-
-@media (orientation: landscape) {
-    .pb-case {
-        max-width: min(90vw, 900px);
-        height: min(94dvh, 700px);
-    }
 }
 
 .pb-statusbar {
@@ -149,6 +145,16 @@ body {
     cursor: pointer;
 }
 .pb-statusbar-btn:hover { background: var(--green-fill); }
+.pb-statusbar-btn[hidden] { display: none; }
+
+/* The `✎` editor toggle carries a glyph and, while active, a pressed/tinted look. */
+.pb-statusbar-btn--toggle { font-size: 11px; }
+.pb-statusbar-btn--toggle.active {
+    background: var(--green-fill);
+    border-color: var(--green-border-strong);
+    color: var(--phosphor-bright);
+    text-shadow: 0 0 6px var(--phosphor-bright);
+}
 
 /* Critical state swaps the status dot and label to amber. */
 .pb-statusbar.critical .dot {
@@ -197,6 +203,7 @@ body {
 
 .pb-scanline-texture,
 .pb-vignette,
+.pb-editor-ring,
 .pb-critical-ring {
     position: absolute;
     inset: 0;
@@ -229,6 +236,17 @@ body {
     background: linear-gradient(180deg, rgba(51, 255, 102, 0.08), transparent);
     animation: scanSweep 7s linear infinite;
 }
+
+/* Always-visible signal of editor mode, shown with the ◉ EDITOR strip. Sits
+   below the critical ring (z4 vs z5); chrome.js hides it while critical so the
+   amber ring takes precedence, matching the banner precedence rule. */
+.pb-editor-ring {
+    z-index: 4;
+    border-radius: 14px;
+    border: 1px solid var(--green-border-strong);
+    box-shadow: inset 0 0 45px rgba(51, 255, 102, 0.25);
+}
+.pb-editor-ring[hidden] { display: none; }
 
 /* Shown alongside the ⚠ STATO CRITICO banner, never instead of it. */
 .pb-critical-ring {
@@ -342,6 +360,15 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     width: 100%;
 }
 .pb-input::placeholder { color: rgba(51, 255, 102, 0.4); }
+
+/* Render the native option popup on the phosphor theme rather than the
+   browser-default light list. Native option styling is only partially honored
+   on some platforms — this states the on-theme intent, accepting that variance. */
+.pb-select option,
+.pb-select optgroup {
+    background: var(--screen-bg);
+    color: var(--phosphor);
+}
 
 .pb-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
 
@@ -536,13 +563,6 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-pa-control .pb-pips { flex: 1; }
 .pb-pa-control .pb-stepper button { width: 30px; height: 30px; font-size: 18px; }
 .pb-pa-control .pb-stepper .value { font-size: 22px; min-width: 32px; }
-
-/* The `✎` toggle is fixed-width, unlike the five equal-flex tabs. */
-.pb-tab--editor {
-    flex: none;
-    width: 44px;
-    font-size: 14px;
-}
 
 .pb-editor-strip {
     border: 1px solid var(--green-border-soft);

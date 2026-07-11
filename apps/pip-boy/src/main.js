@@ -13,14 +13,15 @@ import { renderCharacterSelect } from './screens/character-select.js';
 import { renderCreate } from './screens/create.js';
 import { renderSheet } from './screens/sheet.js';
 import { mount } from './engine/render.js';
-import { hideSheetNav, setCriticalChrome } from './engine/chrome.js';
+import { hideSheetNav, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
 
 const root = document.getElementById('app');
 
-/** The status-bar nav and the amber ring belong to the sheet alone. */
+/** The status-bar nav and the amber/green rings belong to the sheet alone. */
 function resetChrome() {
     hideSheetNav();
     setCriticalChrome(false);
+    setEditorChrome(false);
 }
 
 /**

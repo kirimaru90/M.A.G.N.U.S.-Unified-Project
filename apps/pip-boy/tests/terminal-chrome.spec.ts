@@ -10,6 +10,7 @@ const ROUNDED_ALLOWLIST = [
   '.pb-case',
   '.pb-screen',
   '.pb-critical-ring',
+  '.pb-editor-ring',
   '.pb-knob',
   '.pb-grille',
   '.pb-nub',
@@ -297,4 +298,85 @@ test('a non-critical character shows no ring and a green status dot', async ({ p
 
   await expect(page.locator('#pb-critical-ring')).toBeHidden();
   await expect(page.locator('.pb-statusbar')).not.toHaveClass(/critical/);
+});
+
+// ── editor toggle in the status bar (sheet-chrome-and-layout) ────────
+
+test('the owner sees ◄ DOSSIER, ESCI and the ✎ toggle in the status bar, with no ✎ in the tab bar', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const nav = page.locator('#pb-statusbar-nav');
+  await expect(nav.locator('#pb-nav-dossier')).toBeVisible();
+  await expect(nav.locator('#pb-nav-logout')).toBeVisible();
+  await expect(nav.locator('#pb-editor-toggle')).toBeVisible();
+
+  // The tab bar returns to exactly five content tabs and carries no toggle.
+  await expect(page.locator('.pb-tab[data-tab]')).toHaveCount(5);
+  await expect(page.locator('#pb-tabs #pb-editor-toggle')).toHaveCount(0);
+});
+
+test('a non-owner viewer sees no ✎ toggle anywhere', async ({ page }) => {
+  await stubEnvironment(page, {
+    role: 'player',
+    userId: 'user-player',
+    character: makeCharacter({ userId: 'someone-else' }),
+  });
+  await openSheet(page);
+
+  await expect(page.locator('#pb-nav-dossier')).toBeVisible();
+  await expect(page.locator('#pb-editor-toggle')).toBeHidden();
+});
+
+test('toggling editor mode adds and removes the green ring and the ◉ EDITOR strip', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  await expect(page.locator('#pb-editor-ring')).toBeHidden();
+  await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
+
+  await page.locator('#pb-editor-toggle').click();
+  await expect(page.locator('#pb-editor-ring')).toBeVisible();
+  await expect(page.locator('.pb-editor-strip')).toContainText('◉ EDITOR');
+  await expect(page.locator('#pb-editor-toggle')).toHaveClass(/active/);
+
+  const ring = await page.locator('#pb-editor-ring').evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { border: cs.borderTopColor, pe: cs.pointerEvents, radius: cs.borderRadius };
+  });
+  expect(ring.border).toBe('rgba(51, 255, 102, 0.5)');
+  expect(ring.pe).toBe('none');
+  expect(ring.radius).toBe('14px');
+
+  await page.locator('#pb-editor-toggle').click();
+  await expect(page.locator('#pb-editor-ring')).toBeHidden();
+  await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
+  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/active/);
+});
+
+test('a critical character in editor mode shows the amber ring, not the green one', async ({ page }) => {
+  await stubEnvironment(page, {
+    character: makeCharacter({
+      status: { positiveConditions: [], negativeConditions: [], criticalState: true },
+    }),
+  });
+  await openSheet(page);
+
+  await page.locator('#pb-editor-toggle').click();
+
+  await expect(page.locator('#pb-critical-ring')).toBeVisible();
+  await expect(page.locator('#pb-editor-ring')).toBeHidden();
+});
+
+test('a select option renders on the dark screen theme, not white', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  // FONTE PA (#pb-pa-source) is a `.pb-select` revealed by editor mode.
+  await page.locator('#pb-editor-toggle').click();
+  const bg = await page
+    .locator('#pb-pa-source option')
+    .first()
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(bg).toBe('rgb(6, 17, 10)');
 });

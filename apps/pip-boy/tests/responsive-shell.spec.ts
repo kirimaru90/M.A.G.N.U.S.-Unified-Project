@@ -64,3 +64,27 @@ test('.pb-case widens beyond the portrait 460px cap in landscape', async ({ page
   const box = await page.locator('.pb-case').boundingBox();
   expect(box!.width).toBeGreaterThan(460 + 100);
 });
+
+test('on a wide desktop viewport .pb-case fills the viewport minus the small margin and exceeds the old 900px cap', async ({ page }) => {
+  // The `body` padding is the "small uniform margin"; the case fills the rest.
+  const MARGIN = 12;
+  await page.setViewportSize(VIEWPORTS.desktop);
+  await stubEnvironment(page);
+  await login(page);
+  await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
+  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
+
+  const box = await page.locator('.pb-case').boundingBox();
+  expect(box!.width).toBeCloseTo(VIEWPORTS.desktop.width - MARGIN * 2, 0);
+  expect(box!.height).toBeCloseTo(VIEWPORTS.desktop.height - MARGIN * 2, 0);
+  // The old landscape cap left the case floating at 900px; it now fills the width.
+  expect(box!.width).toBeGreaterThan(900);
+
+  await assertNoPageScroll(page);
+
+  // Scrolling still lives only inside the terminal's content pane.
+  const contentOverflow = await page
+    .locator('#pb-sheet-content')
+    .evaluate((el) => getComputedStyle(el).overflowY);
+  expect(contentOverflow).toBe('auto');
+});
