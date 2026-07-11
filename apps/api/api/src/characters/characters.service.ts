@@ -28,6 +28,7 @@ import { PatchStatusDto } from './dto/patch-status.dto';
 import { PatchActionPointsDto } from './dto/patch-action-points.dto';
 import { PatchInventoryDto } from './dto/patch-inventory.dto';
 import { PatchResourcesDto } from './dto/patch-resources.dto';
+import { SpeciesCatalogService } from '../species-catalog/species-catalog.service';
 
 /** A character loaded via `.lean()` — plain object with an ObjectId `_id`. */
 type LeanCharacter = Character & { _id: Types.ObjectId };
@@ -72,7 +73,15 @@ export class CharactersService {
     @InjectModel(Character.name)
     private characterModel: Model<CharacterDocument>,
     @InjectModel(Campaign.name) private campaignModel: Model<CampaignDocument>,
+    private speciesCatalog: SpeciesCatalogService,
   ) {}
+
+  /** `species` is a catalog slug, not an enum — an unknown one is a 400. */
+  private async assertKnownSpecies(species?: string) {
+    if (species === undefined) return;
+    if (!(await this.speciesCatalog.slugExists(species)))
+      throw new BadRequestException(`Unknown species "${species}"`);
+  }
 
   // --- CRUD ---
 
@@ -109,6 +118,8 @@ export class CharactersService {
 
     if (!Types.ObjectId.isValid(userId))
       throw new BadRequestException('Invalid userId');
+
+    await this.assertKnownSpecies(dto.species);
 
     const campaign = await this.campaignModel.findById(campaignId).lean();
     if (!campaign) throw new NotFoundException();
@@ -152,6 +163,7 @@ export class CharactersService {
   ) {
     const existing = await this.loadOr404(campaignId, characterId);
     const s = this.scrubUpdate(dto, actor);
+    await this.assertKnownSpecies(s.species);
 
     // PUT is a full-document replace (not a partial merge): when a mutable
     // section is present it replaces the stored section wholesale, so omitting a
@@ -370,7 +382,7 @@ export class CharactersService {
         scrubbed.weapons.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.weapons = result as typeof inventory.weapons;
+      inventory.weapons = result;
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -382,7 +394,7 @@ export class CharactersService {
         scrubbed.equip.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.equip = result as typeof inventory.equip;
+      inventory.equip = result;
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -394,7 +406,7 @@ export class CharactersService {
         scrubbed.consumables.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.consumables = result as typeof inventory.consumables;
+      inventory.consumables = result;
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -406,7 +418,7 @@ export class CharactersService {
         scrubbed.other.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.other = result as typeof inventory.other;
+      inventory.other = result;
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -463,10 +475,16 @@ export class CharactersService {
     actor: AuthenticatedUser,
   ): UpdateCharacterDto {
     if (actor.role === 'admin') return dto;
-    // Non-admin: identity + player-writable sections only; special/skills/perks dropped.
+    // Owner (guard-enforced): every section is writable, but each still passes
+    // through the per-section whitelist so future field-level restrictions apply
+    // to PUT as they do to the section PATCHes.
     const out: UpdateCharacterDto = {};
     if (dto.name !== undefined) out.name = dto.name;
     if (dto.species !== undefined) out.species = dto.species;
+    if (dto.special)
+      out.special = scrubPayload('special', { ...dto.special }, actor).scrubbed;
+    if (dto.skills) out.skills = dto.skills;
+    if (dto.perks) out.perks = dto.perks;
     if (dto.actionPoints)
       out.actionPoints = scrubPayload(
         'actionPoints',

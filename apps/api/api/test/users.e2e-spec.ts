@@ -13,6 +13,7 @@ import {
 import { AuthModule } from '../src/auth/auth.module';
 import { UsersModule } from '../src/users/users.module';
 import { CampaignsModule } from '../src/campaigns/campaigns.module';
+import { CharactersModule } from '../src/characters/characters.module';
 import { User, UserSchema } from '../src/users/schemas/user.schema';
 import {
   Campaign,
@@ -25,6 +26,7 @@ describe('UsersModule (e2e)', () => {
   let userModel: Model<User>;
   let adminToken: string;
   let playerToken: string;
+  let playerId: string;
 
   beforeAll(async () => {
     const uri = await startMongoMemoryServer();
@@ -39,6 +41,7 @@ describe('UsersModule (e2e)', () => {
         AuthModule,
         UsersModule,
         CampaignsModule,
+        CharactersModule,
       ],
     }).compile();
 
@@ -52,11 +55,12 @@ describe('UsersModule (e2e)', () => {
       passwordHash: adminHash,
       role: 'admin',
     });
-    await userModel.create({
+    const player1 = await userModel.create({
       username: 'player1',
       passwordHash: playerHash,
       role: 'player',
     });
+    playerId = String(player1._id);
 
     const adminLogin = await app.inject({
       method: 'POST',
@@ -191,5 +195,195 @@ describe('UsersModule (e2e)', () => {
     // Server-owned fields are ignored, not persisted onto the response.
     expect(body.lastCampaignId).toBeUndefined();
     expect(body.unlockedHiddenIds).toBeUndefined();
+  });
+
+  describe('PUT /users/me/last-selection', () => {
+    let campaignId: string;
+    let characterId: string;
+    let otherPlayerCharacterId: string;
+
+    beforeAll(async () => {
+      const campaignRes = await app.inject({
+        method: 'POST',
+        url: '/campaigns',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Last-Selection Campaign', isActive: true },
+      });
+      campaignId = JSON.parse(campaignRes.body).id;
+
+      await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/players`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { playerId },
+      });
+
+      const characterRes = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/characters`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Dweller', userId: playerId },
+      });
+      characterId = JSON.parse(characterRes.body).id;
+
+      const otherPlayer = await userModel.create({
+        username: 'player2',
+        passwordHash: await bcrypt.hash('playerpass2', 12),
+        role: 'player',
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/players`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { playerId: String(otherPlayer._id) },
+      });
+      const otherCharacterRes = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/characters`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Other Dweller', userId: String(otherPlayer._id) },
+      });
+      otherPlayerCharacterId = JSON.parse(otherCharacterRes.body).id;
+    });
+
+    it('player sets their own last selection → 200', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId, characterId },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body)).toEqual({
+        lastCampaignId: campaignId,
+        lastCharacterId: characterId,
+      });
+
+      const me = await app.inject({
+        method: 'GET',
+        url: '/auth/me',
+        headers: { Authorization: `Bearer ${playerToken}` },
+      });
+      const meBody = JSON.parse(me.body);
+      expect(meBody.lastCampaignId).toBe(campaignId);
+      expect(meBody.lastCharacterId).toBe(characterId);
+    });
+
+    it('missing characterId → 400', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('campaignId/characterId mismatch → 400', async () => {
+      const otherCampaignRes = await app.inject({
+        method: 'POST',
+        url: '/campaigns',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Another Campaign' },
+      });
+      const otherCampaignId = JSON.parse(otherCampaignRes.body).id;
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId: otherCampaignId, characterId },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("player cannot set last-selection to another player's character → 404", async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId, characterId: otherPlayerCharacterId },
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('admin can set last-selection to any character → 200', async () => {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { campaignId, characterId: otherPlayerCharacterId },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body)).toEqual({
+        lastCampaignId: campaignId,
+        lastCharacterId: otherPlayerCharacterId,
+      });
+    });
+
+    it('reference to a soft-deleted character → 400', async () => {
+      await app.inject({
+        method: 'DELETE',
+        url: `/campaigns/${campaignId}/characters/${characterId}`,
+        headers: { Authorization: `Bearer ${playerToken}` },
+      });
+
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId, characterId },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe('Campaign deletion cascade clears lastCharacterId', () => {
+    it('clears lastCampaignId and lastCharacterId together on campaign delete', async () => {
+      const campaignRes = await app.inject({
+        method: 'POST',
+        url: '/campaigns',
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Cascade Campaign' },
+      });
+      const cascadeCampaignId = JSON.parse(campaignRes.body).id;
+
+      await app.inject({
+        method: 'POST',
+        url: `/campaigns/${cascadeCampaignId}/players`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { playerId },
+      });
+
+      const characterRes = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${cascadeCampaignId}/characters`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: { name: 'Cascade Dweller', userId: playerId },
+      });
+      const cascadeCharacterId = JSON.parse(characterRes.body).id;
+
+      await app.inject({
+        method: 'PUT',
+        url: '/users/me/last-selection',
+        headers: { Authorization: `Bearer ${playerToken}` },
+        payload: { campaignId: cascadeCampaignId, characterId: cascadeCharacterId },
+      });
+
+      await app.inject({
+        method: 'DELETE',
+        url: `/campaigns/${cascadeCampaignId}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+
+      const me = await app.inject({
+        method: 'GET',
+        url: '/auth/me',
+        headers: { Authorization: `Bearer ${playerToken}` },
+      });
+      const meBody = JSON.parse(me.body);
+      expect(meBody.lastCampaignId).toBeNull();
+      expect(meBody.lastCharacterId).toBeNull();
+    });
   });
 });

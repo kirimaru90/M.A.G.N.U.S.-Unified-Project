@@ -35,6 +35,10 @@ export class UpdateUserDto {
   @Allow()
   lastCampaignId?: string | null;
 
+  @ApiPropertyOptional({ description: 'Server-owned; accepted but ignored.' })
+  @Allow()
+  lastCharacterId?: string | null;
+
   @ApiPropertyOptional({
     type: [String],
     description: 'Server-owned; accepted but ignored.',

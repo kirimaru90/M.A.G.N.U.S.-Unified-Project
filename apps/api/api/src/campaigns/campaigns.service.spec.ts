@@ -16,7 +16,7 @@ function makeService(
 }
 
 describe('CampaignsService.delete cascade', () => {
-  it('clears lastCampaignId on users that reference the deleted campaign', async () => {
+  it('clears lastCampaignId and lastCharacterId on users that reference the deleted campaign', async () => {
     const campaignId = '507f1f77bcf86cd799439011';
     const campaign = { _id: { toString: () => campaignId } };
 
@@ -42,7 +42,7 @@ describe('CampaignsService.delete cascade', () => {
 
     expect(userModel.updateMany).toHaveBeenCalledWith(
       { lastCampaignId: campaignId },
-      { $set: { lastCampaignId: null } },
+      { $set: { lastCampaignId: null, lastCharacterId: null } },
     );
   });
 

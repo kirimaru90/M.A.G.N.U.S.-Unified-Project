@@ -11,7 +11,7 @@ services:
       MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
       JWT_SECRET: ${JWT_SECRET}
       PORT: 3000
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4280}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4280,http://localhost:8081}
     depends_on:
       - mongo
     restart: unless-stopped
@@ -49,6 +49,15 @@ services:
       - "8080:80"
     volumes:
       - ./apps/terminal:/usr/share/nginx/html
+    restart: unless-stopped
+
+  # 5. PIP-BOY (character-sheet PWA)
+  pip-boy:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    volumes:
+      - ./apps/pip-boy:/usr/share/nginx/html
     restart: unless-stopped
 
 volumes:

@@ -22,7 +22,7 @@ import {
 } from '../src/campaigns/schemas/campaign.schema';
 import configuration from '../src/config/configuration';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 
 describe('CharactersModule (e2e)', () => {
   let app: NestFastifyApplication;
@@ -36,6 +36,14 @@ describe('CharactersModule (e2e)', () => {
   let campaignId: string;
 
   const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /**
+   * Section PATCHes answer with the `{ section, ignored }` envelope
+   * (api-character-stats). These unwrap it so assertions read the mutated
+   * section, and the dropped-input list, directly.
+   */
+  const sectionOf = (res: { body: string }) => JSON.parse(res.body).section;
+  const ignoredOf = (res: { body: string }) => JSON.parse(res.body).ignored;
 
   // Create a character owned by `userId` (via admin) and return its id.
   async function createCharacter(userId: string, name = 'Dweller') {
@@ -214,13 +222,13 @@ describe('CharactersModule (e2e)', () => {
       payload: { items: [{ name: 'Bloody Mess' }] },
     });
     expect(c.statusCode).toBe(200);
-    const perks = JSON.parse(c.body) as { id: string; name: string }[];
+    const perks = sectionOf(c) as { id: string; name: string }[];
     expect(Array.isArray(perks)).toBe(true); // section only, not full character
     expect(perks).toHaveLength(1);
     const perkId = perks[0].id;
     expect(perkId).toBeTruthy();
 
-    // update by id (merge) + unknown id (skipped)
+    // update by id (merge) + unknown id (skipped and reported)
     const u = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/perks`,
@@ -232,12 +240,15 @@ describe('CharactersModule (e2e)', () => {
         ],
       },
     });
-    const afterUpdate = JSON.parse(u.body) as {
+    const afterUpdate = sectionOf(u) as {
       id: string;
       description?: string;
     }[];
     expect(afterUpdate).toHaveLength(1);
     expect(afterUpdate[0].description).toBe('updated');
+    expect(ignoredOf(u)).toEqual([
+      { section: 'perks', id: 'doesnotexist', reason: 'unknown_id' },
+    ]);
 
     // delete
     const d = await app.inject({
@@ -246,15 +257,14 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(adminToken),
       payload: { deletedIds: [perkId] },
     });
-    expect(JSON.parse(d.body)).toHaveLength(0);
+    expect(sectionOf(d)).toHaveLength(0);
   });
 
-  // --- 8.5 RBAC field-level whitelist ---
+  // --- 8.5 Every section is owner-writable; non-owners get 404 ---
 
-  it('player writes to admin-only sections are silently ignored; player-writable sections apply', async () => {
+  it('the owner may write every section of their own character', async () => {
     const id = await createCharacter(playerAId);
 
-    // special (admin-only) ignored
     const sp = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/special`,
@@ -262,9 +272,9 @@ describe('CharactersModule (e2e)', () => {
       payload: { strength: 5 },
     });
     expect(sp.statusCode).toBe(200);
-    expect(JSON.parse(sp.body).strength).toBe(1);
+    expect(sectionOf(sp).strength).toBe(5);
+    expect(ignoredOf(sp)).toEqual([]);
 
-    // skills (admin-only) ignored
     const sk = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/skills`,
@@ -272,72 +282,135 @@ describe('CharactersModule (e2e)', () => {
       payload: { items: [{ id: 'lockpick', level: 'expert' }] },
     });
     expect(sk.statusCode).toBe(200);
-    expect(JSON.parse(sk.body)).toHaveLength(0);
+    expect(sectionOf(sk)).toEqual([{ id: 'lockpick', level: 'expert' }]);
+    expect(ignoredOf(sk)).toEqual([]);
 
-    // action-points: paCurrent allowed, paMax dropped
-    const ap = await app.inject({
+    const pk = await app.inject({
       method: 'PATCH',
-      url: `/campaigns/${campaignId}/characters/${id}/action-points`,
+      url: `/campaigns/${campaignId}/characters/${id}/perks`,
       headers: auth(playerAToken),
-      payload: { paMax: 10, paCurrent: 3 },
+      payload: { items: [{ name: 'Bloody Mess' }] },
     });
-    const apBody = JSON.parse(ap.body);
-    expect(apBody.paCurrent).toBe(3);
-    expect(apBody.paMax).toBeUndefined();
+    expect(pk.statusCode).toBe(200);
+    expect(sectionOf(pk)).toHaveLength(1);
+    expect(ignoredOf(pk)).toEqual([]);
 
-    // resources: caps/scraps allowed, bobbleheads dropped
-    const rs = await app.inject({
-      method: 'PATCH',
-      url: `/campaigns/${campaignId}/characters/${id}/resources`,
-      headers: auth(playerAToken),
-      payload: { caps: 120, scraps: 8, bobbleheads: 5 },
-    });
-    const rsBody = JSON.parse(rs.body);
-    expect(rsBody.caps).toBe(120);
-    expect(rsBody.scraps).toBe(8);
-    expect(rsBody.bobbleheads).toBe(0);
-
-    // status: player-writable
     const st = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/status`,
       headers: auth(playerAToken),
       payload: { criticalState: true },
     });
-    expect(JSON.parse(st.body).criticalState).toBe(true);
+    expect(sectionOf(st).criticalState).toBe(true);
 
-    // inventory: player-writable
     const inv = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/inventory`,
       headers: auth(playerAToken),
       payload: { weapons: { items: [{ name: '10mm Pistol' }] } },
     });
-    const invBody = JSON.parse(inv.body);
-    expect(invBody.weapons).toHaveLength(1);
-    expect(invBody.weapons[0].id).toBeTruthy();
+    const invSection = sectionOf(inv);
+    expect(invSection.weapons).toHaveLength(1);
+    expect(invSection.weapons[0].id).toBeTruthy();
   });
 
-  it('admin can write SPECIAL; out-of-range → 400', async () => {
+  it('the owner may write paMax and paTrackedBy, and bobbleheads', async () => {
     const id = await createCharacter(playerAId);
-    const ok = await app.inject({
+
+    const ap = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/action-points`,
+      headers: auth(playerAToken),
+      payload: { paMax: 10, paCurrent: 3, paTrackedBy: 'endurance' },
+    });
+    expect(ap.statusCode).toBe(200);
+    expect(sectionOf(ap)).toMatchObject({
+      paMax: 10,
+      paCurrent: 3,
+      paTrackedBy: 'endurance',
+    });
+    expect(ignoredOf(ap)).toEqual([]);
+
+    const rs = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/resources`,
+      headers: auth(playerAToken),
+      payload: { caps: 120, scraps: 8, bobbleheads: 5 },
+    });
+    expect(rs.statusCode).toBe(200);
+    expect(sectionOf(rs)).toMatchObject({
+      caps: 120,
+      scraps: 8,
+      bobbleheads: 5,
+    });
+    expect(ignoredOf(rs)).toEqual([]);
+
+    // Both survive a re-read, not just the PATCH response envelope.
+    const get = await app.inject({
+      method: 'GET',
+      url: `/campaigns/${campaignId}/characters/${id}`,
+      headers: auth(playerAToken),
+    });
+    const body = JSON.parse(get.body);
+    expect(body.actionPoints).toMatchObject({
+      paMax: 10,
+      paCurrent: 3,
+      paTrackedBy: 'endurance',
+    });
+    expect(body.resources.bobbleheads).toBe(5);
+  });
+
+  it('a non-owner player patching SPECIAL gets 404 and nothing changes', async () => {
+    const id = await createCharacter(playerAId);
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/special`,
+      headers: auth(playerBToken),
+      payload: { strength: 7 },
+    });
+    expect(res.statusCode).toBe(404);
+
+    const get = await app.inject({
+      method: 'GET',
+      url: `/campaigns/${campaignId}/characters/${id}`,
+      headers: auth(playerAToken),
+    });
+    expect(JSON.parse(get.body).special.strength).toBe(1);
+  });
+
+  it("an admin may write SPECIAL on another player's character", async () => {
+    const id = await createCharacter(playerAId);
+    const res = await app.inject({
       method: 'PATCH',
       url: `/campaigns/${campaignId}/characters/${id}/special`,
       headers: auth(adminToken),
-      payload: { strength: 4, luck: 2 },
+      payload: { strength: 4 },
     });
-    const sp = JSON.parse(ok.body);
-    expect(sp.strength).toBe(4);
-    expect(sp.luck).toBe(2);
+    expect(res.statusCode).toBe(200);
+    expect(sectionOf(res).strength).toBe(4);
+  });
+
+  it('SPECIAL accepts the 0 and 8 bounds; -1 and 9 → 400', async () => {
+    const id = await createCharacter(playerAId);
+    const patch = (payload: Record<string, number>) =>
+      app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/special`,
+        headers: auth(playerAToken),
+        payload,
+      });
+
+    const ok = await patch({ strength: 8, luck: 0 });
+    expect(ok.statusCode).toBe(200);
+    const sp = sectionOf(ok);
+    expect(sp.strength).toBe(8);
+    expect(sp.luck).toBe(0);
+    // omitted attributes are untouched by the partial merge
     expect(sp.perception).toBe(1);
 
-    const bad = await app.inject({
-      method: 'PATCH',
-      url: `/campaigns/${campaignId}/characters/${id}/special`,
-      headers: auth(adminToken),
-      payload: { strength: 9 },
-    });
-    expect(bad.statusCode).toBe(400);
+    expect((await patch({ strength: 9 })).statusCode).toBe(400);
+    expect((await patch({ strength: -1 })).statusCode).toBe(400);
   });
 
   // --- 8.6 Skills (static-slug collection) ---
@@ -351,7 +424,7 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(adminToken),
       payload: { items: [{ id: 'hacking', level: 'expert' }] },
     });
-    let skills = JSON.parse(attach.body) as { id: string; level: string }[];
+    let skills = sectionOf(attach) as { id: string; level: string }[];
     expect(skills).toHaveLength(1);
     expect(skills[0]).toMatchObject({ id: 'hacking', level: 'expert' });
 
@@ -361,7 +434,7 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(adminToken),
       payload: { items: [{ id: 'hacking', level: 'master' }] },
     });
-    skills = JSON.parse(change.body);
+    skills = sectionOf(change);
     expect(skills).toHaveLength(1);
     expect(skills[0].level).toBe('master');
 
@@ -371,7 +444,7 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(adminToken),
       payload: { deletedIds: ['hacking'] },
     });
-    expect(JSON.parse(detach.body)).toHaveLength(0);
+    expect(sectionOf(detach)).toHaveLength(0);
 
     const idless = await app.inject({
       method: 'PATCH',

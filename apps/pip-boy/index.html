@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>M.A.G.N.U.S. Pip-Boy</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#33ff66">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="src/styles/pipboy.css">
+</head>
+<body>
+    <div class="pb-case">
+        <div class="pb-statusbar" id="pb-statusbar">
+            <span class="pb-status-id"><span class="dot" id="pb-status-dot"></span><span id="pb-status-label">M.A.G.N.U.S.</span></span>
+            <span class="pb-statusbar-nav" id="pb-statusbar-nav" hidden>
+                <button class="pb-statusbar-btn" id="pb-nav-dossier" type="button">&#9668; DOSSIER</button>
+                <button class="pb-statusbar-btn" id="pb-nav-logout" type="button">ESCI</button>
+            </span>
+            <span class="pb-status-os">PIP-BOY OS</span>
+        </div>
+
+        <!--
+          The four CRT layers wrap the screen content rather than living inside
+          `#app`: every screen mount() replaces `#app`'s innerHTML, so overlays
+          nested within it would be wiped on navigation.
+        -->
+        <div class="pb-screen" id="pb-screen">
+            <div class="pb-screen-inner" id="app"></div>
+            <div class="pb-scanline-texture" aria-hidden="true"></div>
+            <div class="pb-vignette" aria-hidden="true"></div>
+            <div class="pb-scanline-sweep" aria-hidden="true"></div>
+            <div class="pb-critical-ring" id="pb-critical-ring" aria-hidden="true" hidden></div>
+        </div>
+
+        <div class="pb-bezel" aria-hidden="true">
+            <span class="pb-knobs">
+                <span class="pb-knob"></span>
+                <span class="pb-knob"></span>
+            </span>
+            <span class="pb-grille"></span>
+            <span class="pb-nub"></span>
+        </div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

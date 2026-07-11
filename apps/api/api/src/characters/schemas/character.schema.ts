@@ -137,25 +137,25 @@ export const GenericItemSchema = SchemaFactory.createForClass(GenericItem);
 
 @Schema({ _id: false })
 export class SpecialSection {
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   strength: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   perception: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   endurance: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   charisma: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   intelligence: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   agility: number;
 
-  @Prop({ type: Number, min: 1, max: 5, default: 1 })
+  @Prop({ type: Number, min: 0, max: 8, default: 1 })
   luck: number;
 }
 export const SpecialSectionSchema =
@@ -207,11 +207,13 @@ export class Character {
   @Prop({ required: true })
   name: string;
 
-  @Prop({
-    type: String,
-    enum: ['human', 'ghoul', 'super_mutant', 'robot'],
-    default: 'human',
-  })
+  /**
+   * A slug from `api-species-catalog`, validated on write by CharactersService.
+   * Not a schema enum: species are CMS-authored data, and the four historical
+   * enum values (`human | ghoul | super_mutant | robot`) are the seeded slugs,
+   * so every already-persisted character stays valid.
+   */
+  @Prop({ type: String, default: 'human' })
   species: string;
 
   // --- S.P.E.C.I.A.L. ---

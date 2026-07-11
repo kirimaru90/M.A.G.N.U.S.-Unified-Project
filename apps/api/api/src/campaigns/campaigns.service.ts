@@ -110,7 +110,7 @@ export class CampaignsService {
     const campaignId = String(campaign._id);
     await this.userModel.updateMany(
       { lastCampaignId: campaignId },
-      { $set: { lastCampaignId: null } },
+      { $set: { lastCampaignId: null, lastCharacterId: null } },
     );
     await this.userModel.updateMany(
       {},

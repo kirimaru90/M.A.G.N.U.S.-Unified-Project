@@ -1,18 +1,25 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import {
   Campaign,
   CampaignDocument,
 } from '../campaigns/schemas/campaign.schema';
+import {
+  Character,
+  CharacterDocument,
+} from '../characters/schemas/character.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { LastSelectionDto } from './dto/last-selection.dto';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -30,6 +37,8 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Campaign.name) private campaignModel: Model<CampaignDocument>,
+    @InjectModel(Character.name)
+    private characterModel: Model<CharacterDocument>,
   ) {}
 
   async list() {
@@ -90,5 +99,39 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     await this.campaignModel.updateMany({}, { $pull: { players: user._id } });
     return;
+  }
+
+  async setLastSelection(actor: AuthenticatedUser, dto: LastSelectionDto) {
+    if (!Types.ObjectId.isValid(dto.characterId)) {
+      throw new BadRequestException('Invalid character selection');
+    }
+    const character = await this.characterModel
+      .findById(dto.characterId)
+      .lean();
+    if (
+      !character ||
+      character.isDeleted ||
+      String(character.campaignId) !== dto.campaignId
+    ) {
+      throw new BadRequestException('Invalid character selection');
+    }
+    if (actor.role !== 'admin' && String(character.userId) !== actor.id) {
+      throw new NotFoundException('Character not found');
+    }
+
+    await this.userModel.updateOne(
+      { _id: actor.id },
+      {
+        $set: {
+          lastCampaignId: dto.campaignId,
+          lastCharacterId: dto.characterId,
+        },
+      },
+    );
+
+    return {
+      lastCampaignId: dto.campaignId,
+      lastCharacterId: dto.characterId,
+    };
   }
 }

@@ -1,7 +1,7 @@
 import {
   IsArray,
   IsBoolean,
-  IsIn,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MinLength,
@@ -9,7 +9,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { SPECIES } from './create-character.dto';
 import { PatchSpecialDto } from './patch-special.dto';
 import { SkillItemDto } from './patch-skills.dto';
 import { PerkItemDto } from './patch-perks.dto';
@@ -76,8 +75,8 @@ export class UpdateStatusDto {
 
 /**
  * Full mutable character body for `PUT`. Sections mirror the GET response
- * shape. The whitelist scrub still applies to non-admins, so admin-only
- * sections/fields are dropped before persisting.
+ * shape. The per-section whitelist scrub still runs for non-admins; every
+ * section is currently owner-writable, so nothing is dropped in practice.
  */
 export class UpdateCharacterDto {
   @ApiPropertyOptional()
@@ -86,9 +85,11 @@ export class UpdateCharacterDto {
   @MinLength(1)
   name?: string;
 
-  @ApiPropertyOptional({ enum: SPECIES })
+  /** A species-catalog slug; validated against the live catalog on write. */
+  @ApiPropertyOptional({ description: 'Species catalog slug' })
   @IsOptional()
-  @IsIn(SPECIES)
+  @IsString()
+  @IsNotEmpty()
   species?: string;
 
   @ApiPropertyOptional({ type: PatchSpecialDto })

@@ -22,6 +22,9 @@ export class User {
   @Prop({ type: String, default: null })
   lastCampaignId: string | null;
 
+  @Prop({ type: String, default: null })
+  lastCharacterId: string | null;
+
   @Prop({ type: Map, of: [String], default: {} })
   unlockedHiddenIds: Map<string, string[]>;
 

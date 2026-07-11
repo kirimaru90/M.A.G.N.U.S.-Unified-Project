@@ -1,0 +1,9 @@
+[
+  { "name": "FERITO",    "sign": "neg", "weight": 1, "note": "Strength e Agility" },
+  { "name": "STREMATO",  "sign": "neg", "weight": 1, "note": "Endurance e azioni prolungate" },
+  { "name": "IRRADIATO", "sign": "neg", "weight": 1, "note": "Endurance e azioni fisiche pesanti" },
+  { "name": "SCOSSO",    "sign": "neg", "weight": 1, "note": "Charisma, Intelligence, Perception" },
+  { "name": "IN DOWN",   "sign": "neg", "weight": 1, "note": "-1 a TUTTI i tiri" },
+  { "name": "CIECO",     "sign": "neg", "weight": 1, "note": "tiri che richiedono la vista" },
+  { "name": "SORDO",     "sign": "neg", "weight": 1, "note": "tiri che richiedono l'udito" }
+]

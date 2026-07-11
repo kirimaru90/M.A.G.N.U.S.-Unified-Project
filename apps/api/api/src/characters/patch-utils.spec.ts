@@ -1,8 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
-import { patchCollectionArray } from './patch-utils';
+import {
+  PLAYER_UPDATABLE_FIELDS,
+  patchCollectionArray,
+  scrubPayload,
+} from './patch-utils';
+import { AuthenticatedUser } from '../auth/jwt.strategy';
 
 jest.mock('nanoid', () => ({ nanoid: jest.fn() }));
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+
 const { nanoid: mockNanoid } = require('nanoid') as { nanoid: jest.Mock };
 
 interface Item {
@@ -35,12 +40,10 @@ describe('patchCollectionArray — onIdless', () => {
 
   it("'reject400' throws BadRequestException for id-less items", () => {
     expect(() =>
-      patchCollectionArray<Item>(
-        [],
-        [{ name: 'Barter' }],
-        [],
-        { onIdless: 'reject400', onUnknownId: 'insert' },
-      ),
+      patchCollectionArray<Item>([], [{ name: 'Barter' }], [], {
+        onIdless: 'reject400',
+        onUnknownId: 'insert',
+      }),
     ).toThrow(BadRequestException);
   });
 });
@@ -76,12 +79,10 @@ describe('patchCollectionArray — deletedIds', () => {
       { id: 'a1', name: 'Pistol' },
       { id: 'b2', name: 'Rifle' },
     ];
-    const { result } = patchCollectionArray<Item>(
-      existing,
-      [],
-      ['a1'],
-      { onIdless: 'create', onUnknownId: 'skip' },
-    );
+    const { result } = patchCollectionArray<Item>(existing, [], ['a1'], {
+      onIdless: 'create',
+      onUnknownId: 'skip',
+    });
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('b2');
   });
@@ -96,7 +97,11 @@ describe('patchCollectionArray — merge existing id', () => {
       [],
       { onIdless: 'create', onUnknownId: 'skip' },
     );
-    expect(result[0]).toMatchObject({ id: 'aa11', name: 'Old', level: 'master' });
+    expect(result[0]).toMatchObject({
+      id: 'aa11',
+      name: 'Old',
+      level: 'master',
+    });
   });
 });
 
@@ -124,9 +129,7 @@ describe('patchCollectionArray — cross-array id collision via idPool', () => {
   });
 
   it('adds newly minted ids to the pool so subsequent items in the same call are unique', () => {
-    mockNanoid
-      .mockReturnValueOnce('id000001')
-      .mockReturnValueOnce('id000002');
+    mockNanoid.mockReturnValueOnce('id000001').mockReturnValueOnce('id000002');
 
     const idPool = new Set<string>();
 
@@ -152,5 +155,91 @@ describe('patchCollectionArray — cross-array id collision via idPool', () => {
     );
     expect(result[0].id).toBe('anyId12');
     expect(mockNanoid).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── scrubPayload: the retained field-level restriction machinery ───
+//
+// Every currently-specified section is owner-writable ('*'), so `scrubPayload`
+// is a pass-through in production and neither `disallowed_section` nor
+// `unauthorized_field` is emitted. The mechanism is kept for future per-field
+// restrictions (api-character-stats), so it is exercised here against sections
+// registered only for the duration of these tests.
+
+describe('scrubPayload', () => {
+  const admin: AuthenticatedUser = { id: 'admin-id', role: 'admin' };
+  const player: AuthenticatedUser = { id: 'player-id', role: 'player' };
+
+  afterEach(() => {
+    delete PLAYER_UPDATABLE_FIELDS.lockedSection;
+    delete PLAYER_UPDATABLE_FIELDS.partialSection;
+  });
+
+  it('passes an admin payload through untouched', () => {
+    PLAYER_UPDATABLE_FIELDS.lockedSection = [];
+    const payload = { anything: 1 };
+    expect(scrubPayload('lockedSection', payload, admin)).toEqual({
+      scrubbed: payload,
+      ignored: [],
+    });
+  });
+
+  it.each([
+    'special',
+    'skills',
+    'perks',
+    'actionPoints',
+    'resources',
+    'status',
+    'inventory',
+  ])(
+    'passes an owner payload for the %s section through untouched',
+    (section) => {
+      const payload = { anything: 1 };
+      expect(scrubPayload(section, payload, player)).toEqual({
+        scrubbed: payload,
+        ignored: [],
+      });
+    },
+  );
+
+  it('drops a whole section a player may not write, reporting disallowed_section', () => {
+    PLAYER_UPDATABLE_FIELDS.lockedSection = [];
+    expect(scrubPayload('lockedSection', { a: 1 }, player)).toEqual({
+      scrubbed: {},
+      ignored: [{ section: 'lockedSection', reason: 'disallowed_section' }],
+    });
+  });
+
+  it('treats an unregistered section as disallowed for a player', () => {
+    expect(scrubPayload('nosuch', { a: 1 }, player)).toEqual({
+      scrubbed: {},
+      ignored: [{ section: 'nosuch', reason: 'disallowed_section' }],
+    });
+  });
+
+  it('keeps whitelisted keys and reports the rest as unauthorized_field', () => {
+    PLAYER_UPDATABLE_FIELDS.partialSection = ['allowed'];
+    expect(
+      scrubPayload(
+        'partialSection',
+        { allowed: 1, denied: 2, alsoDenied: 3 },
+        player,
+      ),
+    ).toEqual({
+      scrubbed: { allowed: 1 },
+      ignored: [
+        {
+          section: 'partialSection',
+          key: 'denied',
+          reason: 'unauthorized_field',
+        },
+        {
+          section: 'partialSection',
+          key: 'alsoDenied',
+          reason: 'unauthorized_field',
+        },
+      ],
+    });
   });
 });

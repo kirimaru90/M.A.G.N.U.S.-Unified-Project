@@ -7,6 +7,10 @@ import { UsersModule } from './users/users.module';
 import { CampaignsModule } from './campaigns/campaigns.module';
 import { TerminalsModule } from './terminals/terminals.module';
 import { CharactersModule } from './characters/characters.module';
+import { SkillsCatalogModule } from './skills-catalog/skills-catalog.module';
+import { ConditionsCatalogModule } from './conditions-catalog/conditions-catalog.module';
+import { SpeciesCatalogModule } from './species-catalog/species-catalog.module';
+import { EquipmentCatalogModule } from './equipment-catalog/equipment-catalog.module';
 import { HealthModule } from './health/health.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
@@ -24,6 +28,10 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     CampaignsModule,
     TerminalsModule,
     CharactersModule,
+    SkillsCatalogModule,
+    ConditionsCatalogModule,
+    SpeciesCatalogModule,
+    EquipmentCatalogModule,
     HealthModule,
   ],
 })

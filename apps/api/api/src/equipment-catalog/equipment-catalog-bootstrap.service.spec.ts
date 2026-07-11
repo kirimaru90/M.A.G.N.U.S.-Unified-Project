@@ -1,0 +1,60 @@
+import {
+  DEFAULT_EQUIPMENT_CATALOG,
+  EquipmentCatalogBootstrapService,
+} from './equipment-catalog-bootstrap.service';
+
+function makeService(count: number) {
+  const insertMany = jest.fn().mockResolvedValue([]);
+  const entryModel = {
+    estimatedDocumentCount: jest.fn().mockResolvedValue(count),
+    insertMany,
+  };
+  const service = new EquipmentCatalogBootstrapService(entryModel as never);
+  return { service, insertMany };
+}
+
+describe('EquipmentCatalogBootstrapService', () => {
+  it('seeds the default starter loadouts when the collection is empty', async () => {
+    const { service, insertMany } = makeService(0);
+    await service.onApplicationBootstrap();
+    expect(insertMany).toHaveBeenCalledWith(DEFAULT_EQUIPMENT_CATALOG);
+  });
+
+  it('does not seed when the collection is non-empty', async () => {
+    const { service, insertMany } = makeService(1);
+    await service.onApplicationBootstrap();
+    expect(insertMany).not.toHaveBeenCalled();
+  });
+
+  it("seeds the reference's four weapon kits and three armor kits", () => {
+    const byKind = (kind: string) =>
+      DEFAULT_EQUIPMENT_CATALOG.filter((e) => e.kind === kind);
+    expect(byKind('weapon')).toHaveLength(4);
+    expect(byKind('armor')).toHaveLength(3);
+  });
+
+  it('seeds a stimpack consumable with defaultQuantity 2', () => {
+    const stimpack = DEFAULT_EQUIPMENT_CATALOG.find(
+      (e) => e.slug === 'stimpack',
+    );
+    expect(stimpack).toMatchObject({
+      kind: 'consumable',
+      defaultQuantity: 2,
+      isStarter: true,
+    });
+    expect(stimpack?.tags).toBeUndefined();
+  });
+
+  it('flags every seeded entry as a starter', () => {
+    for (const e of DEFAULT_EQUIPMENT_CATALOG) {
+      expect(e.isStarter).toBe(true);
+    }
+  });
+
+  it('gives every weapon and armor at least one core tag', () => {
+    for (const e of DEFAULT_EQUIPMENT_CATALOG) {
+      if (e.kind === 'consumable') continue;
+      expect(e.tags?.some((t) => t.type === 'core')).toBe(true);
+    }
+  });
+});

@@ -95,7 +95,7 @@ export class CharactersController {
 
   @Patch(':characterId/special')
   @UseGuards(CharacterOwnerGuard)
-  @ApiOperation({ summary: 'Patch SPECIAL stats (admin-only writes)' })
+  @ApiOperation({ summary: 'Patch SPECIAL stats (owner or admin)' })
   patchSpecial(
     @Param('campaignId') campaignId: string,
     @Param('characterId') characterId: string,
@@ -112,7 +112,7 @@ export class CharactersController {
 
   @Patch(':characterId/skills')
   @UseGuards(CharacterOwnerGuard)
-  @ApiOperation({ summary: 'Patch skills (admin-only writes)' })
+  @ApiOperation({ summary: 'Patch skills (owner or admin)' })
   patchSkills(
     @Param('campaignId') campaignId: string,
     @Param('characterId') characterId: string,
@@ -129,7 +129,7 @@ export class CharactersController {
 
   @Patch(':characterId/perks')
   @UseGuards(CharacterOwnerGuard)
-  @ApiOperation({ summary: 'Patch perks (admin-only writes)' })
+  @ApiOperation({ summary: 'Patch perks (owner or admin)' })
   patchPerks(
     @Param('campaignId') campaignId: string,
     @Param('characterId') characterId: string,

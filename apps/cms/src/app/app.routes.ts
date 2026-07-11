@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/auth/admin.guard';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
@@ -39,6 +40,37 @@ export const routes: Routes = [
         path: 'terminals/:id',
         loadComponent: () =>
           import('./features/terminals/terminal-detail').then((m) => m.TerminalDetailPage),
+      },
+      // Game-data catalogs are admin-only: the API rejects a non-admin PATCH with 403.
+      {
+        path: 'skills-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/skills-catalog/skills-catalog-page').then((m) => m.SkillsCatalogPage),
+      },
+      {
+        path: 'conditions-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/conditions-catalog/conditions-catalog-page').then(
+            (m) => m.ConditionsCatalogPage,
+          ),
+      },
+      {
+        path: 'species-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/species-catalog/species-catalog-page').then(
+            (m) => m.SpeciesCatalogPage,
+          ),
+      },
+      {
+        path: 'equipment-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/equipment-catalog/equipment-catalog-page').then(
+            (m) => m.EquipmentCatalogPage,
+          ),
       },
     ],
   },

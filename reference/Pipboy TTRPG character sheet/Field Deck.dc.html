@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 50% 30%, #14170f 0%, #050604 70%);
+    min-height: 100vh; display: flex; align-items: flex-start; justify-content: center;
+    overflow-y: auto; padding: 16px; font-family: 'Share Tech Mono', monospace;
+  }
+  a { color: #33ff66; }
+  a:hover { color: #aaffc0; }
+  input::placeholder { color: rgba(51,255,102,0.35); }
+  input, select { font-family: 'Share Tech Mono', monospace; }
+  select option { background: #0e1a10; color: #33ff66; }
+  @keyframes crtFlicker { 0%,100%{opacity:0.97;} 50%{opacity:1;} 52%{opacity:0.94;} }
+  @keyframes scanMove { 0%{transform:translateY(-100%);} 100%{transform:translateY(250%);} }
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: rgba(51,255,102,0.3); }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</helmet>
+<div style="width: 100%; max-width: {{ wrapMaxW }}; height: calc(100vh - 32px); max-height: {{ wrapMaxH }}; display: flex; flex-direction: column;">
+  <div style="flex: 1; display: flex; flex-direction: column; background: linear-gradient(160deg,#22261c,#0e100b); border-radius: 26px; padding: 16px 14px 12px; box-shadow: inset 0 2px 3px rgba(120,140,90,0.25), inset 0 -6px 14px rgba(0,0,0,0.7), 0 24px 60px rgba(0,0,0,0.8); border: 1px solid #333829;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 6px 10px; color: {{ statusColor }}; font-size: 12px; letter-spacing: 1px;">
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <div style="width: 9px; height: 9px; border-radius: 50%; background: {{ statusDot }}; box-shadow: {{ statusGlow }};"></div>
+        <span>{{ statusLabel }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <sc-if value="{{ showNav }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; gap: 6px;">
+            <button onClick="{{ goSelect }}" title="torna ai dossier" style="background: transparent; border: 1px solid rgba(111,122,90,0.5); color: {{ statusColor }}; font-family: 'Share Tech Mono'; font-size: 10px; letter-spacing: 1px; padding: 3px 8px; cursor: pointer;">◄ DOSSIER</button>
+            <button onClick="{{ logout }}" title="disconnetti" style="background: transparent; border: 1px solid rgba(111,122,90,0.5); color: {{ statusColor }}; font-family: 'Share Tech Mono'; font-size: 10px; letter-spacing: 1px; padding: 3px 8px; cursor: pointer;">ESCI</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ showOsLabel }}" hint-placeholder-val="{{ true }}">
+          <span style="color: {{ statusRightColor }};">{{ statusRight }}</span>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- SCREEN -->
+    <div style="position: relative; flex: 1; display: flex; flex-direction: column; background: #06110a; border-radius: 14px; overflow: hidden; border: 2px solid #05170c; box-shadow: inset 0 0 60px rgba(51,255,102,0.14), inset 0 0 6px rgba(51,255,102,0.4); animation: crtFlicker 4s infinite;">
+      <div style="position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; min-height: 0; color: #33ff66; text-shadow: 0 0 4px rgba(51,255,102,0.55); font-family: 'Share Tech Mono', monospace;">
+
+        <!-- ============ SCHEDA PERSONAGGIO ============ -->
+        <sc-if value="{{ isSheet }}" hint-placeholder-val="{{ true }}">
+        <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+
+        <!-- HEADER -->
+        <div style="padding: 12px 14px 10px; border-bottom: 1px solid rgba(51,255,102,0.28);">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+            <div style="flex: 1; min-width: 0;">
+              <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <input value="{{ name }}" onChange="{{ onName }}" style="width: 100%; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.5); color: #33ff66; font-family: 'VT323'; font-size: 28px; letter-spacing: 1px; text-shadow: inherit; outline: none; padding: 0 0 2px;">
+                  <select value="{{ species }}" onChange="{{ onSpecies }}" style="margin-top: 6px; width: 150px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; letter-spacing: 1px; text-shadow: inherit; outline: none; padding: 3px 6px;">
+                    <option value="Umano">Umano</option>
+                    <option value="Ghoul">Ghoul</option>
+                    <option value="Supermutante">Supermutante</option>
+                    <option value="Robot">Robot</option>
+                  </select>
+                </div>
+              </sc-if>
+              <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="font-family: 'VT323', monospace; font-size: 30px; line-height: 0.9; letter-spacing: 1px;">{{ name }}</div>
+                  <div style="display: flex; gap: 6px; margin-top: 5px;">
+                    <span style="font-size: 10px; letter-spacing: 1px; border: 1px solid rgba(51,255,102,0.4); padding: 1px 6px;">{{ species }}</span>
+                    <span style="font-size: 10px; letter-spacing: 1px; opacity: 0.65; padding: 1px 2px;">PA · {{ paSourceName }}</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+            <!-- PA -->
+            <div style="text-align: right;">
+              <div style="font-size: 11px; letter-spacing: 2px; opacity: 0.65;">PUNTI AZIONE</div>
+              <div style="display: flex; gap: 4px; justify-content: flex-end; margin-top: 4px;">
+                <sc-for list="{{ paPips }}" as="p" hint-placeholder-count="3">
+                  <div style="width: 15px; height: 15px; border: 1px solid rgba(51,255,102,0.5); display: flex; align-items: center; justify-content: center;">
+                    <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}"><div style="width: 9px; height: 9px; background: #33ff66; box-shadow: 0 0 6px #33ff66;"></div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display: flex; gap: 4px; justify-content: flex-end; margin-top: 5px;">
+                <button onClick="{{ paDown }}" style="width: 38px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; line-height: 1; padding: 5px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                <button onClick="{{ paUp }}" style="width: 38px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; line-height: 1; padding: 5px 0; cursor: pointer; text-shadow: inherit;">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div style="display: flex; border-bottom: 1px solid rgba(51,255,102,0.28);">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+            <button onClick="{{ t.go }}" style="flex: 1; background: {{ t.bg }}; border: none; border-right: 1px solid rgba(51,255,102,0.15); color: #33ff66; opacity: {{ t.op }}; font-family: 'Share Tech Mono'; font-size: 12px; letter-spacing: 1px; padding: 14px 0; cursor: pointer; text-shadow: inherit; position: relative;">
+              {{ t.label }}
+              <sc-if value="{{ t.active }}" hint-placeholder-val="{{ false }}"><div style="position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #33ff66; box-shadow: 0 0 8px #33ff66;"></div></sc-if>
+            </button>
+          </sc-for>
+          <button onClick="{{ toggleEdit }}" title="Modalità editor" style="width: 52px; background: {{ editTabBg }}; border: none; color: #33ff66; opacity: {{ editTabOp }}; font-size: 19px; padding: 14px 0; cursor: pointer; text-shadow: inherit;">✎</button>
+        </div>
+
+        <sc-if value="{{ critico }}" hint-placeholder-val="{{ false }}">
+          <div style="background: rgba(255,176,46,0.14); border-bottom: 1px solid rgba(255,176,46,0.5); padding: 6px 12px; font-size: 11px; letter-spacing: 1px; text-align: center; color: #ffb02e; text-shadow: 0 0 6px rgba(255,176,46,0.5);">⚠ STATO CRITICO — NON PUOI AGIRE</div>
+        </sc-if>
+        <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+          <div style="background: rgba(51,255,102,0.1); border-bottom: 1px solid rgba(51,255,102,0.3); padding: 5px 12px; font-size: 10px; letter-spacing: 1px; opacity: 0.85;">◉ EDITOR — modifica S.P.E.C.I.A.L., abilità e talenti</div>
+        </sc-if>
+
+        <!-- CONTENT -->
+        <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 14px;">
+
+          <!-- ============ S.P.E.C.I.A.L. ============ -->
+          <sc-if value="{{ isSpecial }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <!-- VIEW -->
+              <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 4px;">▸ APPROCCI · TOCCA PER TIRARE</div>
+                  <div style="font-size: 10px; opacity: 0.45; margin-bottom: 12px;">Il valore = numero di d6 nel pool</div>
+                  <sc-for list="{{ approaches }}" as="a" hint-placeholder-count="7">
+                    <button onClick="{{ a.roll }}" style="width: 100%; text-align: left; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.15); color: #33ff66; padding: 9px 2px; cursor: pointer; text-shadow: inherit; display: flex; align-items: center; gap: 12px;">
+                      <span style="font-family: 'VT323'; font-size: 30px; width: 22px; text-align: center; line-height: 0.8;">{{ a.letter }}</span>
+                      <div style="flex: 1;">
+                        <div style="font-size: 14px; letter-spacing: 1px;">{{ a.name }}</div>
+                        <div style="font-size: 10px; opacity: 0.5;">{{ a.desc }}</div>
+                      </div>
+                      <div style="display: flex; gap: 3px;">
+                        <sc-for list="{{ a.pips }}" as="p" hint-placeholder-count="5">
+                          <div style="width: 11px; height: 18px; border: 1px solid rgba(51,255,102,0.4);">
+                            <sc-if value="{{ p.on }}" hint-placeholder-val="{{ false }}"><div style="width: 100%; height: 100%; background: #33ff66; box-shadow: 0 0 5px #33ff66;"></div></sc-if>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </button>
+                  </sc-for>
+                  <div style="border: 1px solid rgba(51,255,102,0.25); padding: 8px 10px; margin-top: 14px; font-size: 11px; line-height: 1.5; opacity: 0.75;">
+                    <span style="opacity: 0.6;">ESITO DADI —</span> 6 = Successo Pieno · 4/5 = Successo con Costo · 1/2/3 = Fallimento. Ogni 6 oltre il primo restituisce 1 PA.
+                  </div>
+                </div>
+              </sc-if>
+              <!-- EDIT -->
+              <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 10px;">▸ MODIFICA S.P.E.C.I.A.L.</div>
+                  <sc-for list="{{ specialEdit }}" as="a" hint-placeholder-count="7">
+                    <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(51,255,102,0.15); padding: 7px 2px;">
+                      <span style="font-family: 'VT323'; font-size: 26px; width: 20px; text-align: center; line-height: 0.8;">{{ a.letter }}</span>
+                      <span style="flex: 1; font-size: 13px; letter-spacing: 1px;">{{ a.name }}</span>
+                      <button onClick="{{ a.dec }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                      <span style="font-family: 'VT323'; font-size: 24px; width: 26px; text-align: center;">{{ a.value }}</span>
+                      <button onClick="{{ a.inc }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">+</button>
+                    </div>
+                  </sc-for>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 14px;">
+                    <span style="font-size: 11px; letter-spacing: 1px; opacity: 0.7;">FONTE PA</span>
+                    <select value="{{ paSource }}" onChange="{{ setPaSource }}" style="flex: 1; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 12px; padding: 4px 6px; text-shadow: inherit; outline: none;">
+                      <option value="S">FORZA</option><option value="P">PERCEZIONE</option><option value="E">RESISTENZA</option><option value="C">CARISMA</option><option value="I">INTELLIGENZA</option><option value="A">AGILITÀ</option><option value="L">FORTUNA</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                    <span style="font-size: 11px; letter-spacing: 1px; opacity: 0.7;">MAX PA</span>
+                    <button onClick="{{ paMaxDown }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                    <span style="font-family: 'VT323'; font-size: 24px; width: 26px; text-align: center;">{{ paMax }}</span>
+                    <button onClick="{{ paMaxUp }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">+</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ============ ABILITÀ + TALENTI ============ -->
+          <sc-if value="{{ isSkills }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ TAG SKILLS · MAESTRIA</span>
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ addSkill }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; text-shadow: inherit;">+ ABILITÀ</button></sc-if>
+              </div>
+              <sc-for list="{{ skills }}" as="s" hint-placeholder-count="3">
+                <div style="border: 1px solid rgba(51,255,102,0.28); padding: 9px 10px; margin-bottom: 8px;">
+                  <!-- VIEW -->
+                  <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ true }}">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                        <span style="font-size: 15px; letter-spacing: 0.5px;">{{ s.name }}</span>
+                        <span style="font-family: 'VT323'; font-size: 18px; letter-spacing: 1px;">{{ s.maestria }}</span>
+                      </div>
+                      <div style="font-size: 10px; opacity: 0.55; margin-top: 3px;">RITIRO: {{ s.effect }}</div>
+                    </div>
+                  </sc-if>
+                  <!-- EDIT -->
+                  <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <input value="{{ s.name }}" onChange="{{ s.onName }}" style="flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.3); color: #33ff66; font-size: 14px; text-shadow: inherit; outline: none; padding: 2px 0;">
+                      <select value="{{ s.maestria }}" onChange="{{ s.onMaestria }}" style="background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; padding: 3px 4px; text-shadow: inherit; outline: none;">
+                        <option value="COMPETENTE">COMPETENTE</option><option value="ESPERTO">ESPERTO</option><option value="MAESTRO">MAESTRO</option>
+                      </select>
+                      <button onClick="{{ s.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.6); font-size: 14px; cursor: pointer; text-shadow: inherit;">✕</button>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 18px 0 8px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ TALENTI</span>
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ addTalent }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; text-shadow: inherit;">+ TALENTO</button></sc-if>
+              </div>
+              <sc-for list="{{ talents }}" as="t" hint-placeholder-count="2">
+                <div style="border: 1px solid rgba(51,255,102,0.28); padding: 9px 10px; margin-bottom: 8px;">
+                  <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ true }}">
+                    <div>
+                      <div style="font-size: 15px; letter-spacing: 0.5px;">{{ t.name }}</div>
+                      <div style="font-size: 11px; opacity: 0.6; margin-top: 3px; line-height: 1.4;">{{ t.desc }}</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <input value="{{ t.name }}" onChange="{{ t.onName }}" style="flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.3); color: #33ff66; font-size: 14px; text-shadow: inherit; outline: none; padding: 2px 0;">
+                        <button onClick="{{ t.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.6); font-size: 14px; cursor: pointer; text-shadow: inherit;">✕</button>
+                      </div>
+                      <input value="{{ t.desc }}" onChange="{{ t.onDesc }}" placeholder="effetto del talento" style="margin-top: 6px; width: 100%; background: transparent; border: none; border-bottom: 1px dashed rgba(51,255,102,0.2); color: #33ff66; font-size: 11px; opacity: 0.8; text-shadow: inherit; outline: none; padding: 2px 0;">
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+
+              <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin: 18px 0 8px;">▸ SPESA PA</div>
+                  <div style="font-size: 11px; line-height: 1.6; opacity: 0.8;">
+                    <div style="border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 5px 0;"><span style="opacity:0.6;">RITIRA FALLITI ·</span> 1 PA · richiede la Tag Skill pertinente</div>
+                    <div style="border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 5px 0;"><span style="opacity:0.6;">RUBA LA SCENA ·</span> 1 PA · agisci fuori turno o di nuovo</div>
+                    <div style="border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 5px 0;"><span style="opacity:0.6;">V.A.T.S. ·</span> 1 PA · sfrutta un vantaggio, effetto mirato</div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ============ SALUTE / LOGORAMENTO ============ -->
+          <sc-if value="{{ isHealth }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; padding-top: 6px;">▸ TRACCIATO DEL<br>LOGORAMENTO</span>
+                <div style="text-align: right;">
+                  <div style="font-size: 10px; opacity: 0.6; letter-spacing: 1px;">VALORE NETTO</div>
+                  <div style="font-family: 'VT323'; font-size: 40px; line-height: 0.8; color: {{ netColor }}; text-shadow: {{ netShadow }};">{{ netWear }}</div>
+                  <div style="font-size: 9px; opacity: 0.55;">neg − pos</div>
+                </div>
+              </div>
+
+              <!-- active conditions -->
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <sc-for list="{{ conds }}" as="c" hint-placeholder-count="2">
+                  <button onClick="{{ c.remove }}" style="display: flex; align-items: center; gap: 9px; text-align: left; border: {{ c.border }}; background: {{ c.bg }}; color: {{ c.color }}; padding: 8px 10px; cursor: pointer; text-shadow: {{ c.shadow }};">
+                    <span style="font-family: 'VT323'; font-size: 22px; width: 16px; text-align: center; line-height: 0.7;">{{ c.prefix }}</span>
+                    <span style="flex: 1; font-size: 14px; letter-spacing: 0.5px;">{{ c.name }}</span>
+                    <span style="font-size: 10px; letter-spacing: 1px; opacity: 0.85;">{{ c.tag }}</span>
+                    <span style="font-size: 12px; opacity: 0.55;">✕</span>
+                  </button>
+                </sc-for>
+                <sc-if value="{{ noConds }}" hint-placeholder-val="{{ false }}"><div style="border: 1px dashed rgba(51,255,102,0.2); padding: 10px; text-align: center; font-size: 11px; opacity: 0.5;">nessuna condizione attiva</div></sc-if>
+              </div>
+              <div style="font-size: 10px; opacity: 0.45; margin-top: 8px; line-height: 1.5;">Tocca una condizione per rimuoverla (riposo / stimpack / radaway). Le <span style="color:#ffb02e;">negative</span> sommano, le <span style="color:#33ff66;">positive</span> sottraggono; le MODERATE pesano ×2.</div>
+
+              <!-- presets -->
+              <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin: 16px 0 8px;">▸ CONDIZIONI RAPIDE</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <sc-for list="{{ presetButtons }}" as="p" hint-placeholder-count="6">
+                  <button onClick="{{ p.add }}" style="background: transparent; border: {{ p.border }}; color: {{ p.color }}; font-size: 12px; letter-spacing: 0.5px; padding: 9px 12px; cursor: pointer; text-shadow: {{ p.shadow }};">{{ p.prefix }} {{ p.name }}{{ p.wLabel }}</button>
+                </sc-for>
+              </div>
+
+              <!-- custom -->
+              <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin: 18px 0 8px;">▸ CONDIZIONE PERSONALIZZATA</div>
+              <input value="{{ condName }}" onChange="{{ onCondName }}" placeholder="nome condizione" style="width: 100%; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 13px; letter-spacing: 0.5px; padding: 7px 9px; text-shadow: inherit; outline: none;">
+              <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button onClick="{{ condNeg }}" style="flex: 1; background: {{ condNegBg }}; border: 1px solid rgba(255,176,46,0.6); color: #ffb02e; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: 0 0 4px rgba(255,176,46,0.4);">− NEGATIVA</button>
+                <button onClick="{{ condPos }}" style="flex: 1; background: {{ condPosBg }}; border: 1px solid rgba(51,255,102,0.6); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">+ POSITIVA</button>
+              </div>
+              <div style="display: flex; gap: 6px; margin-top: 6px;">
+                <button onClick="{{ condBase }}" style="flex: 1; background: {{ condBaseBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">BASE ×1</button>
+                <button onClick="{{ condMod }}" style="flex: 1; background: {{ condModBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">MODERATA ×2</button>
+              </div>
+              <button onClick="{{ addCustom }}" style="width: 100%; margin-top: 8px; background: rgba(51,255,102,0.1); border: 1px solid rgba(51,255,102,0.5); color: #33ff66; font-family: 'VT323'; font-size: 18px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">+ AGGIUNGI CONDIZIONE</button>
+            </div>
+          </sc-if>
+
+          <!-- ============ ZAINO ============ -->
+          <sc-if value="{{ isGear }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                <sc-for list="{{ resources }}" as="r" hint-placeholder-count="3">
+                  <div style="flex: 1; border: 1px solid rgba(51,255,102,0.3); padding: 7px 5px; text-align: center;">
+                    <div style="font-size: 9px; opacity: 0.6; letter-spacing: 1px;">{{ r.label }}</div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 3px;">
+                      <button onClick="{{ r.dec }}" style="width: 30px; background: transparent; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; font-family: 'VT323'; font-size: 20px; line-height: 1; padding: 4px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                      <input value="{{ r.value }}" onChange="{{ r.onVal }}" inputmode="numeric" style="width: 38px; background: transparent; border: none; color: #33ff66; font-family: 'VT323'; font-size: 24px; text-align: center; text-shadow: inherit; outline: none; padding: 0;">
+                      <button onClick="{{ r.inc }}" style="width: 30px; background: transparent; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; font-family: 'VT323'; font-size: 20px; line-height: 1; padding: 4px 0; cursor: pointer; text-shadow: inherit;">+</button>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ ARMI</span>
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ addWeapon }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; text-shadow: inherit;">+ ARMA</button></sc-if>
+              </div>
+              <sc-for list="{{ weapons }}" as="w" hint-placeholder-count="2">
+                <div style="border: 1px solid rgba(51,255,102,0.25); padding: 9px 10px; margin-bottom: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input value="{{ w.name }}" onChange="{{ w.onName }}" style="flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.25); color: #33ff66; font-size: 14px; text-shadow: inherit; outline: none; padding: 2px 0;">
+                    <sc-if value="{{ w.damaged }}" hint-placeholder-val="{{ false }}"><span style="font-size: 9px; letter-spacing: 1px; color: #ffb02e; text-shadow: 0 0 4px rgba(255,176,46,0.4);">DANNEGGIATA</span></sc-if>
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ w.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.6); font-size: 14px; cursor: pointer; text-shadow: inherit;">✕</button></sc-if>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center;">
+                    <sc-for list="{{ w.tags }}" as="tg" hint-placeholder-count="2">
+                      <div onClick="{{ tg.toggle }}" title="clic per barrare · in EDITOR per rinominare" style="display: flex; align-items: center; gap: 6px; border: {{ tg.border }}; background: {{ tg.bg }}; padding: 4px 7px 4px 5px; opacity: {{ tg.op }}; cursor: pointer;">
+                        <span style="font-size: 8px; letter-spacing: 1px; opacity: 0.75; border: 1px solid {{ tg.kindBorder }}; padding: 1px 4px;">{{ tg.kindLabel }}</span>
+                        <sc-if value="{{ tg.editing }}" hint-placeholder-val="{{ false }}">
+                          <input value="{{ tg.label }}" onChange="{{ tg.onLabel }}" onClick="{{ tg.stopProp }}" style="background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.5); color: #33ff66; font-size: 12px; letter-spacing: 1px; width: 76px; text-shadow: inherit; outline: none; padding: 0;">
+                        </sc-if>
+                        <sc-if value="{{ tg.notEditing }}" hint-placeholder-val="{{ true }}">
+                          <span style="font-size: 12px; letter-spacing: 1px; color: #33ff66; width: 76px; text-decoration: {{ tg.deco }};">{{ tg.label }}</span>
+                        </sc-if>
+                        <sc-if value="{{ tg.editing }}" hint-placeholder-val="{{ false }}"><button onClick="{{ tg.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.55); font-size: 14px; cursor: pointer; padding: 0 2px; text-shadow: inherit;">✕</button></sc-if>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ w.addCore }}" style="background: rgba(51,255,102,0.08); border: 1px solid rgba(51,255,102,0.55); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; text-shadow: inherit;">+ core</button>
+                    </sc-if>
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ w.addExtra }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.45); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; text-shadow: inherit;">+ extra</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 14px 0 8px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ ARMATURE</span>
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ addArmor }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; text-shadow: inherit;">+ ARMATURA</button></sc-if>
+              </div>
+              <sc-for list="{{ armor }}" as="w" hint-placeholder-count="1">
+                <div style="border: 1px solid rgba(51,255,102,0.25); padding: 9px 10px; margin-bottom: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input value="{{ w.name }}" onChange="{{ w.onName }}" style="flex: 1; min-width: 0; background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.25); color: #33ff66; font-size: 14px; text-shadow: inherit; outline: none; padding: 2px 0;">
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ w.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.6); font-size: 14px; cursor: pointer; text-shadow: inherit;">✕</button></sc-if>
+                  </div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; align-items: center;">
+                    <sc-for list="{{ w.tags }}" as="tg" hint-placeholder-count="2">
+                      <div onClick="{{ tg.toggle }}" title="clic per barrare · in EDITOR per rinominare" style="display: flex; align-items: center; gap: 6px; border: {{ tg.border }}; background: {{ tg.bg }}; padding: 4px 7px 4px 5px; opacity: {{ tg.op }}; cursor: pointer;">
+                        <span style="font-size: 8px; letter-spacing: 1px; opacity: 0.75; border: 1px solid {{ tg.kindBorder }}; padding: 1px 4px;">{{ tg.kindLabel }}</span>
+                        <sc-if value="{{ tg.editing }}" hint-placeholder-val="{{ false }}">
+                          <input value="{{ tg.label }}" onChange="{{ tg.onLabel }}" onClick="{{ tg.stopProp }}" style="background: transparent; border: none; border-bottom: 1px solid rgba(51,255,102,0.5); color: #33ff66; font-size: 12px; letter-spacing: 1px; width: 76px; text-shadow: inherit; outline: none; padding: 0;">
+                        </sc-if>
+                        <sc-if value="{{ tg.notEditing }}" hint-placeholder-val="{{ true }}">
+                          <span style="font-size: 12px; letter-spacing: 1px; color: #33ff66; width: 76px; text-decoration: {{ tg.deco }};">{{ tg.label }}</span>
+                        </sc-if>
+                        <sc-if value="{{ tg.editing }}" hint-placeholder-val="{{ false }}"><button onClick="{{ tg.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.55); font-size: 14px; cursor: pointer; padding: 0 2px; text-shadow: inherit;">✕</button></sc-if>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ w.addCore }}" style="background: rgba(51,255,102,0.08); border: 1px solid rgba(51,255,102,0.55); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; text-shadow: inherit;">+ core</button>
+                    </sc-if>
+                    <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ w.addExtra }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.45); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; text-shadow: inherit;">+ extra</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin: 14px 0 8px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ CONSUMABILI</span>
+                <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ addConsumable }}" style="background: transparent; border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 7px 12px; cursor: pointer; text-shadow: inherit;">+ OGGETTO</button></sc-if>
+              </div>
+              <sc-for list="{{ consumables }}" as="c" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 8px; border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 6px 2px;">
+                  <input value="{{ c.name }}" onChange="{{ c.onName }}" style="flex: 1; min-width: 0; background: transparent; border: none; color: #33ff66; font-size: 13px; text-shadow: inherit; outline: none; padding: 0;">
+                  <button onClick="{{ c.dec }}" style="width: 32px; background: transparent; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; font-family: 'VT323'; font-size: 20px; line-height: 1; padding: 5px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                  <span style="font-family: 'VT323'; font-size: 18px; width: 24px; text-align: center;">×{{ c.qty }}</span>
+                  <button onClick="{{ c.inc }}" style="width: 32px; background: transparent; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; font-family: 'VT323'; font-size: 20px; line-height: 1; padding: 5px 0; cursor: pointer; text-shadow: inherit;">+</button>
+                  <sc-if value="{{ editMode }}" hint-placeholder-val="{{ false }}"><button onClick="{{ c.remove }}" style="background: transparent; border: none; color: rgba(51,255,102,0.6); font-size: 13px; cursor: pointer; text-shadow: inherit;">✕</button></sc-if>
+                </div>
+              </sc-for>
+              <div style="font-size: 9px; opacity: 0.4; margin-top: 10px; line-height: 1.5;">Tocca un Tag per marcarlo DANNEGGIATO (inattivo finché non riparato). Aggiungi e rinomina oggetti e tag in modalità EDITOR (✎).</div>
+            </div>
+          </sc-if>
+
+          <!-- ============ DADI ============ -->
+          <sc-if value="{{ isDice }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ POOL DI DADI</span>
+                <span style="font-size: 11px; opacity: 0.7;">{{ diceApproachName }}</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(7,1fr); gap: 4px;">
+                <sc-for list="{{ diceApproaches }}" as="d" hint-placeholder-count="7">
+                  <button onClick="{{ d.pick }}" style="background: {{ d.bg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 20px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">{{ d.letter }}</button>
+                </sc-for>
+              </div>
+
+              <div style="display: flex; gap: 6px; margin-top: 8px;">
+                <button onClick="{{ toggleVant }}" style="flex: 1; background: {{ vantBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">VANTAGGIO</button>
+                <button onClick="{{ toggleSvant }}" style="flex: 1; background: {{ svantBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 11px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">SVANTAGGIO</button>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; border: 1px solid rgba(51,255,102,0.25); padding: 4px 8px;">
+                <span style="flex: 1; font-size: 10px; opacity: 0.7; letter-spacing: 1px; line-height: 1.3;">CONDIZIONI / BONUS<br>dadi ± al pool</span>
+                <button onClick="{{ modDown }}" style="width: 38px; background: transparent; border: 1px solid rgba(51,255,102,0.3); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 5px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                <span style="font-family: 'VT323'; font-size: 26px; min-width: 42px; text-align: center;">{{ modStr }}</span>
+                <button onClick="{{ modUp }}" style="width: 38px; background: transparent; border: 1px solid rgba(51,255,102,0.3); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 5px 0; cursor: pointer; text-shadow: inherit;">+</button>
+              </div>
+
+              <sc-if value="{{ isFortuna }}" hint-placeholder-val="{{ false }}">
+                <div style="border: 1px solid rgba(51,255,102,0.3); padding: 5px 8px; margin-top: 8px; font-size: 10px; opacity: 0.75; letter-spacing: 0.5px;">FORTUNA · il Rischio sale di un grado · nessun PA dai 6</div>
+              </sc-if>
+
+              <div style="text-align: center; margin: 14px 0 6px;">
+                <div style="font-size: 11px; opacity: 0.6; letter-spacing: 1px;">POOL</div>
+                <div style="font-family: 'VT323'; font-size: 40px; line-height: 0.8;">{{ poolSize }}d6</div>
+              </div>
+
+              <div style="display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; min-height: 44px; margin: 8px 0;">
+                <sc-for list="{{ faces }}" as="f" hint-placeholder-count="4">
+                  <div onClick="{{ f.select }}" style="width: 42px; height: 42px; border: {{ f.border }}; display: flex; align-items: center; justify-content: center; font-family: 'VT323'; font-size: 26px; color: {{ f.color }}; background: {{ f.bg }}; opacity: {{ f.op }}; text-decoration: {{ f.deco }}; box-shadow: {{ f.glow }}; cursor: {{ f.cursor }};">{{ f.v }}</div>
+                </sc-for>
+              </div>
+
+              <div style="text-align: center; border: 1px solid rgba(51,255,102,0.3); padding: 8px; margin-bottom: 10px;">
+                <div style="font-family: 'VT323'; font-size: 26px; letter-spacing: 1px;">{{ resultLabel }}</div>
+                <div style="font-size: 10px; opacity: 0.6; margin-top: 2px;">{{ resultSub }}</div>
+              </div>
+
+              <div style="font-size: 10px; opacity: 0.5; text-align: center; margin-bottom: 8px;">Tocca i dadi da ritirare · {{ selectedCount }} selezionati</div>
+              <button onClick="{{ doRoll }}" style="width: 100%; background: rgba(51,255,102,0.14); border: 1px solid #33ff66; color: #33ff66; font-family: 'VT323'; font-size: 26px; padding: 11px 0; cursor: pointer; text-shadow: 0 0 6px #33ff66;">TIRA</button>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                <span style="font-size: 10px; opacity: 0.7; letter-spacing: 1px;">RILANCIA CON</span>
+                <select value="{{ rerollSkill }}" onChange="{{ setRerollSkill }}" style="flex: 1; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 12px; padding: 7px 6px; text-shadow: inherit; outline: none;">
+                  <option value="">— scegli abilità —</option>
+                  <sc-for list="{{ skillOptions }}" as="o" hint-placeholder-count="3">
+                    <option value="{{ o.name }}">{{ o.name }}</option>
+                  </sc-for>
+                </select>
+              </div>
+              <button onClick="{{ doReroll }}" style="width: 100%; margin-top: 8px; background: {{ rerollBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; opacity: {{ rerollOp }}; font-family: 'VT323'; font-size: 18px; padding: 11px 0; cursor: {{ rerollCursor }}; text-shadow: inherit;">RITIRA SELEZIONATI −1 PA</button>
+              <div style="font-size: 9px; opacity: 0.45; margin-top: 6px; line-height: 1.5;">Il ritiro richiede la Tag Skill pertinente: scegli l'abilità per spendere 1 PA.</div>
+
+              <div style="font-size: 11px; letter-spacing: 2px; opacity: 0.55; margin: 16px 0 6px;">▸ REGISTRO</div>
+              <sc-for list="{{ history }}" as="h" hint-placeholder-count="3">
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 5px 2px; font-size: 12px;">
+                  <span style="opacity: 0.7;">{{ h.expr }}</span>
+                  <span>{{ h.result }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+        </div>
+
+        <!-- FOOTER -->
+        <div style="display: flex; justify-content: space-between; padding: 6px 14px; border-top: 1px solid rgba(51,255,102,0.28); font-size: 11px; letter-spacing: 1px; opacity: 0.75;">
+          <span>{{ footerTab }}</span>
+          <span>TAPPI {{ tappi }}</span>
+          <span>{{ clock }}</span>
+        </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ LOGIN ============ -->
+        <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; display: flex; flex-direction: column; padding: 26px 22px; color: #33ff66; text-shadow: 0 0 4px rgba(51,255,102,0.55);">
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; width: 100%; max-width: {{ formMaxW }}; margin: 0 auto;">
+              <div style="font-family: 'VT323', monospace; font-size: 46px; line-height: 0.85; letter-spacing: 2px;">M.A.G.N.U.S.</div>
+              <div style="font-size: 11px; letter-spacing: 3px; opacity: 0.6; margin-top: 5px;">ROBCO · TERMINALE DI CAMPO · OS v2.3</div>
+              <div style="height: 1px; background: rgba(51,255,102,0.3); margin: 18px 0;"></div>
+              <div style="font-size: 12px; letter-spacing: 1px; opacity: 0.7; margin-bottom: 18px; line-height: 1.6;">&gt; AUTENTICAZIONE RICHIESTA<br>&gt; INSERIRE CREDENZIALI RANGER</div>
+
+              <label style="font-size: 10px; letter-spacing: 2px; opacity: 0.6;">ID UTENTE</label>
+              <input value="{{ loginId }}" onChange="{{ setLoginId }}" onKeyDown="{{ onLoginKey }}" placeholder="es. RANGER-01" style="width: 100%; margin: 5px 0 14px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'Share Tech Mono'; font-size: 15px; letter-spacing: 1px; padding: 9px 10px; text-shadow: inherit; outline: none;">
+
+              <label style="font-size: 10px; letter-spacing: 2px; opacity: 0.6;">CODICE DI ACCESSO</label>
+              <input value="{{ loginPass }}" onChange="{{ setLoginPass }}" onKeyDown="{{ onLoginKey }}" type="password" placeholder="••••••" style="width: 100%; margin: 5px 0 4px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'Share Tech Mono'; font-size: 15px; letter-spacing: 3px; padding: 9px 10px; text-shadow: inherit; outline: none;">
+
+              <sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}">
+                <div style="color: #ffb02e; font-size: 11px; letter-spacing: 1px; margin-top: 8px; text-shadow: 0 0 4px rgba(255,176,46,0.4);">⚠ {{ loginErr }}</div>
+              </sc-if>
+
+              <button onClick="{{ login }}" style="width: 100%; margin-top: 20px; background: rgba(51,255,102,0.14); border: 1px solid #33ff66; color: #33ff66; font-family: 'VT323'; font-size: 26px; letter-spacing: 2px; padding: 11px 0; cursor: pointer; text-shadow: 0 0 6px #33ff66;">▸ ACCEDI</button>
+              <div style="font-size: 9px; opacity: 0.45; margin-top: 14px; line-height: 1.6;">Primo accesso: le credenziali inserite vengono registrate localmente su questo terminale. Nessuna registrazione separata.</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ SELEZIONE PERSONAGGIO ============ -->
+        <sc-if value="{{ isSelect }}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; color: #33ff66; text-shadow: 0 0 4px rgba(51,255,102,0.55);">
+            <div style="padding: 16px 16px 10px; border-bottom: 1px solid rgba(51,255,102,0.28);">
+              <div style="font-family: 'VT323', monospace; font-size: 30px; line-height: 0.9;">DOSSIER RANGER</div>
+              <div style="font-size: 10px; letter-spacing: 2px; opacity: 0.6; margin-top: 4px;">UTENTE · {{ session }} — SELEZIONA O CREA</div>
+            </div>
+            <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 14px;">
+              <div style="display: grid; grid-template-columns: {{ selectCols }}; gap: 10px; align-content: start;">
+              <sc-for list="{{ charCards }}" as="c" hint-placeholder-count="2">
+                <div onClick="{{ c.open }}" style="border: 1px solid rgba(51,255,102,0.3); padding: 12px; cursor: pointer;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                    <div style="min-width: 0;">
+                      <div style="font-family: 'VT323', monospace; font-size: 26px; line-height: 0.85;">{{ c.name }}</div>
+                      <div style="font-size: 10px; letter-spacing: 1px; opacity: 0.6; margin-top: 4px;">{{ c.species }} · {{ c.paLine }}</div>
+                    </div>
+                    <button onClick="{{ c.remove }}" title="elimina dossier" style="background: transparent; border: 1px solid rgba(255,176,46,0.4); color: #ffb02e; font-size: 11px; padding: 4px 8px; cursor: pointer; text-shadow: 0 0 4px rgba(255,176,46,0.3);">✕</button>
+                  </div>
+                  <div style="display: flex; gap: 5px; margin-top: 10px;">
+                    <sc-for list="{{ c.special }}" as="a" hint-placeholder-count="7">
+                      <div style="flex: 1; border: 1px solid rgba(51,255,102,0.2); text-align: center; padding: 3px 0;">
+                        <div style="font-size: 9px; opacity: 0.55;">{{ a.letter }}</div>
+                        <div style="font-family: 'VT323'; font-size: 18px; line-height: 0.9;">{{ a.value }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ c.skillsLine }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 10px; opacity: 0.55; margin-top: 9px; letter-spacing: 0.5px;">▸ {{ c.skillsLine }}</div>
+                  </sc-if>
+                </div>
+              </sc-for>
+              </div>
+              <sc-if value="{{ noChars }}" hint-placeholder-val="{{ true }}">
+                <div style="border: 1px dashed rgba(51,255,102,0.25); padding: 24px; text-align: center; font-size: 12px; opacity: 0.55; line-height: 1.7;">NESSUN DOSSIER REGISTRATO<br>Crea il tuo primo personaggio.</div>
+              </sc-if>
+              <button onClick="{{ newChar }}" style="width: 100%; margin-top: 8px; background: rgba(51,255,102,0.1); border: 1px dashed rgba(51,255,102,0.5); color: #33ff66; font-family: 'VT323'; font-size: 22px; letter-spacing: 1px; padding: 13px 0; cursor: pointer; text-shadow: inherit;">+ NUOVO PERSONAGGIO</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ============ CREAZIONE PERSONAGGIO ============ -->
+        <sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; display: flex; flex-direction: column; min-height: 0; color: #33ff66; text-shadow: 0 0 4px rgba(51,255,102,0.55);">
+            <div style="padding: 14px 16px 12px; border-bottom: 1px solid rgba(51,255,102,0.28);">
+              <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <div style="font-family: 'VT323', monospace; font-size: 26px; line-height: 0.9;">CREAZIONE</div>
+                <div style="font-size: 10px; letter-spacing: 1px; opacity: 0.6;">{{ crStepNum }}/6 · {{ crStepLabel }}</div>
+              </div>
+              <div style="display: flex; gap: 4px; margin-top: 10px;">
+                <sc-for list="{{ crSteps }}" as="s" hint-placeholder-count="6">
+                  <div style="flex: 1; height: 3px; background: {{ s.bg }};"></div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 14px; width: 100%; max-width: {{ crContentMaxW }}; margin: 0 auto;">
+              <!-- STEP 0 · IDENTITÀ -->
+              <sc-if value="{{ crStep0 }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 10px;">▸ IDENTITÀ</div>
+                  <label style="font-size: 10px; letter-spacing: 2px; opacity: 0.6;">NOME</label>
+                  <input value="{{ crName }}" onChange="{{ crSetName }}" placeholder="nome del personaggio" style="width: 100%; margin: 5px 0 16px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 24px; letter-spacing: 1px; padding: 7px 10px; text-shadow: inherit; outline: none;">
+                  <div style="font-size: 10px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 8px;">SPECIE</div>
+                  <div style="display: grid; grid-template-columns: repeat(2,1fr); gap: 6px;">
+                    <sc-for list="{{ crSpecies }}" as="sp" hint-placeholder-count="4">
+                      <button onClick="{{ sp.sel }}" style="background: {{ sp.bg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'Share Tech Mono'; font-size: 13px; letter-spacing: 1px; padding: 12px 0; cursor: pointer; text-shadow: inherit;">{{ sp.name }}</button>
+                    </sc-for>
+                  </div>
+                  <div style="border: 1px solid rgba(51,255,102,0.25); padding: 10px; margin-top: 12px; font-size: 11px; line-height: 1.5;">
+                    <div><span style="opacity: 0.6;">PERMESSO —</span> {{ crSpeciesPerm }}</div>
+                    <div style="margin-top: 6px; color: #ffb02e; text-shadow: 0 0 4px rgba(255,176,46,0.3);"><span style="opacity: 0.7;">SVANTAGGIO —</span> {{ crSpeciesSvan }}</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- STEP 1 · S.P.E.C.I.A.L. -->
+              <sc-if value="{{ crStep1 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ S.P.E.C.I.A.L.</span>
+                    <span style="font-family: 'VT323'; font-size: 22px; color: {{ crRemColor }};">{{ crRemSpecial }} <span style="font-size: 11px; opacity: 0.6;">rimasti</span></span>
+                  </div>
+                  <div style="font-size: 10px; opacity: 0.45; margin-bottom: 12px;">18 punti · min 1 · max 4 per attributo</div>
+                  <sc-for list="{{ crSpecial }}" as="a" hint-placeholder-count="7">
+                    <div style="display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(51,255,102,0.15); padding: 7px 2px;">
+                      <span style="font-family: 'VT323'; font-size: 26px; width: 20px; text-align: center; line-height: 0.8;">{{ a.letter }}</span>
+                      <span style="flex: 1; font-size: 13px; letter-spacing: 1px;">{{ a.name }}</span>
+                      <button onClick="{{ a.dec }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 9px 0; cursor: pointer; text-shadow: inherit;">−</button>
+                      <span style="font-family: 'VT323'; font-size: 24px; width: 26px; text-align: center;">{{ a.value }}</span>
+                      <button onClick="{{ a.inc }}" style="width: 40px; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'VT323'; font-size: 22px; padding: 9px 0; cursor: pointer; text-shadow: inherit;">+</button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <!-- STEP 2 · PA -->
+              <sc-if value="{{ crStep2 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 4px;">▸ PUNTI AZIONE MASSIMI</div>
+                  <div style="font-size: 10px; opacity: 0.45; margin-bottom: 14px;">Scelta permanente: i PA max seguono Agilità o Resistenza.</div>
+                  <div style="display: flex; gap: 8px;">
+                    <button onClick="{{ crPaAgi }}" style="flex: 1; background: {{ crPaAgiBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; padding: 16px 0; cursor: pointer; text-shadow: inherit;">
+                      <div style="font-size: 12px; letter-spacing: 1px;">AGILITÀ</div>
+                      <div style="font-family: 'VT323'; font-size: 34px; line-height: 1;">{{ crAgiVal }}</div>
+                    </button>
+                    <button onClick="{{ crPaEnd }}" style="flex: 1; background: {{ crPaEndBg }}; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; padding: 16px 0; cursor: pointer; text-shadow: inherit;">
+                      <div style="font-size: 12px; letter-spacing: 1px;">RESISTENZA</div>
+                      <div style="font-family: 'VT323'; font-size: 34px; line-height: 1;">{{ crEndVal }}</div>
+                    </button>
+                  </div>
+                  <div style="text-align: center; border: 1px solid rgba(51,255,102,0.25); padding: 12px; margin-top: 14px;">
+                    <div style="font-size: 11px; opacity: 0.6; letter-spacing: 1px;">PA MASSIMI</div>
+                    <div style="font-family: 'VT323'; font-size: 44px; line-height: 0.9;">{{ crPaMax }}</div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <!-- STEP 3 · TAG SKILLS -->
+              <sc-if value="{{ crStep3 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                    <span style="font-size: 12px; letter-spacing: 2px; opacity: 0.6;">▸ TAG SKILLS</span>
+                    <span style="font-size: 11px; opacity: 0.7;">MAESTRIA {{ crMasteryCost }}/{{ crBudget }}</span>
+                  </div>
+                  <div style="font-size: 10px; opacity: 0.45; margin-bottom: 12px;">Competente 1 · Esperto 2 · Maestro 3 · budget {{ crBudget }} (Umano +1) · «—» azzera</div>
+                  <sc-for list="{{ crSkills }}" as="s" hint-placeholder-count="3">
+                    <div style="border: 1px solid rgba(51,255,102,0.25); padding: 9px 10px; margin-bottom: 8px;">
+                      <select value="{{ s.name }}" onChange="{{ s.onName }}" style="width: 100%; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 13px; padding: 6px; text-shadow: inherit; outline: none;">
+                        <sc-for list="{{ crSkillOptions }}" as="o" hint-placeholder-count="10"><option value="{{ o.name }}">{{ o.name }}</option></sc-for>
+                      </select>
+                      <div style="display: flex; gap: 5px; margin-top: 7px;">
+                        <sc-for list="{{ s.levels }}" as="lv" hint-placeholder-count="3">
+                          <button onClick="{{ lv.sel }}" style="flex: 1; background: {{ lv.bg }}; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; font-size: 10px; letter-spacing: 0.5px; padding: 8px 0; cursor: pointer; text-shadow: inherit;">{{ lv.label }}</button>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ crSkillWarn }}" hint-placeholder-val="{{ false }}"><div style="color: #ffb02e; font-size: 10px; letter-spacing: 1px; margin-top: 2px; text-shadow: 0 0 4px rgba(255,176,46,0.3);">⚠ {{ crSkillWarn }}</div></sc-if>
+                </div>
+              </sc-if>
+
+              <!-- STEP 4 · EQUIPAGGIAMENTO -->
+              <sc-if value="{{ crStep4 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 8px;">▸ ARMA INIZIALE</div>
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <sc-for list="{{ crWeapons }}" as="w" hint-placeholder-count="4">
+                      <button onClick="{{ w.sel }}" style="text-align: left; background: {{ w.bg }}; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; padding: 9px 10px; cursor: pointer; text-shadow: inherit;">
+                        <div style="font-size: 14px; letter-spacing: 0.5px;">{{ w.name }}</div>
+                        <div style="font-size: 10px; opacity: 0.55; margin-top: 2px;">{{ w.tags }}</div>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin: 16px 0 8px;">▸ ARMATURA INIZIALE</div>
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <sc-for list="{{ crArmors }}" as="a" hint-placeholder-count="3">
+                      <button onClick="{{ a.sel }}" style="text-align: left; background: {{ a.bg }}; border: 1px solid rgba(51,255,102,0.35); color: #33ff66; padding: 9px 10px; cursor: pointer; text-shadow: inherit;">
+                        <div style="font-size: 14px; letter-spacing: 0.5px;">{{ a.name }}</div>
+                        <div style="font-size: 10px; opacity: 0.55; margin-top: 2px;">{{ a.tags }}</div>
+                      </button>
+                    </sc-for>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 10px; margin-top: 16px; border: 1px solid rgba(51,255,102,0.25); padding: 8px 10px;">
+                    <span style="flex: 1; font-size: 11px; letter-spacing: 1px; opacity: 0.7;">ROTTAMI INIZIALI · 1d6</span>
+                    <span style="font-family: 'VT323'; font-size: 28px; width: 30px; text-align: center;">{{ crRottami }}</span>
+                    <button onClick="{{ crRollRottami }}" style="background: rgba(51,255,102,0.1); border: 1px solid rgba(51,255,102,0.5); color: #33ff66; font-family: 'VT323'; font-size: 18px; letter-spacing: 1px; padding: 8px 14px; cursor: pointer; text-shadow: inherit;">TIRA</button>
+                  </div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin: 16px 0 6px;">▸ OGGETTO SIGNIFICATIVO</div>
+                  <input value="{{ crCimelio }}" onChange="{{ crSetCimelio }}" placeholder="una foto, una lettera, un giocattolo…" style="width: 100%; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-size: 13px; padding: 8px 10px; text-shadow: inherit; outline: none;">
+                  <div style="font-size: 9px; opacity: 0.45; margin-top: 8px;">Dotazione fissa: 2 Stimpack inclusi.</div>
+                </div>
+              </sc-if>
+
+              <!-- STEP 5 · RIEPILOGO -->
+              <sc-if value="{{ crStep5 }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div style="font-size: 12px; letter-spacing: 2px; opacity: 0.6; margin-bottom: 10px;">▸ RIEPILOGO</div>
+                  <div style="font-family: 'VT323', monospace; font-size: 30px; line-height: 0.9;">{{ crName }}</div>
+                  <div style="font-size: 11px; letter-spacing: 1px; opacity: 0.6; margin-top: 3px;">{{ crSpeciesName }} · PA {{ crPaMax }} ({{ crPaSourceName }}) · TAPPI {{ crTappi }}</div>
+                  <div style="display: flex; gap: 5px; margin-top: 12px;">
+                    <sc-for list="{{ crSpecial }}" as="a" hint-placeholder-count="7">
+                      <div style="flex: 1; border: 1px solid rgba(51,255,102,0.25); text-align: center; padding: 5px 0;">
+                        <div style="font-size: 9px; opacity: 0.55;">{{ a.letter }}</div>
+                        <div style="font-family: 'VT323'; font-size: 20px; line-height: 0.9;">{{ a.value }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                  <div style="font-size: 11px; letter-spacing: 1px; opacity: 0.6; margin: 14px 0 6px;">ABILITÀ</div>
+                  <sc-for list="{{ crSummarySkills }}" as="s" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(51,255,102,0.15); padding: 5px 2px; font-size: 12px;"><span>{{ s.name }}</span><span style="opacity: 0.7;">{{ s.maestria }}</span></div>
+                  </sc-for>
+                  <sc-if value="{{ crNoSkills }}" hint-placeholder-val="{{ false }}"><div style="font-size: 11px; opacity: 0.5; padding: 4px 2px;">nessuna abilità addestrata</div></sc-if>
+                  <div style="font-size: 11px; letter-spacing: 1px; opacity: 0.6; margin: 14px 0 6px;">EQUIPAGGIAMENTO</div>
+                  <div style="font-size: 12px; line-height: 1.7; opacity: 0.8;">
+                    <div>▸ {{ crWeaponName }}</div>
+                    <div>▸ {{ crArmorName }}</div>
+                    <div>▸ {{ crRottami }} rottami · 2 Stimpack</div>
+                    <sc-if value="{{ crCimelio }}" hint-placeholder-val="{{ false }}"><div>▸ {{ crCimelio }}</div></sc-if>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid rgba(51,255,102,0.28);">
+              <button onClick="{{ crBack }}" style="flex: 1; background: transparent; border: 1px solid rgba(51,255,102,0.4); color: #33ff66; font-family: 'Share Tech Mono'; font-size: 13px; letter-spacing: 1px; padding: 11px 0; cursor: pointer; text-shadow: inherit;">◄ INDIETRO</button>
+              <sc-if value="{{ crNotLast }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ crNext }}" style="flex: 1; background: {{ crNextBg }}; border: 1px solid #33ff66; color: #33ff66; opacity: {{ crNextOp }}; font-family: 'VT323'; font-size: 22px; letter-spacing: 1px; padding: 9px 0; cursor: {{ crNextCursor }}; text-shadow: 0 0 6px #33ff66;">AVANTI ▸</button>
+              </sc-if>
+              <sc-if value="{{ crIsLast }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ crCreate }}" style="flex: 2; background: rgba(51,255,102,0.16); border: 1px solid #33ff66; color: #33ff66; font-family: 'VT323'; font-size: 22px; letter-spacing: 1px; padding: 9px 0; cursor: pointer; text-shadow: 0 0 6px #33ff66;">✓ CREA PERSONAGGIO</button>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- CRT OVERLAYS -->
+      <div style="position: absolute; inset: 0; z-index: 3; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0px, rgba(0,0,0,0.18) 1px, transparent 1px, transparent 3px);"></div>
+      <div style="position: absolute; inset: 0; z-index: 4; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);"></div>
+      <div style="position: absolute; left: 0; right: 0; top: 0; height: 40%; z-index: 3; pointer-events: none; background: linear-gradient(180deg, rgba(51,255,102,0.08), transparent); animation: scanMove 7s linear infinite;"></div>
+      <sc-if value="{{ critico }}" hint-placeholder-val="{{ false }}">
+        <div style="position: absolute; inset: 0; z-index: 5; pointer-events: none; border-radius: 14px; border: 1px solid rgba(255,176,46,0.5); box-shadow: inset 0 0 45px rgba(255,176,46,0.3);"></div>
+      </sc-if>
+    </div>
+
+    <!-- bottom bezel -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 8px 2px;">
+      <div style="display: flex; gap: 8px;">
+        <div style="width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%,#3a4030,#14170f); border: 1px solid #444a37; box-shadow: inset 0 -2px 3px rgba(0,0,0,0.6);"></div>
+        <div style="width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%,#3a4030,#14170f); border: 1px solid #444a37; box-shadow: inset 0 -2px 3px rgba(0,0,0,0.6);"></div>
+      </div>
+      <div style="flex: 1; height: 6px; margin: 0 14px; background: repeating-linear-gradient(90deg,#2a2f22 0 3px,#12140d 3px 6px); border-radius: 3px;"></div>
+      <div style="width: 34px; height: 12px; border-radius: 6px; background: linear-gradient(#3a4030,#14170f); border: 1px solid #444a37;"></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:460,&quot;height&quot;:960}}">
+class Component extends DCLogic {
+  APPROACHES = [
+    { key: 'S', name: 'FORZA', desc: 'Potenza fisica, intimidazione' },
+    { key: 'P', name: 'PERCEZIONE', desc: 'Mira, attenzione, dettagli' },
+    { key: 'E', name: 'RESISTENZA', desc: 'Tenacia, sopportare dolore' },
+    { key: 'C', name: 'CARISMA', desc: 'Convincere, mentire, guidare' },
+    { key: 'I', name: 'INTELLIGENZA', desc: 'Logica, scienza, tecnologia' },
+    { key: 'A', name: 'AGILITÀ', desc: 'Riflessi, furtività, manualità' },
+    { key: 'L', name: 'FORTUNA', desc: 'Il jolly: affidarsi al caso' },
+  ];
+
+  MAESTRIA = {
+    COMPETENTE: 'il Rischio sale di un grado',
+    ESPERTO:    'Rischio invariato',
+    MAESTRO:    'il Rischio scende di un grado',
+  };
+
+  // Condizioni predeterminate: caricate dall'API (conditions.json).
+  // Questo elenco è solo il fallback finché la risposta non arriva.
+  CONDITION_PRESETS = [
+    { name: 'FERITO',    sign: 'neg', weight: 1 },
+    { name: 'STREMATO',  sign: 'neg', weight: 1 },
+    { name: 'IRRADIATO', sign: 'neg', weight: 1 },
+    { name: 'SCOSSO',    sign: 'neg', weight: 1 },
+  ];
+
+  // Specie: elenco fisso dal manuale (§6.2).
+  SPECIES = ['Umano', 'Ghoul', 'Supermutante', 'Robot'];
+
+  SPECIES_INFO = {
+    Umano:        { perm: 'Versatilità completa: nessun ambiente o gruppo gli è precluso a priori.', svan: 'Nessun talento sovrannaturale né resistenza speciale: un colpo è un colpo.' },
+    Ghoul:        { perm: 'Immune alle radiazioni (anzi, lo curano). Vita estremamente lunga.', svan: 'Inviso e attaccato a vista dagli umani. Rischio di "selvatichire".' },
+    Supermutante: { perm: 'Forza e resistenza sovrumane. Intimidazione automatica. Resiste alle radiazioni.', svan: 'Respinto nei contesti civili. Difficoltà con tecnologie fini.' },
+    Robot:        { perm: 'Non respira né mangia; immune a veleni e radiazioni. Sensori potenziati.', svan: 'Non si cura con stimpack o cibo: serve riparazione. Vulnerabile a EMP.' },
+  };
+
+  // Abilità classiche (§6.4).
+  SKILL_LIST = ['Armi da Fuoco', 'Scasso', 'Scienza', 'Riparazione', 'Persuasione', 'Furtività', 'Medicina', 'Sopravvivenza', 'Atletica', 'Esplosivi'];
+
+  // Kit iniziali (§6.6).
+  WEAPON_KITS = [
+    { name: 'Pistola 10mm',     tags: [ {label:'PROIETTILI', kind:'BASE', dmg:false}, {label:'AFFIDABILE', kind:'EXTRA', dmg:false} ] },
+    { name: 'Pistola Laser',    tags: [ {label:'LASER', kind:'BASE', dmg:false}, {label:'AFFIDABILE', kind:'EXTRA', dmg:false} ] },
+    { name: 'Fucile da Caccia', tags: [ {label:'PROIETTILI', kind:'BASE', dmg:false}, {label:'LUNGA GITTATA', kind:'EXTRA', dmg:false} ] },
+    { name: 'Mazza Chiodata',   tags: [ {label:'PESANTE', kind:'BASE', dmg:false} ] },
+  ];
+  ARMOR_KITS = [
+    { name: 'Giubbotto di Pelle', tags: [ {label:'CUOIO', kind:'BASE', dmg:false}, {label:'STEALTH', kind:'EXTRA', dmg:false} ] },
+    { name: 'Corazza di Metallo', tags: [ {label:'METALLO', kind:'BASE', dmg:false} ] },
+    { name: 'Tuta Anti-Rad',      tags: [ {label:'CUOIO', kind:'BASE', dmg:false}, {label:'ANTI-RADIAZIONI', kind:'EXTRA', dmg:false} ] },
+  ];
+
+  CR_STEP_LABELS = ['IDENTITÀ', 'S.P.E.C.I.A.L.', 'PUNTI AZIONE', 'TAG SKILLS', 'EQUIPAGGIAMENTO', 'RIEPILOGO'];
+
+  CRIT = 4;
+
+  state = {
+    screen: 'login', session: '',
+    loginId: '', loginPass: '', loginErr: '',
+    chars: [], activeId: null, draft: null,
+    orientation: this.detectOrientation(),
+    editMode: false,
+    tab: 'SPECIAL',
+    name: 'MARTA VOSS', species: 'Umano', paSource: 'A',
+    presets: [],
+    paMax: 3, pa: 3,
+    special: { S: 2, P: 4, E: 2, C: 3, I: 3, A: 3, L: 1 },
+    tappi: 6, rottami: 4, bobblehead: 1,
+    skills: [
+      { name: 'ARMI DA FUOCO', maestria: 'ESPERTO' },
+      { name: 'FURTIVITÀ', maestria: 'COMPETENTE' },
+      { name: 'SCASSO', maestria: 'COMPETENTE' },
+    ],
+    talents: [
+      { name: 'TIRO DI PRECISIONE', desc: 'Con arma da fuoco un 5 conta come un 6.' },
+      { name: 'GATTO SILENZIOSO', desc: 'Ritira 1 dado fallito nei tiri di Furtività.' },
+    ],
+    wear: [ { name: 'FERITO', sign: 'neg', weight: 1 } ],
+    critico: false,
+    weapons: [
+      { name: 'Pistola Laser', type: 'energia', tags: [ {label:'LASER', kind:'BASE', dmg:false}, {label:'AFFIDABILE', kind:'EXTRA', dmg:false} ] },
+      { name: 'Pistola 10mm', type: 'balistica', tags: [ {label:'PROIETTILI', kind:'BASE', dmg:false}, {label:'SILENZIATA', kind:'EXTRA', dmg:false} ] },
+    ],
+    armor: [
+      { name: 'Giubbotto di Pelle', tags: [ {label:'CUOIO', kind:'BASE', dmg:false}, {label:'STEALTH', kind:'EXTRA', dmg:false} ] },
+    ],
+    consumables: [
+      { name: 'Stimpack', qty: 2 },
+      { name: 'RadAway', qty: 1 },
+      { name: 'Granata Frag', qty: 1 },
+    ],
+    editTag: null,
+    cond: { name: '', sign: 'neg', weight: 1 },
+    dice: {
+      approccio: 'P', vant: false, svant: false, mod: 0, rerollSkill: '',
+      faces: [], result: null, rolling: false, sub: 'pronto', history: [],
+    },
+    clock: '',
+  };
+
+  componentDidMount() {
+    this.tick();
+    this.clockTimer = setInterval(() => this.tick(), 30000);
+    this.loadConditions();
+    this.boot();
+    this._onResize = () => this.syncOrientation();
+    window.addEventListener('resize', this._onResize);
+    window.addEventListener('orientationchange', this._onResize);
+  }
+  componentDidUpdate() {
+    if (this.state.screen === 'sheet' && this.state.activeId) this.saveActive();
+  }
+  boot() {
+    let session = '';
+    try { session = localStorage.getItem('pipboy_session') || ''; } catch (e) {}
+    if (!session) { this.setState({ screen: 'login' }); return; }
+    const db = this._db();
+    const u = db[session];
+    if (!u) { try { localStorage.removeItem('pipboy_session'); } catch (e) {} this.setState({ screen: 'login', session: '' }); return; }
+    const chars = u.chars || [];
+    this.setState({ session, chars });
+    const last = u.lastId && chars.find(c => c.id === u.lastId);
+    if (last) this.loadChar(last); else this.setState({ screen: 'select' });
+  }
+  loadConditions() {
+    fetch('./conditions.json')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(list => { if (Array.isArray(list) && list.length) this.setState({ presets: list }); })
+      .catch(() => {});
+  }
+  componentWillUnmount() {
+    clearInterval(this.clockTimer); clearInterval(this.rollTimer);
+    if (this._onResize) { window.removeEventListener('resize', this._onResize); window.removeEventListener('orientationchange', this._onResize); }
+  }
+  tick() {
+    const d = new Date();
+    this.setState({ clock: String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') });
+  }
+
+  go(tab) { this.setState({ tab }); }
+  toggleEdit() { this.setState(s => ({ editMode: !s.editMode })); }
+
+  adjustPa(delta) { this.setState(s => ({ pa: Math.max(0, Math.min(s.paMax, s.pa + delta)) })); }
+  adjustPaMax(delta) { this.setState(s => { const paMax = Math.max(0, Math.min(8, s.paMax + delta)); return { paMax, pa: Math.min(s.pa, paMax) }; }); }
+  setSpecial(k, delta) { this.setState(s => ({ special: { ...s.special, [k]: Math.max(0, Math.min(8, s.special[k] + delta)) } })); }
+  setField(k, v) { this.setState({ [k]: v }); }
+
+  // resources
+  setResource(k, delta) { this.setState(s => ({ [k]: Math.max(0, s[k] + delta) })); }
+  setResourceVal(k, v) { const n = parseInt(v, 10); this.setState({ [k]: isNaN(n) ? 0 : Math.max(0, n) }); }
+
+  // skills / talents
+  addSkill() { this.setState(s => ({ skills: [...s.skills, { name: 'NUOVA ABILITÀ', maestria: 'COMPETENTE' }] })); }
+  updateSkill(i, field, v) { this.setState(s => ({ skills: s.skills.map((x, ix) => ix !== i ? x : { ...x, [field]: v }) })); }
+  removeSkill(i) { this.setState(s => ({ skills: s.skills.filter((_, ix) => ix !== i) })); }
+  addTalent() { this.setState(s => ({ talents: [...s.talents, { name: 'NUOVO TALENTO', desc: '' }] })); }
+  updateTalent(i, field, v) { this.setState(s => ({ talents: s.talents.map((x, ix) => ix !== i ? x : { ...x, [field]: v }) })); }
+  removeTalent(i) { this.setState(s => ({ talents: s.talents.filter((_, ix) => ix !== i) })); }
+
+  // conditions / wear
+  netOf(wear) { return wear.reduce((sum, c) => sum + (c.sign === 'neg' ? c.weight : -c.weight), 0); }
+  applyCondition(c) { this.setState(s => { const wear = [...s.wear, c]; return { wear, critico: this.netOf(wear) >= this.CRIT }; }); }
+  removeCondition(i) { this.setState(s => { const wear = s.wear.filter((_, ix) => ix !== i); return { wear, critico: this.netOf(wear) >= this.CRIT }; }); }
+  setCond(field, v) { this.setState(s => ({ cond: { ...s.cond, [field]: v } })); }
+  addCustom() {
+    const c = this.state.cond;
+    if (!c.name.trim()) return;
+    this.applyCondition({ name: c.name.trim().toUpperCase(), sign: c.sign, weight: c.weight });
+    this.setState({ cond: { name: '', sign: 'neg', weight: 1 } });
+  }
+
+  // gear items
+  updateItemName(key, i, v) { this.setState(s => ({ [key]: s[key].map((it, ix) => ix !== i ? it : { ...it, name: v }) })); }
+  removeItem(key, i) { this.setState(s => ({ [key]: s[key].filter((_, ix) => ix !== i) })); }
+  addItem(key) {
+    const blank = key === 'weapons' ? { name: 'NUOVA ARMA', type: 'balistica', tags: [] } : { name: 'NUOVA ARMATURA', tags: [] };
+    this.setState(s => ({ [key]: [...s[key], blank] }));
+  }
+  addTag(key, i, kind) { this.setState(s => ({ [key]: s[key].map((it, ix) => ix !== i ? it : { ...it, tags: [...it.tags, { label: kind === 'BASE' ? 'CORE' : 'TAG', kind: kind || 'EXTRA', dmg: false }] }) })); }
+  removeTag(key, i, ti) { this.setState(s => ({ [key]: s[key].map((it, ix) => ix !== i ? it : { ...it, tags: it.tags.filter((_, tj) => tj !== ti) }) })); }
+  updateTag(key, i, ti, v) { this.setState(s => ({ [key]: s[key].map((it, ix) => ix !== i ? it : { ...it, tags: it.tags.map((t, tj) => tj !== ti ? t : { ...t, label: v }) }) })); }
+  toggleTagDmg(key, i, ti) { this.setState(s => ({ [key]: s[key].map((it, ix) => ix !== i ? it : { ...it, tags: it.tags.map((t, tj) => tj !== ti ? t : { ...t, dmg: !t.dmg }) }) })); }
+  startEditTag(key, i, ti) { this.setState({ editTag: { key, i, ti } }); }
+  stopEditTag() { this.setState({ editTag: null }); }
+
+  // consumables
+  addConsumable() { this.setState(s => ({ consumables: [...s.consumables, { name: 'NUOVO OGGETTO', qty: 1 }] })); }
+  updateConsumable(i, v) { this.setState(s => ({ consumables: s.consumables.map((c, ix) => ix !== i ? c : { ...c, name: v }) })); }
+  setConsumableQty(i, delta) { this.setState(s => ({ consumables: s.consumables.map((c, ix) => ix !== i ? c : { ...c, qty: Math.max(0, c.qty + delta) }) })); }
+  removeConsumable(i) { this.setState(s => ({ consumables: s.consumables.filter((_, ix) => ix !== i) })); }
+
+  // dice
+  pickApproach(k) { this.setState(s => ({ dice: { ...s.dice, approccio: k } })); }
+  toggleVant() { this.setState(s => ({ dice: { ...s.dice, vant: !s.dice.vant, svant: false } })); }
+  toggleSvant() { this.setState(s => ({ dice: { ...s.dice, svant: !s.dice.svant, vant: false } })); }
+  changeMod(d) { this.setState(s => ({ dice: { ...s.dice, mod: Math.max(-6, Math.min(6, s.dice.mod + d)) } })); }
+  setRerollSkill(v) { this.setState(s => ({ dice: { ...s.dice, rerollSkill: v } })); }
+  toggleFace(idx) {
+    this.setState(s => {
+      if (s.dice.rolling) return {};
+      return { dice: { ...s.dice, faces: s.dice.faces.map((f, i) => (i === idx && !f.removed) ? { ...f, selected: !f.selected } : f) } };
+    });
+  }
+
+  poolFor(d) {
+    const base = this.state.special[d.approccio] || 1;
+    return Math.max(1, base + (d.vant ? 1 : 0) + d.mod);
+  }
+  evaluate(faces) {
+    const counted = faces.filter(f => !f.removed).map(f => f.v);
+    if (counted.some(v => v === 6)) return 'PIENO';
+    if (counted.some(v => v === 4 || v === 5)) return 'COSTO';
+    return 'FALLITO';
+  }
+  roll() {
+    const d = this.state.dice;
+    if (d.rolling) return;
+    const n = this.poolFor(d);
+    const isFortuna = d.approccio === 'L';
+    let ticks = 0;
+    clearInterval(this.rollTimer);
+    this.setState(s => ({ dice: { ...s.dice, rolling: true, sub: 'lancio…', result: null } }));
+    this.rollTimer = setInterval(() => {
+      ticks++;
+      const faces = Array.from({ length: n }, () => ({ v: Math.floor(Math.random()*6)+1, removed: false, selected: false }));
+      if (ticks < 9) { this.setState(s => ({ dice: { ...s.dice, faces } })); return; }
+      clearInterval(this.rollTimer);
+      if (d.svant && faces.length > 0) {
+        let hi = 0;
+        faces.forEach((f, i) => { if (f.v > faces[hi].v) hi = i; });
+        faces[hi].removed = true;
+      }
+      faces.sort((a, b) => b.v - a.v);
+      const result = this.evaluate(faces);
+      const counted = faces.filter(f => !f.removed);
+      const sixes = counted.filter(f => f.v === 6).length;
+      const paGain = isFortuna ? 0 : Math.max(0, sixes - 1);
+      const label = { PIENO: 'SUCCESSO PIENO', COSTO: 'SUCCESSO CON COSTO', FALLITO: 'FALLIMENTO' }[result];
+      let sub = counted.map(f => f.v).join(' ');
+      if (paGain > 0) sub += ' · +' + paGain + ' PA';
+      const expr = (isFortuna ? 'FORT' : d.approccio) + ' ' + n + 'd6' + (d.vant ? '+V' : '') + (d.svant ? '−S' : '') + (d.mod !== 0 ? (d.mod > 0 ? '+' + d.mod : d.mod) : '');
+      this.setState(s => ({
+        pa: Math.min(s.paMax, s.pa + paGain),
+        dice: { ...s.dice, rolling: false, faces, result, sub,
+          history: [{ expr, result: label.replace('SUCCESSO ', '') }, ...(s.dice.history || [])].slice(0, 8) },
+      }));
+    }, 60);
+  }
+  reroll() {
+    const d = this.state.dice;
+    if (d.rolling || this.state.pa <= 0 || !d.rerollSkill) return;
+    const selectedIdx = d.faces.map((f, i) => (!f.removed && f.selected) ? i : -1).filter(i => i >= 0);
+    if (selectedIdx.length === 0) return;
+    const skill = d.rerollSkill;
+    let ticks = 0;
+    clearInterval(this.rollTimer);
+    this.setState(s => ({ dice: { ...s.dice, rolling: true, sub: 'ritiro…', result: null } }));
+    this.rollTimer = setInterval(() => {
+      ticks++;
+      if (ticks < 9) {
+        this.setState(s => ({ dice: { ...s.dice, faces: s.dice.faces.map((f, i) => selectedIdx.indexOf(i) >= 0 ? { ...f, v: Math.floor(Math.random()*6)+1 } : f) } }));
+        return;
+      }
+      clearInterval(this.rollTimer);
+      this.setState(s => {
+        let faces = s.dice.faces.map((f, i) => selectedIdx.indexOf(i) >= 0 ? { ...f, v: Math.floor(Math.random()*6)+1, selected: false } : f);
+        faces = faces.slice().sort((a, b) => b.v - a.v);
+        const result = this.evaluate(faces);
+        const label = { PIENO: 'SUCCESSO PIENO', COSTO: 'SUCCESSO CON COSTO', FALLITO: 'FALLIMENTO' }[result];
+        const counted = faces.filter(f => !f.removed).map(f => f.v);
+        return {
+          pa: s.pa - 1,
+          dice: { ...s.dice, rolling: false, faces, result, sub: 'ritiro · ' + skill + ' · ' + counted.join(' ') + ' · no PA',
+            history: [{ expr: 'RITIRO ' + skill, result: label.replace('SUCCESSO ', '') }, ...(s.dice.history || [])].slice(0, 8) },
+        };
+      });
+    }, 60);
+  }
+
+  pips(n, max) { return Array.from({ length: max }, (_, i) => ({ on: i < n })); }
+
+  // ===== Persistenza / account =====
+  _db() { try { return JSON.parse(localStorage.getItem('pipboy_db') || '{}'); } catch (e) { return {}; } }
+  _saveDB(db) { try { localStorage.setItem('pipboy_db', JSON.stringify(db)); } catch (e) {} }
+  detectOrientation() {
+    try { return (window.innerWidth >= window.innerHeight) ? 'landscape' : 'portrait'; } catch (e) { return 'portrait'; }
+  }
+  syncOrientation() {
+    const o = this.detectOrientation();
+    if (o !== this.state.orientation) this.setState({ orientation: o });
+  }
+  serializeChar() {
+    const s = this.state;
+    return {
+      id: s.activeId, name: s.name, species: s.species, paSource: s.paSource,
+      paMax: s.paMax, pa: s.pa, special: { ...s.special },
+      tappi: s.tappi, rottami: s.rottami, bobblehead: s.bobblehead,
+      skills: s.skills, talents: s.talents, wear: s.wear, critico: s.critico,
+      weapons: s.weapons, armor: s.armor, consumables: s.consumables,
+    };
+  }
+  saveActive() {
+    const s = this.state;
+    const db = this._db();
+    if (!db[s.session]) db[s.session] = { pass: '', chars: [], lastId: null };
+    const arr = db[s.session].chars || (db[s.session].chars = []);
+    const char = this.serializeChar();
+    const idx = arr.findIndex(c => c.id === s.activeId);
+    if (idx >= 0) arr[idx] = char; else arr.push(char);
+    db[s.session].lastId = s.activeId;
+    this._saveDB(db);
+  }
+  loadChar(char) {
+    this.setState({
+      screen: 'sheet', activeId: char.id, tab: 'SPECIAL', editMode: false,
+      name: char.name, species: char.species, paSource: char.paSource,
+      paMax: char.paMax, pa: char.pa, special: { ...char.special },
+      tappi: char.tappi, rottami: char.rottami, bobblehead: char.bobblehead || 0,
+      skills: char.skills || [], talents: char.talents || [], wear: char.wear || [],
+      critico: !!char.critico, weapons: char.weapons || [], armor: char.armor || [],
+      consumables: char.consumables || [],
+      dice: { approccio: 'P', vant: false, svant: false, mod: 0, rerollSkill: '', faces: [], result: null, rolling: false, sub: 'pronto', history: [] },
+    });
+  }
+
+  // ===== Login =====
+  setLoginField(f, v) { this.setState({ [f]: v, loginErr: '' }); }
+  onLoginKey(e) { if (e.key === 'Enter') this.login(); }
+  login() {
+    const id = (this.state.loginId || '').trim();
+    const pass = this.state.loginPass || '';
+    if (!id) { this.setState({ loginErr: 'INSERIRE ID UTENTE' }); return; }
+    const db = this._db();
+    if (db[id]) {
+      if ((db[id].pass || '') !== pass) { this.setState({ loginErr: 'CODICE DI ACCESSO ERRATO' }); return; }
+    } else {
+      db[id] = { pass, chars: [], lastId: null };
+      this._saveDB(db);
+    }
+    try { localStorage.setItem('pipboy_session', id); } catch (e) {}
+    const u = db[id];
+    const chars = u.chars || [];
+    this.setState({ session: id, chars, loginPass: '', loginErr: '' });
+    const last = u.lastId && chars.find(c => c.id === u.lastId);
+    if (last) this.loadChar(last); else this.setState({ screen: 'select' });
+  }
+  logout() {
+    try { localStorage.removeItem('pipboy_session'); } catch (e) {}
+    this.setState({ screen: 'login', session: '', activeId: null, chars: [], draft: null, loginId: '', loginPass: '', loginErr: '' });
+  }
+
+  // ===== Selezione =====
+  goSelect() {
+    const db = this._db();
+    const u = db[this.state.session];
+    this.setState({ screen: 'select', activeId: null, draft: null, chars: (u && u.chars) || [] });
+  }
+  openChar(id) { const c = this.state.chars.find(x => x.id === id); if (c) this.loadChar(c); }
+  deleteChar(id) {
+    const db = this._db();
+    const u = db[this.state.session];
+    if (u) {
+      u.chars = (u.chars || []).filter(c => c.id !== id);
+      if (u.lastId === id) u.lastId = null;
+      this._saveDB(db);
+    }
+    this.setState(s => ({ chars: s.chars.filter(c => c.id !== id) }));
+  }
+
+  // ===== Creazione =====
+  blankDraft() {
+    return {
+      step: 0, name: '', species: 'Umano',
+      special: { S: 1, P: 1, E: 1, C: 1, I: 1, A: 1, L: 1 }, paSource: 'A',
+      skills: [ { name: 'Armi da Fuoco', maestria: 'COMPETENTE' }, { name: 'Furtività', maestria: 'COMPETENTE' }, { name: 'Scasso', maestria: 'COMPETENTE' } ],
+      weaponIdx: 0, armorIdx: 0, rottami: 0, cimelio: '',
+    };
+  }
+  newChar() { this.setState({ screen: 'create', draft: this.blankDraft() }); }
+  setDraft(patch) { this.setState(s => ({ draft: { ...s.draft, ...patch } })); }
+  draftSpecial(k, delta) {
+    this.setState(s => {
+      const used = Object.values(s.draft.special).reduce((a, b) => a + b, 0);
+      const nv = s.draft.special[k] + delta;
+      if (nv < 1 || nv > 4) return {};
+      if (delta > 0 && used >= 18) return {};
+      return { draft: { ...s.draft, special: { ...s.draft.special, [k]: nv } } };
+    });
+  }
+  setDraftSkill(i, field, v) { this.setState(s => ({ draft: { ...s.draft, skills: s.draft.skills.map((sk, ix) => ix !== i ? sk : { ...sk, [field]: v }) } })); }
+  rollRottami() { this.setDraft({ rottami: Math.floor(Math.random() * 6) + 1 }); }
+  draftNext() { this.setState(s => ({ draft: { ...s.draft, step: Math.min(5, s.draft.step + 1) } })); }
+  draftBack() { this.setState(s => (s.draft.step === 0 ? { screen: 'select', draft: null } : { draft: { ...s.draft, step: s.draft.step - 1 } })); }
+  finishCreate() {
+    const dr = this.state.draft;
+    const id = 'c' + Date.now() + Math.floor(Math.random() * 1000);
+    const paMax = dr.special[dr.paSource === 'E' ? 'E' : 'A'];
+    const wk = this.WEAPON_KITS[dr.weaponIdx], ak = this.ARMOR_KITS[dr.armorIdx];
+    const info = this.SPECIES_INFO[dr.species] || { perm: '', svan: '' };
+    const consumables = [ { name: 'Stimpack', qty: 2 } ];
+    if (dr.cimelio.trim()) consumables.push({ name: dr.cimelio.trim(), qty: 1 });
+    const char = {
+      id, name: (dr.name.trim() || 'SENZA NOME').toUpperCase(), species: dr.species, paSource: dr.paSource,
+      paMax, pa: paMax, special: { ...dr.special }, tappi: dr.special.L, rottami: dr.rottami || 0, bobblehead: 0,
+      skills: dr.skills.filter(s => s.maestria).map(s => ({ name: s.name, maestria: s.maestria })),
+      talents: [ { name: 'SPECIE · ' + dr.species.toUpperCase(), desc: info.perm }, { name: 'SVANTAGGIO', desc: info.svan } ],
+      wear: [], critico: false,
+      weapons: [ { name: wk.name, tags: wk.tags.map(t => ({ ...t })) } ],
+      armor: [ { name: ak.name, tags: ak.tags.map(t => ({ ...t })) } ],
+      consumables,
+    };
+    const db = this._db();
+    if (!db[this.state.session]) db[this.state.session] = { pass: '', chars: [], lastId: null };
+    db[this.state.session].chars.push(char);
+    db[this.state.session].lastId = id;
+    this._saveDB(db);
+    this.setState(s => ({ chars: [...s.chars, char], draft: null }));
+    this.loadChar(char);
+  }
+
+  renderVals() {
+    const S = this.state, d = S.dice;
+    const activeBg = 'rgba(51,255,102,0.14)';
+    const AMBER = '#ffb02e';
+    const editMode = S.editMode, viewMode = !S.editMode;
+
+    // ===== Schermate =====
+    const screen = S.screen;
+    const isLogin = screen === 'login', isSelect = screen === 'select', isCreate = screen === 'create', isSheet = screen === 'sheet';
+    const orientation = S.orientation || 'portrait';
+    const isLandscape = orientation === 'landscape';
+
+    // selezione
+    const charCards = (S.chars || []).map(c => ({
+      id: c.id, name: c.name, species: c.species,
+      special: this.APPROACHES.map(a => ({ letter: a.key, value: c.special[a.key] })),
+      skillsLine: (c.skills || []).map(s => s.name).filter(Boolean).join(' · '),
+      paLine: 'PA ' + c.paMax + ' · TAPPI ' + c.tappi,
+      open: () => this.openChar(c.id),
+      remove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.deleteChar(c.id); },
+    }));
+
+    // creazione
+    let cr = null;
+    if (S.draft) {
+      const dr = S.draft;
+      const usedSpecial = Object.values(dr.special).reduce((a, b) => a + b, 0);
+      const remSpecial = 18 - usedSpecial;
+      const skillCost = m => m === 'COMPETENTE' ? 1 : m === 'ESPERTO' ? 2 : m === 'MAESTRO' ? 3 : 0;
+      const masteryCost = dr.skills.reduce((a, s) => a + skillCost(s.maestria), 0);
+      const skillBudget = dr.species === 'Umano' ? 4 : 3;
+      const trainedNames = dr.skills.filter(s => s.maestria).map(s => s.name);
+      const dupSkill = new Set(trainedNames).size !== trainedNames.length;
+      const paMaxPreview = dr.special[dr.paSource === 'E' ? 'E' : 'A'];
+      const info = this.SPECIES_INFO[dr.species] || { perm: '', svan: '' };
+      let canNext = true;
+      if (dr.step === 0) canNext = !!dr.name.trim();
+      else if (dr.step === 1) canNext = remSpecial === 0;
+      else if (dr.step === 3) canNext = !dupSkill && masteryCost <= skillBudget;
+      let skillWarn = '';
+      if (dr.step === 3) { if (dupSkill) skillWarn = 'ABILITÀ DUPLICATE'; else if (masteryCost > skillBudget) skillWarn = 'MAESTRIA OLTRE IL BUDGET (' + skillBudget + ')'; }
+      const levelDefs = [['', '—'], ['COMPETENTE', 'COMP'], ['ESPERTO', 'ESP'], ['MAESTRO', 'MAE']];
+      cr = {
+        crStepNum: dr.step + 1, crStepLabel: this.CR_STEP_LABELS[dr.step],
+        crSteps: this.CR_STEP_LABELS.map((_, i) => ({ bg: i <= dr.step ? '#33ff66' : 'rgba(51,255,102,0.2)' })),
+        crStep0: dr.step === 0, crStep1: dr.step === 1, crStep2: dr.step === 2, crStep3: dr.step === 3, crStep4: dr.step === 4, crStep5: dr.step === 5,
+        crName: dr.name, crSetName: (e) => this.setDraft({ name: e.target.value }),
+        crSpecies: this.SPECIES.map(sp => ({ name: sp, bg: dr.species === sp ? activeBg : 'transparent', sel: () => this.setDraft({ species: sp }) })),
+        crSpeciesName: dr.species, crSpeciesPerm: info.perm, crSpeciesSvan: info.svan,
+        crSpecial: this.APPROACHES.map(a => ({ letter: a.key, name: a.name, value: dr.special[a.key], inc: () => this.draftSpecial(a.key, 1), dec: () => this.draftSpecial(a.key, -1) })),
+        crRemSpecial: remSpecial, crRemColor: remSpecial === 0 ? '#33ff66' : '#ffb02e',
+        crAgiVal: dr.special.A, crEndVal: dr.special.E, crPaMax: paMaxPreview,
+        crPaAgi: () => this.setDraft({ paSource: 'A' }), crPaEnd: () => this.setDraft({ paSource: 'E' }),
+        crPaAgiBg: dr.paSource === 'A' ? activeBg : 'transparent', crPaEndBg: dr.paSource === 'E' ? activeBg : 'transparent',
+        crPaSourceName: dr.paSource === 'E' ? 'RESISTENZA' : 'AGILITÀ',
+        crSkills: dr.skills.map((s, i) => ({
+          name: s.name, onName: (e) => this.setDraftSkill(i, 'name', e.target.value),
+          levels: levelDefs.map(([val, lab]) => ({ label: lab, bg: s.maestria === val ? activeBg : 'transparent', sel: () => this.setDraftSkill(i, 'maestria', val) })),
+        })),
+        crSkillOptions: this.SKILL_LIST.map(n => ({ name: n })),
+        crMasteryCost: masteryCost, crBudget: skillBudget, crSkillWarn: skillWarn,
+        crWeapons: this.WEAPON_KITS.map((w, i) => ({ name: w.name, tags: w.tags.map(t => t.label).join(' · '), bg: dr.weaponIdx === i ? activeBg : 'transparent', sel: () => this.setDraft({ weaponIdx: i }) })),
+        crArmors: this.ARMOR_KITS.map((a, i) => ({ name: a.name, tags: a.tags.map(t => t.label).join(' · '), bg: dr.armorIdx === i ? activeBg : 'transparent', sel: () => this.setDraft({ armorIdx: i }) })),
+        crRottami: dr.rottami, crRollRottami: () => this.rollRottami(),
+        crCimelio: dr.cimelio, crSetCimelio: (e) => this.setDraft({ cimelio: e.target.value }),
+        crSummarySkills: dr.skills.filter(s => s.maestria).map(s => ({ name: s.name, maestria: s.maestria })),
+        crNoSkills: dr.skills.every(s => !s.maestria),
+        crTappi: dr.special.L, crWeaponName: this.WEAPON_KITS[dr.weaponIdx].name, crArmorName: this.ARMOR_KITS[dr.armorIdx].name,
+        crNotLast: dr.step < 5, crIsLast: dr.step === 5,
+        crBack: () => this.draftBack(), crNext: () => { if (canNext) this.draftNext(); }, crCreate: () => this.finishCreate(),
+        crNextBg: canNext ? 'rgba(51,255,102,0.14)' : 'transparent', crNextOp: canNext ? 1 : 0.4, crNextCursor: canNext ? 'pointer' : 'default',
+      };
+    }
+
+    const tabDefs = [
+      { key: 'SPECIAL', label: 'S.P.E' }, { key: 'SKILLS', label: 'ABIL' },
+      { key: 'HEALTH', label: 'SALUTE' }, { key: 'GEAR', label: 'ZAINO' }, { key: 'DICE', label: 'DADI' },
+    ];
+    const tabs = tabDefs.map(t => ({
+      label: t.label, active: S.tab === t.key,
+      bg: S.tab === t.key ? activeBg : 'transparent', op: S.tab === t.key ? 1 : 0.5,
+      go: () => this.go(t.key),
+    }));
+
+    const approaches = this.APPROACHES.map(a => ({
+      letter: a.key, name: a.name, desc: a.desc,
+      pips: this.pips(S.special[a.key], 5),
+      roll: () => this.setState(s => ({ tab: 'DICE', dice: { ...s.dice, approccio: a.key } })),
+    }));
+    const specialEdit = this.APPROACHES.map(a => ({
+      letter: a.key, name: a.name, value: S.special[a.key],
+      inc: () => this.setSpecial(a.key, 1), dec: () => this.setSpecial(a.key, -1),
+    }));
+
+    const skills = S.skills.map((s, i) => ({
+      name: s.name, maestria: s.maestria, effect: this.MAESTRIA[s.maestria] || '',
+      onName: (e) => this.updateSkill(i, 'name', e.target.value),
+      onMaestria: (e) => this.updateSkill(i, 'maestria', e.target.value),
+      remove: () => this.removeSkill(i),
+    }));
+    const talents = S.talents.map((t, i) => ({
+      name: t.name, desc: t.desc,
+      onName: (e) => this.updateTalent(i, 'name', e.target.value),
+      onDesc: (e) => this.updateTalent(i, 'desc', e.target.value),
+      remove: () => this.removeTalent(i),
+    }));
+
+    // conditions
+    const condStyle = (sign) => sign === 'neg'
+      ? { color: AMBER, border: '1px solid rgba(255,176,46,0.6)', bg: 'rgba(255,176,46,0.1)', shadow: '0 0 4px rgba(255,176,46,0.45)', prefix: '−' }
+      : { color: '#33ff66', border: '1px solid rgba(51,255,102,0.6)', bg: 'rgba(51,255,102,0.1)', shadow: '0 0 4px rgba(51,255,102,0.5)', prefix: '+' };
+    const conds = S.wear.map((c, i) => {
+      const st = condStyle(c.sign);
+      return { name: c.name, neg: c.sign === 'neg', ...st, tag: c.weight === 2 ? 'MODERATA ×2' : 'BASE', remove: () => this.removeCondition(i) };
+    }).sort((a, b) => (a.neg ? 0 : 1) - (b.neg ? 0 : 1));
+    const presetSource = (S.presets && S.presets.length) ? S.presets : this.CONDITION_PRESETS;
+    const presetButtons = presetSource.map(p => {
+      const st = condStyle(p.sign);
+      return { name: p.name, prefix: st.prefix, color: st.color, border: st.border, shadow: st.shadow,
+        wLabel: p.weight === 2 ? ' ×2' : '', add: () => this.applyCondition({ name: p.name, sign: p.sign, weight: p.weight }) };
+    });
+    const netWear = this.netOf(S.wear);
+    const netColor = netWear > 0 ? AMBER : '#33ff66';
+    const netShadow = netWear > 0 ? '0 0 8px rgba(255,176,46,0.5)' : '0 0 8px rgba(51,255,102,0.5)';
+
+    // gear tags
+    const tagView = (key, i) => (it) => ({
+      ...it,
+      tags: it.tags.map((t, ti) => {
+        const core = t.kind === 'BASE';
+        const editing = S.editMode;
+        return {
+          core,
+          label: t.label,
+          bg: t.dmg ? 'transparent' : (core ? 'rgba(51,255,102,0.14)' : 'transparent'),
+          border: core ? '1px solid rgba(51,255,102,0.6)' : '1px dashed rgba(51,255,102,0.45)',
+          op: t.dmg ? 0.4 : 1,
+          deco: t.dmg ? 'line-through' : 'none',
+          kindLabel: core ? 'CORE' : 'EXTRA',
+          kindBorder: core ? 'rgba(51,255,102,0.6)' : 'rgba(51,255,102,0.3)',
+          editing, notEditing: !editing,
+          toggle: () => { if (!editing) this.toggleTagDmg(key, i, ti); },
+          stopProp: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+          onLabel: (e) => this.updateTag(key, i, ti, e.target.value),
+          remove: (e) => { if (e && e.stopPropagation) e.stopPropagation(); this.removeTag(key, i, ti); },
+        };
+      }).sort((a, b) => (a.core ? 0 : 1) - (b.core ? 0 : 1)),
+    });
+    const weapons = S.weapons.map((w, i) => ({
+      ...tagView('weapons', i)(w), name: w.name,
+      damaged: w.tags.some(t => t.dmg),
+      onName: (e) => this.updateItemName('weapons', i, e.target.value),
+      remove: () => this.removeItem('weapons', i),
+      addCore: () => this.addTag('weapons', i, 'BASE'),
+      addExtra: () => this.addTag('weapons', i, 'EXTRA'),
+    }));
+    const armor = S.armor.map((w, i) => ({
+      ...tagView('armor', i)(w), name: w.name,
+      onName: (e) => this.updateItemName('armor', i, e.target.value),
+      remove: () => this.removeItem('armor', i),
+      addCore: () => this.addTag('armor', i, 'BASE'),
+      addExtra: () => this.addTag('armor', i, 'EXTRA'),
+    }));
+
+    const resources = [
+      { key: 'tappi', label: 'TAPPI', value: S.tappi },
+      { key: 'rottami', label: 'ROTTAMI', value: S.rottami },
+      { key: 'bobblehead', label: 'BOBBLEHEAD', value: S.bobblehead },
+    ].map(r => ({ ...r, dec: () => this.setResource(r.key, -1), inc: () => this.setResource(r.key, 1), onVal: (e) => this.setResourceVal(r.key, e.target.value) }));
+
+    const consumables = S.consumables.map((c, i) => ({
+      name: c.name, qty: c.qty,
+      onName: (e) => this.updateConsumable(i, e.target.value),
+      dec: () => this.setConsumableQty(i, -1), inc: () => this.setConsumableQty(i, 1),
+      remove: () => this.removeConsumable(i),
+    }));
+
+    // dice
+    const diceApproaches = this.APPROACHES.map(a => ({
+      letter: a.key, bg: d.approccio === a.key ? activeBg : 'transparent', pick: () => this.pickApproach(a.key),
+    }));
+    const isFortuna = d.approccio === 'L';
+    const poolSize = this.poolFor(d);
+    const faces = (d.faces || []).map((f, idx) => {
+      let color = 'rgba(51,255,102,0.4)', glow = 'none', bg = 'transparent';
+      if (!f.removed) {
+        if (f.v === 6) { color = '#aaffc0'; glow = '0 0 10px rgba(51,255,102,0.8)'; bg = 'rgba(51,255,102,0.15)'; }
+        else if (f.v >= 4) { color = '#33ff66'; }
+      }
+      const selectable = !f.removed && !d.rolling;
+      return {
+        v: f.v, color, glow,
+        bg: f.selected ? 'rgba(51,255,102,0.32)' : bg,
+        border: f.selected ? '2px solid #33ff66' : '1px solid rgba(51,255,102,0.5)',
+        op: f.removed ? 0.28 : 1,
+        deco: f.removed ? 'line-through' : 'none',
+        cursor: selectable ? 'pointer' : 'default',
+        select: () => this.toggleFace(idx),
+      };
+    });
+    const resultLabel = d.result ? { PIENO: 'SUCCESSO PIENO', COSTO: 'SUCCESSO CON COSTO', FALLITO: 'FALLIMENTO' }[d.result] : '— TIRA I DADI —';
+    const selectedCount = (d.faces || []).filter(f => !f.removed && f.selected).length;
+    const canReroll = !d.rolling && S.pa > 0 && !!d.rerollSkill && selectedCount > 0;
+    const modStr = d.mod > 0 ? '+' + d.mod : '' + d.mod;
+    const skillOptions = S.skills.map(s => ({ name: s.name }));
+
+    const footerMap = { SPECIAL: 'S.P.E.C.I.A.L.', SKILLS: 'ABILITÀ · TALENTI', HEALTH: 'LOGORAMENTO', GEAR: 'ZAINO', DICE: 'DADI' };
+    const approachName = (this.APPROACHES.find(a => a.key === d.approccio) || {}).name || '';
+    const paSourceName = (this.APPROACHES.find(a => a.key === S.paSource) || {}).name || '';
+
+    return {
+      editMode, viewMode,
+      name: S.name, species: S.species, paSource: S.paSource, paSourceName,
+      onName: (e) => this.setField('name', e.target.value),
+      onSpecies: (e) => this.setField('species', e.target.value),
+      setPaSource: (e) => this.setField('paSource', e.target.value),
+      toggleEdit: () => this.toggleEdit(),
+      editTabBg: editMode ? activeBg : 'transparent', editTabOp: editMode ? 1 : 0.5,
+
+      tabs,
+      isSpecial: S.tab === 'SPECIAL', isSkills: S.tab === 'SKILLS', isHealth: S.tab === 'HEALTH',
+      isGear: S.tab === 'GEAR', isDice: S.tab === 'DICE',
+
+      paPips: this.pips(S.pa, S.paMax), paUp: () => this.adjustPa(1), paDown: () => this.adjustPa(-1),
+      paMax: S.paMax, paMaxUp: () => this.adjustPaMax(1), paMaxDown: () => this.adjustPaMax(-1),
+
+      approaches, specialEdit,
+      skills, addSkill: () => this.addSkill(),
+      talents, addTalent: () => this.addTalent(),
+
+      conds, noConds: S.wear.length === 0, netWear, netColor, netShadow,
+      critico: S.critico, presetButtons,
+      condName: S.cond.name, onCondName: (e) => this.setCond('name', e.target.value),
+      condNeg: () => this.setCond('sign', 'neg'), condPos: () => this.setCond('sign', 'pos'),
+      condBase: () => this.setCond('weight', 1), condMod: () => this.setCond('weight', 2),
+      condNegBg: S.cond.sign === 'neg' ? 'rgba(255,176,46,0.15)' : 'transparent',
+      condPosBg: S.cond.sign === 'pos' ? 'rgba(51,255,102,0.15)' : 'transparent',
+      condBaseBg: S.cond.weight === 1 ? activeBg : 'transparent',
+      condModBg: S.cond.weight === 2 ? activeBg : 'transparent',
+      addCustom: () => this.addCustom(),
+
+      resources,
+      weapons, addWeapon: () => this.addItem('weapons'),
+      armor, addArmor: () => this.addItem('armor'),
+      consumables, addConsumable: () => this.addConsumable(),
+      tappi: S.tappi,
+
+      diceApproaches, diceApproachName: approachName, isFortuna, poolSize, faces,
+      resultLabel, resultSub: d.sub,
+      vantBg: d.vant ? activeBg : 'transparent', svantBg: d.svant ? activeBg : 'transparent',
+      toggleVant: () => this.toggleVant(), toggleSvant: () => this.toggleSvant(),
+      mod: d.mod, modStr, modUp: () => this.changeMod(1), modDown: () => this.changeMod(-1),
+      skillOptions, rerollSkill: d.rerollSkill, setRerollSkill: (e) => this.setRerollSkill(e.target.value),
+      selectedCount,
+      doRoll: () => this.roll(), doReroll: () => this.reroll(),
+      rerollBg: canReroll ? 'rgba(51,255,102,0.08)' : 'transparent',
+      rerollOp: canReroll ? 1 : 0.4, rerollCursor: canReroll ? 'pointer' : 'default',
+      statusDot: S.critico ? '#ffb02e' : '#33ff66',
+      statusGlow: S.critico ? '0 0 8px #ffb02e' : '0 0 8px #33ff66',
+      statusLabel: S.critico ? 'STATO CRITICO' : 'RANGER FIELD DECK · MK II',
+      statusColor: S.critico ? '#ffb02e' : '#6f7a5a',
+      statusRight: S.critico ? '⚠ CRITICO' : 'M.A.G.N.U.S. OS',
+      statusRightColor: S.critico ? '#ffb02e' : '#565f45',
+      history: d.history || [],
+      footerTab: footerMap[S.tab] || '', clock: S.clock,
+
+      // schermate
+      isLogin, isSelect, isCreate, isSheet,
+      showNav: isSheet, showOsLabel: !isSheet,
+      goSelect: () => this.goSelect(), logout: () => this.logout(),
+      isLandscape,
+      wrapMaxW: isLandscape ? '980px' : '440px',
+      wrapMaxH: isLandscape ? '620px' : '940px',
+      selectCols: isLandscape ? '1fr 1fr' : '1fr',
+      formMaxW: isLandscape ? '480px' : '100%',
+      crContentMaxW: isLandscape ? '560px' : 'none',
+      loginId: S.loginId, loginPass: S.loginPass, loginErr: S.loginErr,
+      setLoginId: (e) => this.setLoginField('loginId', e.target.value),
+      setLoginPass: (e) => this.setLoginField('loginPass', e.target.value),
+      onLoginKey: (e) => this.onLoginKey(e), login: () => this.login(),
+      session: S.session, charCards, noChars: (S.chars || []).length === 0, newChar: () => this.newChar(),
+      ...cr,
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -10,7 +10,15 @@ export interface Identified {
 /** An incoming patch item: `id` optional (absent = create). */
 export type PatchItem<T extends Identified> = Partial<T> & { id?: string };
 
-/** An entry describing something the server silently dropped during a section PATCH. */
+/**
+ * An entry describing something the server silently dropped during a section PATCH.
+ *
+ * `unauthorized_field` and `disallowed_section` are no longer emitted for any
+ * currently-specified section — every section is owner-writable, and a caller
+ * who may not write one is rejected by ownership (404) rather than partially
+ * applied. Both are retained, reserved for future field-level restrictions, so
+ * the `{ section, ignored }` envelope contract stays stable for consumers.
+ */
 export type IgnoredEntry =
   | { section: string; reason: 'disallowed_section' }
   | { section: string; key: string; reason: 'unauthorized_field' }
@@ -88,17 +96,23 @@ export function patchCollectionArray<T extends Identified>(
 }
 
 /**
- * Per-section whitelist of fields a non-admin (player) may write.
+ * Per-section whitelist of fields a non-admin (player) may write on a character
+ * they own. Non-owners never reach this point — `CharacterOwnerGuard` 404s them.
  *  - `[]`  → nothing writable (admin-only section)
  *  - `'*'` → the whole section is writable
  *  - list  → only those top-level keys are writable
+ *
+ * Every section is currently owner-writable: the reference design's `✎` editor
+ * toggle lets the player holding the sheet edit S.P.E.C.I.A.L., skills, perks,
+ * PA source/max, and all three resource counters. The mechanism is kept for
+ * future per-field restrictions.
  */
 export const PLAYER_UPDATABLE_FIELDS: Record<string, string[] | '*'> = {
-  special: [],
-  skills: [],
-  perks: [],
-  actionPoints: ['paCurrent'],
-  resources: ['caps', 'scraps'],
+  special: '*',
+  skills: '*',
+  perks: '*',
+  actionPoints: '*',
+  resources: '*',
   status: '*',
   inventory: '*',
 };
@@ -125,7 +139,7 @@ export function scrubPayload<T extends Record<string, unknown>>(
   if (allowed === '*') return { scrubbed: payload, ignored: [] };
   if (!allowed || allowed.length === 0) {
     return {
-      scrubbed: {} as Partial<T>,
+      scrubbed: {},
       ignored: [{ section, reason: 'disallowed_section' }],
     };
   }

@@ -1,7 +1,5 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-
-export const SPECIES = ['human', 'ghoul', 'super_mutant', 'robot'] as const;
 
 export class CreateCharacterDto {
   @ApiProperty()
@@ -9,9 +7,14 @@ export class CreateCharacterDto {
   @MinLength(1)
   name: string;
 
-  @ApiPropertyOptional({ enum: SPECIES })
+  /**
+   * A species-catalog slug. Not a fixed enum — CharactersService rejects an
+   * unknown slug with HTTP 400 against the live catalog. Defaults to `human`.
+   */
+  @ApiPropertyOptional({ description: 'Species catalog slug (default: human)' })
   @IsOptional()
-  @IsIn(SPECIES)
+  @IsString()
+  @IsNotEmpty()
   species?: string;
 
   @ApiPropertyOptional({

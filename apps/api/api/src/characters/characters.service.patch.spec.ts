@@ -40,9 +40,12 @@ function makeService(char: ReturnType<typeof makeMockChar>) {
       lean: jest.fn().mockResolvedValue({ ...char, ...update.$set }),
     })),
   };
+  // Species validation only fires on create/update, not the section patches here.
+  const speciesCatalog = { slugExists: jest.fn().mockResolvedValue(true) };
   return new CharactersService(
     characterModel as never,
     {} as never,
+    speciesCatalog as never,
   );
 }
 
@@ -52,9 +55,12 @@ function playerActor(char: ReturnType<typeof makeMockChar>): AuthenticatedUser {
 }
 
 // ─── 9.4: ignored array ───────────────────────────────────────
+// Every character section is owner-writable: an owner's write applies and
+// reports nothing ignored. Non-owners never reach the service — CharacterOwnerGuard
+// 404s them — so `disallowed_section`/`unauthorized_field` are no longer emitted.
 
 describe('patchSpecial — ignored', () => {
-  it('non-admin gets disallowed_section in ignored, section unchanged', async () => {
+  it('owner write applies and reports nothing ignored', async () => {
     const char = makeMockChar();
     const svc = makeService(char);
     const result = await svc.patchSpecial(
@@ -63,10 +69,8 @@ describe('patchSpecial — ignored', () => {
       { strength: 5 },
       playerActor(char),
     );
-    expect(result.ignored).toEqual([
-      { section: 'special', reason: 'disallowed_section' },
-    ]);
-    expect(result.section).toMatchObject(char.special);
+    expect(result.ignored).toEqual([]);
+    expect(result.section.strength).toBe(5);
   });
 
   it('admin has no ignored entries and section is updated', async () => {
@@ -83,25 +87,35 @@ describe('patchSpecial — ignored', () => {
   });
 });
 
+describe('patchSkills — ignored', () => {
+  it('owner write applies and reports nothing ignored', async () => {
+    const char = makeMockChar();
+    const svc = makeService(char);
+    const result = await svc.patchSkills(
+      String(char.campaignId),
+      String(char._id),
+      { items: [{ id: 'hacking', level: 'expert' }] },
+      playerActor(char),
+    );
+    expect(result.ignored).toEqual([]);
+    expect(result.section).toEqual([{ id: 'hacking', level: 'expert' }]);
+  });
+});
+
 describe('patchActionPoints — ignored', () => {
-  it('non-admin sending paMax gets unauthorized_field in ignored', async () => {
+  it('owner write of paMax and paTrackedBy applies and reports nothing ignored', async () => {
     const char = makeMockChar();
     const svc = makeService(char);
     const result = await svc.patchActionPoints(
       String(char.campaignId),
       String(char._id),
-      { paMax: 20, paCurrent: 8 },
+      { paMax: 20, paCurrent: 8, paTrackedBy: 'endurance' },
       playerActor(char),
     );
-    expect(result.ignored).toContainEqual({
-      section: 'actionPoints',
-      key: 'paMax',
-      reason: 'unauthorized_field',
-    });
-    // paCurrent is allowed for players
+    expect(result.ignored).toEqual([]);
+    expect(result.section.paMax).toBe(20);
     expect(result.section.paCurrent).toBe(8);
-    // paMax from ignored must not be applied — original value is preserved
-    expect(result.section.paMax).toBe(char.paMax);
+    expect(result.section.paTrackedBy).toBe('endurance');
   });
 
   it('clean player PATCH (paCurrent only) returns ignored: []', async () => {
@@ -118,7 +132,7 @@ describe('patchActionPoints — ignored', () => {
 });
 
 describe('patchPerks — ignored', () => {
-  it('non-admin gets disallowed_section in ignored', async () => {
+  it('owner creates a perk and reports nothing ignored', async () => {
     const char = makeMockChar();
     const svc = makeService(char);
     const result = await svc.patchPerks(
@@ -127,10 +141,10 @@ describe('patchPerks — ignored', () => {
       { items: [{ name: 'Bloody Mess' }] },
       playerActor(char),
     );
-    expect(result.ignored).toEqual([
-      { section: 'perks', reason: 'disallowed_section' },
-    ]);
-    expect(result.section).toEqual(char.perks);
+    expect(result.ignored).toEqual([]);
+    expect(result.section).toHaveLength(1);
+    expect(result.section[0]).toMatchObject({ name: 'Bloody Mess' });
+    expect(result.section[0].id).toEqual(expect.any(String));
   });
 
   it('admin with unknown nanoid id gets unknown_id in ignored', async () => {
@@ -163,10 +177,10 @@ describe('patchPerks — ignored', () => {
   });
 });
 
-// ─── 9.8: purged-field reflection in resources ────────────────
+// ─── 9.8: resources are owner-writable, bobbleheads included ──
 
-describe('patchResources — purged-field reflection', () => {
-  it('non-admin PATCH with bobbleheads returns original bobbleheads in section', async () => {
+describe('patchResources — owner writes', () => {
+  it('owner PATCH applies bobbleheads alongside caps', async () => {
     const char = makeMockChar({
       resources: { caps: 100, bobbleheads: 5, scraps: 50 },
     });
@@ -179,13 +193,13 @@ describe('patchResources — purged-field reflection', () => {
       playerActor(char),
     );
 
-    // bobbleheads was purged — section must reflect the original persisted value
-    expect(result.section.bobbleheads).toBe(5);
-    // caps was allowed — it should be updated
+    expect(result.section.bobbleheads).toBe(10);
     expect(result.section.caps).toBe(200);
+    // scraps was omitted — partial merge leaves it untouched
+    expect(result.section.scraps).toBe(50);
   });
 
-  it('non-admin PATCH with bobbleheads yields an unauthorized_field ignored entry', async () => {
+  it('owner PATCH with bobbleheads reports nothing ignored', async () => {
     const char = makeMockChar({
       resources: { caps: 100, bobbleheads: 5, scraps: 50 },
     });
@@ -198,11 +212,7 @@ describe('patchResources — purged-field reflection', () => {
       playerActor(char),
     );
 
-    expect(result.ignored).toContainEqual({
-      section: 'resources',
-      key: 'bobbleheads',
-      reason: 'unauthorized_field',
-    });
+    expect(result.ignored).toEqual([]);
   });
 
   it('admin PATCH with bobbleheads updates it and has no ignored entry', async () => {
@@ -246,7 +256,7 @@ describe('update (PUT) — full-document replace', () => {
     const result = await svc.update(
       String(char.campaignId),
       String(char._id),
-      { special: { strength: 9 } as never },
+      { special: { strength: 9 } },
       adminActor,
     );
     // strength is set; the other six keys the client omitted are gone (not merged).
@@ -260,7 +270,7 @@ describe('update (PUT) — full-document replace', () => {
     const result = await svc.update(
       String(char.campaignId),
       String(char._id),
-      { resources: { caps: 1 } as never },
+      { resources: { caps: 1 } },
       adminActor,
     );
     expect(result.resources).toEqual({ caps: 1 });
@@ -280,7 +290,7 @@ describe('update (PUT) — full-document replace', () => {
     const result = await svc.update(
       String(char.campaignId),
       String(char._id),
-      { inventory: { weapons: [{ id: 'w1', name: 'new' }] } as never },
+      { inventory: { weapons: [{ id: 'w1', name: 'new' }] } },
       adminActor,
     );
     expect(result.inventory.weapons).toEqual([{ id: 'w1', name: 'new' }]);

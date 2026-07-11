@@ -1,0 +1,153 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  ConditionCatalogEntry,
+  ConditionCatalogEntryDocument,
+} from './schemas/condition-catalog-entry.schema';
+import { ConditionsCatalogOpDto } from './dto/conditions-catalog-patch.dto';
+
+export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
+
+interface CatalogEntry {
+  name: string;
+  defaultSeverity: string;
+  polarity: string;
+  description?: string;
+}
+
+@Injectable()
+export class ConditionsCatalogService {
+  constructor(
+    @InjectModel(ConditionCatalogEntry.name)
+    private entryModel: Model<ConditionCatalogEntryDocument>,
+  ) {}
+
+  async findAll() {
+    const entries = await this.entryModel.find().lean();
+    return entries.map((e) => ({
+      slug: e.slug,
+      name: e.name,
+      defaultSeverity: e.defaultSeverity,
+      polarity: e.polarity,
+      description: e.description,
+    }));
+  }
+
+  async patchSchema(ops: ConditionsCatalogOpDto[]) {
+    const docs = await this.entryModel.find().lean();
+    const map = new Map<string, CatalogEntry>(
+      docs.map((d) => [
+        d.slug,
+        {
+          name: d.name,
+          defaultSeverity: d.defaultSeverity,
+          polarity: d.polarity,
+          description: d.description,
+        },
+      ]),
+    );
+
+    const ignored: IgnoredCatalogOp[] = [];
+    const toDelete = new Set<string>();
+    const toUpsert = new Map<string, CatalogEntry>();
+
+    for (const op of ops) {
+      if (op.action === 'add') {
+        if (map.has(op.slug)) {
+          throw new ConflictException(`Slug "${op.slug}" already exists`);
+        }
+        if (!op.entry?.name) {
+          throw new BadRequestException('entry.name is required');
+        }
+        if (!['minor', 'major'].includes(op.entry.defaultSeverity)) {
+          throw new BadRequestException(
+            'entry.defaultSeverity must be "minor" or "major"',
+          );
+        }
+        if (!['positive', 'negative'].includes(op.entry.polarity)) {
+          throw new BadRequestException(
+            'entry.polarity must be "positive" or "negative"',
+          );
+        }
+        const entry: CatalogEntry = {
+          name: op.entry.name,
+          defaultSeverity: op.entry.defaultSeverity,
+          polarity: op.entry.polarity,
+          description: op.entry.description,
+        };
+        map.set(op.slug, entry);
+        toUpsert.set(op.slug, entry);
+      } else if (op.action === 'update') {
+        const existing = map.get(op.slug);
+        if (!existing) {
+          ignored.push({ slug: op.slug, reason: 'unknown_slug' });
+          continue;
+        }
+        if (
+          op.entry?.defaultSeverity !== undefined &&
+          !['minor', 'major'].includes(op.entry.defaultSeverity)
+        ) {
+          throw new BadRequestException(
+            'entry.defaultSeverity must be "minor" or "major"',
+          );
+        }
+        if (
+          op.entry?.polarity !== undefined &&
+          !['positive', 'negative'].includes(op.entry.polarity)
+        ) {
+          throw new BadRequestException(
+            'entry.polarity must be "positive" or "negative"',
+          );
+        }
+        const merged: CatalogEntry = { ...existing, ...op.entry };
+        map.set(op.slug, merged);
+        toUpsert.set(op.slug, merged);
+      } else if (op.action === 'rename') {
+        const existing = map.get(op.slug);
+        if (!existing) {
+          ignored.push({ slug: op.slug, reason: 'unknown_slug' });
+          continue;
+        }
+        if (!op.rename) {
+          throw new BadRequestException(
+            'rename is required for action "rename"',
+          );
+        }
+        if (map.has(op.rename)) {
+          throw new ConflictException(`Slug "${op.rename}" already exists`);
+        }
+        map.delete(op.slug);
+        map.set(op.rename, existing);
+        toDelete.add(op.slug);
+        toUpsert.delete(op.slug);
+        toUpsert.set(op.rename, existing);
+      } else if (op.action === 'delete') {
+        if (!map.has(op.slug)) {
+          ignored.push({ slug: op.slug, reason: 'unknown_slug' });
+          continue;
+        }
+        map.delete(op.slug);
+        toDelete.add(op.slug);
+        toUpsert.delete(op.slug);
+      }
+    }
+
+    for (const slug of toDelete) {
+      await this.entryModel.deleteOne({ slug });
+    }
+    for (const [slug, entry] of toUpsert) {
+      await this.entryModel.updateOne(
+        { slug },
+        { $set: { slug, ...entry } },
+        { upsert: true },
+      );
+    }
+
+    return { ignored };
+  }
+}

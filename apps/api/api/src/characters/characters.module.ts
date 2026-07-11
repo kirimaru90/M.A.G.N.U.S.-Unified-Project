@@ -6,6 +6,7 @@ import { Character, CharacterSchema } from './schemas/character.schema';
 import { Campaign, CampaignSchema } from '../campaigns/schemas/campaign.schema';
 import { CharacterOwnerGuard } from '../common/guards/character-owner.guard';
 import { CampaignAccessGuard } from '../common/guards/campaign-access.guard';
+import { SpeciesCatalogModule } from '../species-catalog/species-catalog.module';
 
 @Module({
   imports: [
@@ -13,6 +14,8 @@ import { CampaignAccessGuard } from '../common/guards/campaign-access.guard';
       { name: Character.name, schema: CharacterSchema },
       { name: Campaign.name, schema: CampaignSchema },
     ]),
+    // Supplies SpeciesCatalogService, which validates `character.species` on write.
+    SpeciesCatalogModule,
   ],
   providers: [CharactersService, CharacterOwnerGuard, CampaignAccessGuard],
   controllers: [CharactersController],

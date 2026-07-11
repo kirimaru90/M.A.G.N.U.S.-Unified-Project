@@ -8,6 +8,10 @@ import {
   Campaign,
   CampaignDocument,
 } from '../campaigns/schemas/campaign.schema';
+import {
+  Character,
+  CharacterDocument,
+} from '../characters/schemas/character.schema';
 
 const INVALID_CREDENTIALS = 'Invalid credentials';
 
@@ -16,6 +20,8 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Campaign.name) private campaignModel: Model<CampaignDocument>,
+    @InjectModel(Character.name)
+    private characterModel: Model<CharacterDocument>,
     private jwtService: JwtService,
   ) {}
 
@@ -52,6 +58,25 @@ export class AuthService {
       }
     }
 
+    let lastCharacterId = user.lastCharacterId ?? null;
+    if (lastCharacterId !== null) {
+      const character = await this.characterModel
+        .findById(lastCharacterId)
+        .lean()
+        .catch(() => null);
+      const stillValid =
+        character &&
+        !character.isDeleted &&
+        String(character.campaignId) === lastCampaignId;
+      if (!stillValid) {
+        await this.userModel.updateOne(
+          { _id: user._id },
+          { $set: { lastCharacterId: null } },
+        );
+        lastCharacterId = null;
+      }
+    }
+
     const rawUnlocks = user.unlockedHiddenIds;
     const unlockedHiddenIds: Record<string, string[]> =
       rawUnlocks instanceof Map
@@ -63,6 +88,7 @@ export class AuthService {
       username: user.username,
       role: user.role,
       lastCampaignId,
+      lastCharacterId,
       unlockedHiddenIds,
     };
   }
