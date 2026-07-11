@@ -413,6 +413,110 @@ describe('CharactersModule (e2e)', () => {
     expect((await patch({ strength: -1 })).statusCode).toBe(400);
   });
 
+  // --- partial-patch clobber regression (live ValidationPipe) ---
+  // The bug only manifests once `transform: true` materialises the DTO as a
+  // class instance whose declared-but-unsent fields are own `undefined` props.
+  // These drive the real HTTP + Mongoose path where that happens.
+
+  it('patching a weapon tag preserves its name (no field clobber)', async () => {
+    const id = await createCharacter(playerAId);
+
+    // create a weapon carrying a name and one tag
+    const create = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/inventory`,
+      headers: auth(playerAToken),
+      payload: {
+        weapons: {
+          items: [{ name: 'Laser Rifle', tags: [{ name: 'ENERGY', type: 'core' }] }],
+        },
+      },
+    });
+    const weaponId = sectionOf(create).weapons[0].id as string;
+
+    // PATCH only the tags — `name` is never sent
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/inventory`,
+      headers: auth(playerAToken),
+      payload: {
+        weapons: {
+          items: [{ id: weaponId, tags: [{ name: 'PLASMA', type: 'core' }] }],
+        },
+      },
+    });
+    const weapon = sectionOf(patch).weapons[0];
+    expect(weapon.name).toBe('Laser Rifle'); // survives the tag-only patch
+    expect(weapon.tags).toHaveLength(1);
+    expect(weapon.tags[0].name).toBe('PLASMA');
+
+    // survives a re-read too
+    const get = await app.inject({
+      method: 'GET',
+      url: `/campaigns/${campaignId}/characters/${id}`,
+      headers: auth(playerAToken),
+    });
+    expect(JSON.parse(get.body).inventory.weapons[0].name).toBe('Laser Rifle');
+  });
+
+  it('patching one resource counter leaves the other two unchanged', async () => {
+    const id = await createCharacter(playerAId);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/resources`,
+      headers: auth(playerAToken),
+      payload: { caps: 42, scraps: 17, bobbleheads: 3 },
+    });
+
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/resources`,
+      headers: auth(playerAToken),
+      payload: { bobbleheads: 9 },
+    });
+    expect(sectionOf(patch)).toMatchObject({
+      caps: 42,
+      scraps: 17,
+      bobbleheads: 9,
+    });
+  });
+
+  it('patching one SPECIAL attribute leaves the other six unchanged', async () => {
+    const id = await createCharacter(playerAId);
+
+    await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/special`,
+      headers: auth(playerAToken),
+      payload: {
+        strength: 5,
+        perception: 4,
+        endurance: 6,
+        charisma: 3,
+        intelligence: 7,
+        agility: 2,
+        luck: 8,
+      },
+    });
+
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/special`,
+      headers: auth(playerAToken),
+      payload: { strength: 4 },
+    });
+    expect(sectionOf(patch)).toMatchObject({
+      strength: 4,
+      perception: 4,
+      endurance: 6,
+      charisma: 3,
+      intelligence: 7,
+      agility: 2,
+      luck: 8,
+    });
+  });
+
   // --- 8.6 Skills (static-slug collection) ---
 
   it('admin attaches/changes/detaches a skill by slug; id-less → 400', async () => {

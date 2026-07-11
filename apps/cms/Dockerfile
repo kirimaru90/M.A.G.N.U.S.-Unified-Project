@@ -7,7 +7,7 @@ RUN npm ci
 
 COPY . .
 
-ARG API_BASE_URL=http://localhost:3000
+ARG API_BASE_URL=/api
 RUN sed -i "s|apiBaseUrl: 'TODO'|apiBaseUrl: '${API_BASE_URL}'|" src/environments/environment.ts
 
 RUN npm run build

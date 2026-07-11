@@ -18,7 +18,7 @@ import { definedOnly } from '../common/utils/defined-only';
 
 export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
 
-interface CatalogEntry {
+export interface CatalogEntry {
   name: string;
   permesso: string;
   svantaggio: string;

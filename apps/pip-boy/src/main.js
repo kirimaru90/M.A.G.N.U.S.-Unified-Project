@@ -160,7 +160,11 @@ async function goPostLogin(user) {
 async function init() {
     if (!('serviceWorker' in navigator)) return init2();
     try {
-        await navigator.serviceWorker.register(`./sw.js?api=${encodeURIComponent(API_BASE_URL)}`);
+        // Pass the API origin (not the raw base) so the SW can classify API traffic.
+        // Resolving against location.origin turns a relative base ('/api', same-origin)
+        // into this origin, while an absolute base keeps its own origin.
+        const apiOrigin = new URL(API_BASE_URL || self.location.origin, self.location.origin).origin;
+        await navigator.serviceWorker.register(`./sw.js?api=${encodeURIComponent(apiOrigin)}`);
     } catch (_) {}
     return init2();
 }

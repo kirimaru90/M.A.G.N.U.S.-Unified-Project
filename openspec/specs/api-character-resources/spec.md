@@ -6,23 +6,30 @@ TBD - created by archiving change add-character-module. Update Purpose after arc
 ### Requirement: Patch resources
 The system SHALL expose `PATCH /campaigns/:cid/characters/:id/resources` performing a partial merge of the three resource counters. Only counters present in the body are changed; omitted counters are left untouched.
 
+A counter the request does not send SHALL NOT be reset, zeroed, or otherwise written, regardless of how the request payload is deserialized on the server (including when validation materializes the body into an object carrying `undefined`-valued keys for absent counters). A counter present with an explicit value — including `0` — SHALL be applied.
+
 Fields:
 - `caps`: number ≥ 0
 - `bobbleheads`: number ≥ 0
 - `scraps`: number ≥ 0
 
-Players MAY write only `caps` and `scraps`; `bobbleheads` is admin-only (a player's write to it is silently discarded).
+All three counters are **owner-writable**: the character's owner, and any admin, may write them. (Previously `bobbleheads` was admin-only; the reference design's ZAINO tab presents all three — TAPPI, ROTTAMI, BOBBLEHEAD — as identical owner-editable steppers.)
 
-#### Scenario: Player updates caps and scraps
-- **WHEN** a player (owner) PATCHes `{ "caps": 120, "scraps": 8 }`
-- **THEN** `caps` and `scraps` SHALL be updated, `bobbleheads` SHALL be unchanged, and HTTP 200 returned with the updated `resources` object as the response `section`
+#### Scenario: Owner updates all three counters
+- **WHEN** the character's owner PATCHes `{ "caps": 120, "scraps": 8, "bobbleheads": 5 }`
+- **THEN** all three SHALL be updated, HTTP 200 SHALL be returned with the updated `resources` object as the response `section`, and the `ignored` array SHALL be empty
 
-#### Scenario: Player write to bobbleheads is ignored and reported
-- **WHEN** a player PATCHes `{ "bobbleheads": 5, "caps": 10 }`
-- **THEN** `caps` SHALL change to 10, `bobbleheads` SHALL be unchanged, the returned `section` SHALL show the original `bobbleheads` count, and the `ignored` array SHALL contain an entry identifying the `resources` section and the `bobbleheads` field with reason `unauthorized_field`, with HTTP 200 returned
+#### Scenario: Owner updates bobbleheads alone
+- **WHEN** the character's owner PATCHes `{ "bobbleheads": 5 }`
+- **THEN** `bobbleheads` SHALL become 5, `caps` and `scraps` SHALL be unchanged, and HTTP 200 returned
 
-#### Scenario: Admin updates bobbleheads
-- **WHEN** an admin PATCHes `{ "bobbleheads": 5 }`
+#### Scenario: Single-counter patch never resets the others
+- **GIVEN** a character with `caps: 120`, `scraps: 8`, `bobbleheads: 5`
+- **WHEN** the owner PATCHes `{ "caps": 130 }` and nothing else
+- **THEN** `caps` SHALL become 130 and both `scraps` (8) and `bobbleheads` (5) SHALL be unchanged in the persisted record and the response `section`
+
+#### Scenario: Admin updates another player's resources
+- **WHEN** an admin PATCHes `{ "bobbleheads": 5 }` on a character owned by another player in the campaign
 - **THEN** `bobbleheads` SHALL become 5 and HTTP 200 returned
 
 #### Scenario: Zero values allowed
@@ -32,6 +39,10 @@ Players MAY write only `caps` and `scraps`; `bobbleheads` is admin-only (a playe
 #### Scenario: Negative value
 - **WHEN** any provided counter is below 0
 - **THEN** the system SHALL return HTTP 400
+
+#### Scenario: Non-owner player cannot write resources
+- **WHEN** a player PATCHes the resources of a character they do not own
+- **THEN** the system SHALL return HTTP 404
 
 ### Requirement: Resources endpoint enforces ownership
 `PATCH /campaigns/:cid/characters/:id/resources` SHALL enforce the same ownership rules as all other character endpoints: players may only patch their own characters; admins may patch any character in the campaign.

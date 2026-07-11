@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { MongooseExceptionFilter } from './common/filters/mongoose-exception.filter';
+import { buildCorsOptions } from './config/cors';
 import helmet from '@fastify/helmet';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -23,13 +24,10 @@ async function bootstrap() {
   // Helmet security headers
   await app.register(helmet, { contentSecurityPolicy: false });
 
-  // CORS
+  // CORS — see buildCorsOptions. Empty allow-list => cross-origin disabled
+  // (same-origin /api needs none); set CORS_ALLOWED_ORIGINS to re-enable specific origins.
   const origins = cfg.get<string[]>('corsAllowedOrigins') ?? [];
-  app.enableCors({
-    origin: origins.length > 0 ? origins : '*',
-    credentials: true,
-    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  });
+  app.enableCors(buildCorsOptions(origins));
 
   // Global pipes and filters
   app.useGlobalPipes(

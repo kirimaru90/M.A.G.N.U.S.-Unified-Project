@@ -3,30 +3,37 @@ services:
   api:
     build:
       context: ./apps/api/api
-    ports:
-      - "3000:3000"
+    container_name: magnus-api
     env_file:
-      - ./apps/api/.env
+      - ./apps/api/api/.env
     environment:
-      MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+      MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@magnus-mongo:27017/${MONGO_DB}?authSource=admin
       JWT_SECRET: ${JWT_SECRET}
       PORT: 3000
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:4280,http://localhost:8081}
+      # Same-origin /api through the edge proxy means no cross-origin allow-list is needed.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
     depends_on:
       - mongo
+    networks:
+      - edge
+      - internal
     restart: unless-stopped
 
   # 2. DATABASE
   mongo:
     image: mongo:7
+    container_name: magnus-mongo
     env_file:
-      - ./apps/api/.env
+      - ./apps/api/api/.env
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
       MONGO_INITDB_DATABASE: ${MONGO_DB}
+    # Loopback-only: reachable for host-local / SSH-tunnel debugging, never from the internet.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
+    networks:
+      - internal
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
@@ -37,28 +44,42 @@ services:
       context: ./apps/cms
       dockerfile: Dockerfile
       args:
-        API_BASE_URL: ${API_BASE_URL:-http://localhost:3000}
-    ports:
-      - "4280:80"
+        API_BASE_URL: ${API_BASE_URL:-/api}
+    container_name: magnus-cms
+    networks:
+      - edge
+      - internal
     restart: unless-stopped
 
-  # 4. FRONTEND (Your 'terminal' project)
+  # 4. FRONTEND (terminal emulator)
   frontend:
     image: nginx:alpine
-    ports:
-      - "8080:80"
+    container_name: magnus-terminal
     volumes:
       - ./apps/terminal:/usr/share/nginx/html
+    networks:
+      - edge
+      - internal
     restart: unless-stopped
 
   # 5. PIP-BOY (character-sheet PWA)
   pip-boy:
     image: nginx:alpine
-    ports:
-      - "8081:80"
+    container_name: magnus-pipboy
     volumes:
       - ./apps/pip-boy:/usr/share/nginx/html
+    networks:
+      - edge
+      - internal
     restart: unless-stopped
+
+networks:
+  # Shared, host-owned proxy network. Created out-of-band: `docker network create edge`.
+  edge:
+    external: true
+  # Private inter-service network (api <-> mongo, etc.). Never exposed to the host.
+  internal:
+    driver: bridge
 
 volumes:
   mongo_data:

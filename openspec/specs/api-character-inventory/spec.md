@@ -18,6 +18,8 @@ Each tag object SHALL have `name` (string, required), `type` (enum: core | extra
 
 Item ids SHALL be unique across all four arrays, including the ids the server assigns on create — a newly created item SHALL NOT receive an id already present in any of `weapons`, `equip`, `consumables`, or `other`. Inventory is **player-writable** (owner) and admin — owners have full create/update/delete.
 
+Updating an existing item SHALL be a **partial merge**: only the fields present in the patch item are written, and every field the patch item does not mention is preserved from the stored record. A field that the request did not send SHALL NOT be nulled or cleared, regardless of how the request payload is deserialized. A field present with an explicit value — including `false`, `0`, `""`, and `[]` — SHALL be applied, so intentional clears (e.g. an empty `tags` array, or `broken: false`) still take effect.
+
 #### Scenario: Owner adds an item
 - **WHEN** the owner PATCHes `{ "weapons": { "items": [ { "name": "10mm Pistol" } ] } }`
 - **THEN** a weapon SHALL be created with a server-assigned `id` and HTTP 200 returned with the updated `inventory` object as the response `section`
@@ -33,6 +35,26 @@ Item ids SHALL be unique across all four arrays, including the ids the server as
 #### Scenario: Untouched arrays are preserved
 - **WHEN** the body contains only a `weapons` block
 - **THEN** `equip`, `consumables`, and `other` SHALL be unchanged
+
+#### Scenario: Updating tags preserves the item name
+- **GIVEN** a weapon with `name: "10mm Pistol"` and one tag
+- **WHEN** the owner PATCHes `{ "weapons": { "items": [ { "id": "a1b2", "tags": [ … ] } ] } }` with no `name` field
+- **THEN** the tags SHALL be updated and the item's `name` SHALL remain `"10mm Pistol"` in both the persisted record and the response `section`
+
+#### Scenario: Updating the name preserves tags
+- **GIVEN** a weapon with a `name` and two tags
+- **WHEN** the owner PATCHes `{ "weapons": { "items": [ { "id": "a1b2", "name": "Renamed" } ] } }` with no `tags` field
+- **THEN** the `name` SHALL be updated and the item's `tags` SHALL be unchanged
+
+#### Scenario: Updating consumable quantity preserves the name
+- **GIVEN** a consumable with `name: "Stimpak"` and `quantity: 3`
+- **WHEN** the owner PATCHes `{ "consumables": { "items": [ { "id": "e5f6", "quantity": 4 } ] } }` with no `name` field
+- **THEN** the `quantity` SHALL become `4` and the item's `name` SHALL remain `"Stimpak"`
+
+#### Scenario: Explicit empty value clears a field
+- **GIVEN** a weapon with two tags
+- **WHEN** the owner PATCHes `{ "weapons": { "items": [ { "id": "a1b2", "tags": [] } ] } }`
+- **THEN** the item's `tags` SHALL be emptied — an explicit `[]` is applied, not treated as omission
 
 #### Scenario: Unknown item id is skipped and reported
 - **WHEN** an item references an `id` not present in that array

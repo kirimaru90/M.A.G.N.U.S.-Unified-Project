@@ -247,6 +247,136 @@ describe('patchResources — owner writes', () => {
   });
 });
 
+// ─── partial-patch preservation: an omitted field never clobbers a sibling ──
+// These pass an explicit `undefined` field to mimic what the live ValidationPipe
+// produces (a transformed DTO carries every declared field as an own undefined
+// prop). The e2e suite exercises the same guarantee through the real pipe.
+
+describe('partial patch preserves omitted fields', () => {
+  it("patching a weapon's tags preserves its name and broken flag", async () => {
+    const char = makeMockChar({
+      inventory: {
+        weapons: [
+          { id: 'w1', name: 'Laser Rifle', tags: ['energy'], broken: false },
+        ],
+        equip: [],
+        consumables: [],
+        other: [],
+      },
+    });
+    const svc = makeService(char);
+    const result = await svc.patchInventory(
+      String(char.campaignId),
+      String(char._id),
+      {
+        weapons: {
+          items: [
+            { id: 'w1', name: undefined, tags: ['plasma'], broken: undefined },
+          ],
+        },
+      } as never,
+      playerActor(char),
+    );
+    expect(result.section.weapons[0]).toEqual({
+      id: 'w1',
+      name: 'Laser Rifle',
+      tags: ['plasma'],
+      broken: false,
+    });
+  });
+
+  it("patching an item's name preserves its tags and broken flag", async () => {
+    const char = makeMockChar({
+      inventory: {
+        weapons: [
+          { id: 'w1', name: 'Old', tags: ['core'], broken: true },
+        ],
+        equip: [],
+        consumables: [],
+        other: [],
+      },
+    });
+    const svc = makeService(char);
+    const result = await svc.patchInventory(
+      String(char.campaignId),
+      String(char._id),
+      { weapons: { items: [{ id: 'w1', name: 'New', tags: undefined }] } } as never,
+      playerActor(char),
+    );
+    expect(result.section.weapons[0]).toEqual({
+      id: 'w1',
+      name: 'New',
+      tags: ['core'],
+      broken: true,
+    });
+  });
+
+  it("patching a consumable's quantity preserves its name", async () => {
+    const char = makeMockChar({
+      inventory: {
+        weapons: [],
+        equip: [],
+        consumables: [{ id: 'c1', name: 'Stimpak', quantity: 3 }],
+        other: [],
+      },
+    });
+    const svc = makeService(char);
+    const result = await svc.patchInventory(
+      String(char.campaignId),
+      String(char._id),
+      { consumables: { items: [{ id: 'c1', name: undefined, quantity: 5 }] } } as never,
+      playerActor(char),
+    );
+    expect(result.section.consumables[0]).toEqual({
+      id: 'c1',
+      name: 'Stimpak',
+      quantity: 5,
+    });
+  });
+
+  it('patching one SPECIAL attribute preserves the other six', async () => {
+    const char = makeMockChar();
+    const svc = makeService(char);
+    const result = await svc.patchSpecial(
+      String(char.campaignId),
+      String(char._id),
+      {
+        strength: 9,
+        perception: undefined,
+        endurance: undefined,
+        charisma: undefined,
+        intelligence: undefined,
+        agility: undefined,
+        luck: undefined,
+      } as never,
+      playerActor(char),
+    );
+    expect(result.section).toEqual({
+      strength: 9,
+      perception: 2,
+      endurance: 2,
+      charisma: 1,
+      intelligence: 3,
+      agility: 2,
+      luck: 1,
+    });
+  });
+
+  it('patching one resource counter preserves the other two', async () => {
+    const char = makeMockChar({
+      resources: { caps: 100, bobbleheads: 5, scraps: 50 },
+    });
+    const svc = makeService(char);
+    const result = await svc.patchResources(
+      String(char.campaignId),
+      String(char._id),
+      { bobbleheads: 12, caps: undefined, scraps: undefined } as never,
+      playerActor(char),
+    );
+    expect(result.section).toEqual({ caps: 100, bobbleheads: 12, scraps: 50 });
+  });
+});
+
 // Task 5.3: PUT is a full-document replace of mutable sections — omitting a
 // sub-field of special/resources/inventory clears it (no partial merge).
 describe('update (PUT) — full-document replace', () => {

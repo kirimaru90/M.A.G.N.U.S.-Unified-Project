@@ -64,12 +64,18 @@ export class ConditionsCatalogService {
         if (!op.entry?.name) {
           throw new BadRequestException('entry.name is required');
         }
-        if (!['minor', 'major'].includes(op.entry.defaultSeverity)) {
+        if (
+          !op.entry.defaultSeverity ||
+          !['minor', 'major'].includes(op.entry.defaultSeverity)
+        ) {
           throw new BadRequestException(
             'entry.defaultSeverity must be "minor" or "major"',
           );
         }
-        if (!['positive', 'negative'].includes(op.entry.polarity)) {
+        if (
+          !op.entry.polarity ||
+          !['positive', 'negative'].includes(op.entry.polarity)
+        ) {
           throw new BadRequestException(
             'entry.polarity must be "positive" or "negative"',
           );

@@ -53,7 +53,9 @@ function itemRow(item, section, editMode) {
 function consumableRow(item, editMode) {
     return `
         <div class="pb-consumable-row" data-item="${esc(item.id)}">
-            <span class="pb-consumable-name">${esc(item.name)}</span>
+            ${editMode
+                ? `<input class="pb-input pb-consumable-name" data-consumable-name="${esc(item.id)}" value="${esc(item.name)}">`
+                : `<span class="pb-consumable-name">${esc(item.name)}</span>`}
             <span class="pb-label">×${item.quantity ?? 0}</span>
             <div class="pb-stepper pb-stepper--tiny" data-qty="${esc(item.id)}">
                 <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
@@ -217,6 +219,11 @@ export function renderGearTab(container, ctx) {
     container.querySelectorAll('[data-item-name]').forEach((input) => {
         input.addEventListener('change', () =>
             patchInv(input.dataset.section, { items: [{ id: input.dataset.itemName, name: input.value.trim() }] }));
+    });
+
+    container.querySelectorAll('[data-consumable-name]').forEach((input) => {
+        input.addEventListener('change', () =>
+            patchInv('consumables', { items: [{ id: input.dataset.consumableName, name: input.value.trim() }] }));
     });
 
     container.querySelectorAll('[data-remove-item]').forEach((btn) => {

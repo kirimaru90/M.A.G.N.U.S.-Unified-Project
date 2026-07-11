@@ -1,0 +1,42 @@
+# Magnus reverse-proxy snippet.
+#
+# The shared, host-level edge Caddy proxy imports this file via
+#   import /etc/caddy/sites/*.caddy
+# (see deploy/README.md and deploy/edge-proxy-host-runbook.md).
+#
+# Hostnames are driven by the {$BASE_HOST} env var so the identical snippet runs
+# in both environments:
+#   local  -> BASE_HOST=127.0.0.1.nip.io   (Caddy internal CA / HTTP)
+#   remote -> BASE_HOST=158.180.46.246.nip.io  (Let's Encrypt)
+#
+# Each frontend hostname serves its static app at / and proxies /api/* to the API
+# on the SAME origin, so the browser never makes a cross-origin request (no CORS).
+# The API sets no global prefix, so `handle_path /api/*` STRIPS the /api prefix:
+# the browser calls /api/campaigns -> Caddy forwards /campaigns to magnus-api:3000.
+
+cms.{$BASE_HOST} {
+	handle_path /api/* {
+		reverse_proxy magnus-api:3000
+	}
+	handle {
+		reverse_proxy magnus-cms:80
+	}
+}
+
+terminal.{$BASE_HOST} {
+	handle_path /api/* {
+		reverse_proxy magnus-api:3000
+	}
+	handle {
+		reverse_proxy magnus-terminal:80
+	}
+}
+
+pipboy.{$BASE_HOST} {
+	handle_path /api/* {
+		reverse_proxy magnus-api:3000
+	}
+	handle {
+		reverse_proxy magnus-pipboy:80
+	}
+}

@@ -17,6 +17,7 @@ import {
   IgnoredEntry,
   PatchItem,
   patchCollectionArray,
+  pruneUndefined,
   scrubPayload,
 } from './patch-utils';
 import { CreateCharacterDto } from './dto/create-character.dto';
@@ -215,7 +216,7 @@ export class CharactersService {
   ) {
     const existing = await this.loadOr404(campaignId, characterId);
     const { scrubbed, ignored } = scrubPayload('special', { ...dto }, actor);
-    const special = { ...existing.special, ...scrubbed };
+    const special = { ...existing.special, ...pruneUndefined(scrubbed) };
     const updated = await this.persist(existing._id, { special });
     return { section: updated.special, ignored };
   }
@@ -436,7 +437,7 @@ export class CharactersService {
   ) {
     const existing = await this.loadOr404(campaignId, characterId);
     const { scrubbed, ignored } = scrubPayload('resources', { ...dto }, actor);
-    const resources = { ...existing.resources, ...scrubbed };
+    const resources = { ...existing.resources, ...pruneUndefined(scrubbed) };
     const updated = await this.persist(existing._id, { resources });
     return { section: updated.resources, ignored };
   }

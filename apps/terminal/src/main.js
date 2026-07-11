@@ -252,7 +252,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            const apiOrigin = new URL(API_BASE_URL || self.location.origin).origin;
+            // Resolve against the page origin so a relative base ('/api', same-origin)
+            // yields this origin, while an absolute base keeps its own origin.
+            const apiOrigin = new URL(API_BASE_URL || self.location.origin, self.location.origin).origin;
             const swUrl = 'sw.js?api=' + encodeURIComponent(apiOrigin);
             navigator.serviceWorker.register(swUrl, { scope: './' }).catch(() => {});
         });

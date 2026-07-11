@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   PLAYER_UPDATABLE_FIELDS,
   patchCollectionArray,
+  pruneUndefined,
   scrubPayload,
 } from './patch-utils';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
@@ -19,6 +20,88 @@ interface Item {
 beforeEach(() => {
   mockNanoid.mockReset();
   mockNanoid.mockReturnValue('defaultId');
+});
+
+// ─── pruneUndefined: omitted-means-unchanged guard ───────────
+
+describe('pruneUndefined', () => {
+  it('drops keys whose value is strictly undefined', () => {
+    expect(pruneUndefined({ id: 'a1', name: undefined, level: 'master' })).toEqual({
+      id: 'a1',
+      level: 'master',
+    });
+  });
+
+  it('keeps falsy-but-real values (false, 0, empty string, empty array)', () => {
+    expect(
+      pruneUndefined({
+        broken: false,
+        quantity: 0,
+        note: '',
+        tags: [],
+      }),
+    ).toEqual({ broken: false, quantity: 0, note: '', tags: [] });
+  });
+
+  it('keeps null (only strict undefined is pruned)', () => {
+    expect(pruneUndefined({ a: null, b: undefined })).toEqual({ a: null });
+  });
+
+  it('returns an empty object when every value is undefined', () => {
+    expect(pruneUndefined({ a: undefined, b: undefined })).toEqual({});
+  });
+});
+
+// ─── merge branch: an omitted (undefined) field never clobbers ─
+
+describe('patchCollectionArray — pruned merge preserves omitted fields', () => {
+  interface Weapon {
+    id: string;
+    name?: string;
+    tags?: string[];
+    broken?: boolean;
+  }
+
+  it('a merge item carrying undefined name leaves the stored name intact', () => {
+    const existing: Weapon[] = [
+      { id: 'w1', name: 'Laser Rifle', tags: ['energy'], broken: false },
+    ];
+    // Mimics a transformed DTO: only tags were sent, name/broken are own undefined props.
+    const { result } = patchCollectionArray<Weapon>(
+      existing,
+      [{ id: 'w1', name: undefined, tags: ['plasma'], broken: undefined }],
+      [],
+      { onIdless: 'create', onUnknownId: 'skip' },
+    );
+    expect(result[0]).toEqual({
+      id: 'w1',
+      name: 'Laser Rifle',
+      tags: ['plasma'],
+      broken: false,
+    });
+  });
+
+  it('an explicit empty array clears tags (intentional clear survives)', () => {
+    const existing: Weapon[] = [{ id: 'w1', name: 'Pistol', tags: ['core'] }];
+    const { result } = patchCollectionArray<Weapon>(
+      existing,
+      [{ id: 'w1', tags: [] }],
+      [],
+      { onIdless: 'create', onUnknownId: 'skip' },
+    );
+    expect(result[0]).toEqual({ id: 'w1', name: 'Pistol', tags: [] });
+  });
+
+  it('does not prune on the id-less create path (undefined field passes through)', () => {
+    mockNanoid.mockReturnValue('mintABCD');
+    const { result } = patchCollectionArray<Weapon>(
+      [],
+      [{ name: 'Knife', tags: undefined }],
+      [],
+      { onIdless: 'create', onUnknownId: 'skip' },
+    );
+    expect(result[0]).toMatchObject({ id: 'mintABCD', name: 'Knife' });
+  });
 });
 
 // ─── 9.2: option combinations ─────────────────────────────────

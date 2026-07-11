@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { stubEnvironment, login, makeCharacter } from './fixtures';
 
-async function openSheetAsOwner(page: Page) {
-  const character = makeCharacter({ id: 'char-1', campaignId: 'camp-1', userId: 'user-player' });
+async function openSheetAsOwner(page: Page, overrides: Record<string, unknown> = {}) {
+  const character = makeCharacter({ id: 'char-1', campaignId: 'camp-1', userId: 'user-player', ...overrides });
   await stubEnvironment(page, {
     role: 'player',
     userId: 'user-player',
@@ -13,6 +13,10 @@ async function openSheetAsOwner(page: Page) {
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 }
+
+const withConsumable = {
+  inventory: { weapons: [], equip: [], consumables: [{ id: 'c1', name: 'Stimpak', quantity: 2 }], other: [] },
+};
 
 test('owner action-points stepper round-trips via PATCH .../action-points', async ({ page }) => {
   await openSheetAsOwner(page);
@@ -60,6 +64,50 @@ test('owner adds a custom condition round-trips via PATCH .../status', async ({ 
     criticalState: false,
   });
   await expect(page.locator('#pb-cond-list')).toContainText('Ferito');
+});
+
+test('owner renames a consumable in editor mode and it persists across a reload', async ({ page }) => {
+  await openSheetAsOwner(page, withConsumable);
+  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('#pb-editor-toggle').click();
+
+  const nameInput = page.locator('[data-consumable-name="c1"]');
+  await expect(nameInput).toHaveValue('Stimpak');
+
+  const patchReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
+  await nameInput.fill('RadAway');
+  await nameInput.blur();
+  const req = await patchReq;
+  expect(req.postDataJSON()).toEqual({ consumables: { items: [{ id: 'c1', name: 'RadAway' }] } });
+
+  // The stub persists the rename; a reload deep-links back to the sheet.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
+  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  // Back in view mode, the name renders as static text carrying the new value.
+  await expect(page.locator('[data-item="c1"] .pb-consumable-name')).toHaveText('RadAway');
+});
+
+test('adjusting a consumable quantity leaves its name unchanged; a resource edit leaves the other two', async ({ page }) => {
+  await openSheetAsOwner(page, withConsumable);
+  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+
+  // Quantity stepper is a view-mode affordance; the name must survive it.
+  const patchReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
+  await page.locator('[data-qty="c1"] button[data-dir="1"]').click();
+  const req = await patchReq;
+  expect(req.postDataJSON()).toEqual({ consumables: { items: [{ id: 'c1', quantity: 3 }] } });
+  await expect(page.locator('[data-item="c1"] .pb-consumable-name')).toHaveText('Stimpak');
+  await expect(page.locator('[data-item="c1"] .pb-label')).toHaveText('×3');
+
+  // One resource counter changes; the other two are untouched (the original clobber guard).
+  const resReq = page.waitForRequest((r) => r.url().includes('/resources') && r.method() === 'PATCH');
+  await page.locator('[data-resource-input="caps"]').fill('25');
+  await page.locator('[data-resource-input="caps"]').blur();
+  await resReq;
+  await expect(page.locator('[data-resource-input="caps"]')).toHaveValue('25');
+  await expect(page.locator('[data-resource-input="scraps"]')).toHaveValue('2');
+  await expect(page.locator('[data-resource-input="bobbleheads"]')).toHaveValue('1');
 });
 
 test('owner adds a weapon round-trips via PATCH .../inventory', async ({ page }) => {

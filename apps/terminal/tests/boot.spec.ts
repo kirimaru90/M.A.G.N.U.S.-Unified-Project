@@ -1,24 +1,28 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// The emulator talks to a backend at http://localhost:3000. These tests are
-// hermetic: we mock /campaigns, fail every other API call fast (the app handles
-// those in try/catch), and neutralize external CDNs + the service worker so the
-// suite runs offline and deterministically.
-const API = 'http://localhost:3000';
-
+// The emulator talks to the API same-origin at the relative path /api/* (the
+// edge proxy forwards it to the backend). These tests are hermetic: we mock
+// /api/campaigns, fail every other API call fast (the app handles those in
+// try/catch), and neutralize external CDNs + the service worker so the suite
+// runs offline and deterministically.
 const CAMPAIGNS = [
   { id: 'camp-1', name: 'Vault 111', isPublic: true },
   { id: 'camp-2', name: 'Vault 76', isPublic: true },
 ];
 
 async function stubEnvironment(page: Page) {
-  // Order matters: Playwright prefers the most recently registered matching
-  // route, so the broad API catch-all is registered before the specific one.
-  await page.route(`${API}/**`, (route) =>
-    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+  // The same-origin API lives at the origin-root path /api/*. Match on pathname
+  // (not a '**/api/**' glob) so we don't intercept the app's own /src/api/*.js
+  // module files, whose paths also contain '/api/'. Order matters: Playwright
+  // prefers the most recently registered matching route, so the broad catch-all
+  // is registered before the specific /api/campaigns one.
+  await page.route(
+    (url) => url.pathname.startsWith('/api/'),
+    (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
   );
-  await page.route('**/campaigns', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CAMPAIGNS) }),
+  await page.route(
+    (url) => url.pathname === '/api/campaigns',
+    (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(CAMPAIGNS) }),
   );
   // Offline-safe: drop external font/CDN requests and the service worker.
   await page.route(/fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net/, (route) => route.abort());

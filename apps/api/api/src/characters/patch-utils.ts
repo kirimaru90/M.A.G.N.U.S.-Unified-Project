@@ -7,6 +7,26 @@ export interface Identified {
   id: string;
 }
 
+/**
+ * Return a copy of `obj` with every key whose value is `undefined` removed.
+ *
+ * Guards the shallow-merge sites where a partial patch meets a stored record.
+ * The global `ValidationPipe` (`transform: true`) materialises each request body
+ * as a DTO class instance, and with `useDefineForClassFields` (ES2023) every
+ * *declared* field exists as an own, enumerable property — `undefined` for the
+ * fields the client never sent. Spreading that instance over the stored record
+ * lets those `undefined`s clobber stored values. Pruning them first encodes the
+ * real contract: an omitted field means *unchanged*.
+ *
+ * Only strictly-`undefined` values are dropped; `false`, `0`, `''`, and `[]` are
+ * real values and survive, so intentional clears (e.g. `tags: []`) still apply.
+ */
+export function pruneUndefined<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined),
+  ) as Partial<T>;
+}
+
 /** An incoming patch item: `id` optional (absent = create). */
 export type PatchItem<T extends Identified> = Partial<T> & { id?: string };
 
@@ -76,7 +96,7 @@ export function patchCollectionArray<T extends Identified>(
           unknownIds.push(item.id);
         }
       } else {
-        result[idx] = { ...result[idx], ...item };
+        result[idx] = { ...result[idx], ...pruneUndefined(item) };
       }
     } else {
       if (options.onIdless === 'reject400') {

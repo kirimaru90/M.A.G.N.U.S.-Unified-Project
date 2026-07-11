@@ -21,8 +21,18 @@ export class ApiError extends Error {
     }
 }
 
+// Resolve a request path against API_BASE_URL. Supports an absolute base
+// ('https://api.example.com', for cross-origin deploys) and, by default, a
+// relative base ('/api') that keeps requests same-origin through the edge proxy.
+// `new URL(path, base)` cannot be used for a relative base, so join by hand.
+function _url(path) {
+    if (!API_BASE_URL) return path;
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(API_BASE_URL)) return new URL(path, API_BASE_URL).href;
+    return API_BASE_URL.replace(/\/+$/, '') + '/' + String(path).replace(/^\/+/, '');
+}
+
 export async function apiGet(path) {
-    const url = API_BASE_URL ? new URL(path, API_BASE_URL).href : path;
+    const url = _url(path);
     let response;
     try {
         response = await fetch(url, { headers: _headers() });
@@ -42,7 +52,7 @@ export async function apiGet(path) {
 }
 
 export async function apiPut(path, body) {
-    const url = API_BASE_URL ? new URL(path, API_BASE_URL).href : path;
+    const url = _url(path);
     let response;
     try {
         response = await fetch(url, {
@@ -66,7 +76,7 @@ export async function apiPut(path, body) {
 }
 
 export async function apiPost(path, body) {
-    const url = API_BASE_URL ? new URL(path, API_BASE_URL).href : path;
+    const url = _url(path);
     let response;
     try {
         response = await fetch(url, {

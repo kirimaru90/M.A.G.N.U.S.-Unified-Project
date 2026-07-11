@@ -9,7 +9,7 @@
 #
 set -euo pipefail
 
-HOST="ubuntu@92.5.52.16"
+HOST="ubuntu@158.180.46.246"
 DIR="/home/ubuntu/workspace/robco"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
