@@ -1,5 +1,6 @@
 import { esc } from '../engine/render.js';
 import { patchInventory, patchResources } from '../api/characters.js';
+import { openAddItemPopup } from './add-item-popup.js';
 
 const RESOURCES = [
     { key: 'caps', label: 'TAPPI' },
@@ -7,7 +8,29 @@ const RESOURCES = [
     { key: 'bobbleheads', label: 'BOBBLEHEAD' },
 ];
 
-/** `core` chips are tinted + solid; `extra` chips are unfilled + dashed. */
+// Weapons/armor render tag chips; consumables/other render quantity rows (with
+// an optional description on Vari).
+const TAG_SECTIONS = new Set(['weapons', 'equip']);
+
+/**
+ * Display order for an item's tags: all `core` first, then all `extra`,
+ * alphabetical by name within each group. This is display-only — it never
+ * reorders the stored array. Each entry keeps its ORIGINAL stored index so the
+ * per-tag edit handlers (toggle damaged / rename / remove) still target the
+ * right stored slot even when display order differs.
+ */
+function orderedTags(tags) {
+    return (tags ?? [])
+        .map((t, i) => ({ t, i }))
+        .sort((a, b) => {
+            const ra = a.t.type === 'core' ? 0 : 1;
+            const rb = b.t.type === 'core' ? 0 : 1;
+            if (ra !== rb) return ra - rb;
+            return (a.t.name ?? '').localeCompare(b.t.name ?? '');
+        });
+}
+
+/** `core` chips are tinted + solid; `extra` chips are unfilled + dashed. `index` is the stored index. */
 function tagChip(tag, itemId, section, index, editMode) {
     const cls = `pb-chip pb-chip--${tag.type === 'core' ? 'core' : 'extra'}${tag.damaged ? ' damaged' : ''}`;
     if (editMode) {
@@ -27,7 +50,7 @@ function tagChip(tag, itemId, section, index, editMode) {
     `;
 }
 
-function itemRow(item, section, editMode) {
+function tagItemRow(item, section, editMode) {
     const tags = item.tags ?? [];
     const damaged = tags.some((t) => t.damaged);
     return `
@@ -40,7 +63,7 @@ function itemRow(item, section, editMode) {
                 ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
             </div>
             <div class="pb-chip-row">
-                ${tags.map((t, i) => tagChip(t, item.id, section, i, editMode)).join('')}
+                ${orderedTags(tags).map(({ t, i }) => tagChip(t, item.id, section, i, editMode)).join('')}
                 ${editMode ? `
                     <button class="pb-btn pb-btn--dashed pb-btn--tiny" data-add-tag="${esc(item.id)}" data-section="${section}" data-type="core">+ core</button>
                     <button class="pb-btn pb-btn--dashed pb-btn--tiny" data-add-tag="${esc(item.id)}" data-section="${section}" data-type="extra">+ extra</button>
@@ -50,43 +73,57 @@ function itemRow(item, section, editMode) {
     `;
 }
 
-function consumableRow(item, editMode) {
+/** Compact quantity row for consumables and Vari (`other`). Vari also shows a description. */
+function qtyItemRow(item, section, editMode, withDesc) {
     return `
         <div class="pb-consumable-row" data-item="${esc(item.id)}">
-            ${editMode
-                ? `<input class="pb-input pb-consumable-name" data-consumable-name="${esc(item.id)}" value="${esc(item.name)}">`
-                : `<span class="pb-consumable-name">${esc(item.name)}</span>`}
-            <span class="pb-label">×${item.quantity ?? 0}</span>
-            <div class="pb-stepper pb-stepper--tiny" data-qty="${esc(item.id)}">
-                <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
-                <button data-dir="1">+</button>
+            <div class="pb-split-row">
+                ${editMode
+                    ? `<input class="pb-input pb-consumable-name" data-item-name="${esc(item.id)}" data-section="${section}" value="${esc(item.name)}">`
+                    : `<span class="pb-consumable-name">${esc(item.name)}</span>`}
+                <span class="pb-label">×${item.quantity ?? 0}</span>
+                <div class="pb-stepper pb-stepper--tiny" data-qty="${esc(item.id)}" data-section="${section}">
+                    <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
+                    <button data-dir="1">+</button>
+                </div>
+                ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
             </div>
-            ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="consumables">✕</button>` : ''}
+            ${withDesc ? (editMode
+                ? `<input class="pb-input" data-item-desc="${esc(item.id)}" data-section="${section}" value="${esc(item.description ?? '')}" placeholder="descrizione">`
+                : (item.description ? `<div class="pb-label">${esc(item.description)}</div>` : '')) : ''}
         </div>
     `;
 }
 
-function itemList(items, section, editMode, addLabel) {
-    return `
-        <div data-section-list="${section}">
-            ${items.length === 0 ? '<div class="pb-empty">Vuoto</div>' : items.map((i) => itemRow(i, section, editMode)).join('')}
-        </div>
-        ${editMode ? `
-            <div class="pb-add-row">
-                <input class="pb-input" id="pb-add-${section}-name" placeholder="nome">
-                <button class="pb-btn pb-btn--dashed" data-add-item="${section}">${addLabel}</button>
-            </div>
-        ` : ''}
-    `;
-}
-
-export function renderGearTab(container, ctx) {
+/**
+ * Renders one INV subtab: exactly one inventory collection, its `+` add trigger
+ * (view and editor mode both), and the resources row pinned at the bottom.
+ * `node` carries `invKey` (the collection) and `invKind` (the catalog kind the
+ * add-item popup filters by; null for Vari).
+ */
+export function renderInvSubtab(container, ctx, node) {
     const { character, canEdit, editMode, campaignId } = ctx;
+    const section = node.invKey;
+    const isTagSection = TAG_SECTIONS.has(section);
+    const withDesc = section === 'other';
     const inv = character.inventory ?? {};
     const resources = character.resources ?? {};
+    const items = inv[section] ?? [];
     const inEditor = canEdit && editMode;
 
+    const listHtml = items.length === 0
+        ? '<div class="pb-empty">Vuoto</div>'
+        : items.map((i) => isTagSection
+            ? tagItemRow(i, section, inEditor)
+            : qtyItemRow(i, section, inEditor, withDesc)).join('');
+
     container.innerHTML = `
+        <div class="pb-section-head pb-inv-head">
+            <span>${esc(node.label.toUpperCase())}</span>
+            ${canEdit ? '<button class="pb-btn pb-btn--icon pb-inv-add" data-add-open aria-label="Aggiungi">+</button>' : ''}
+        </div>
+        <div data-section-list="${section}">${listHtml}</div>
+
         <div class="pb-resource-row">
             ${RESOURCES.map(({ key, label }) => `
                 <div class="pb-resource-box">
@@ -100,33 +137,14 @@ export function renderGearTab(container, ctx) {
                 </div>
             `).join('')}
         </div>
-
-        <div class="pb-section-head">ARMI</div>
-        ${itemList(inv.weapons ?? [], 'weapons', inEditor, '+ AGGIUNGI ARMA')}
-
-        <div class="pb-section-head">ARMATURE</div>
-        ${itemList(inv.equip ?? [], 'equip', inEditor, '+ AGGIUNGI ARMATURA')}
-
-        <div class="pb-section-head">CONSUMABILI</div>
-        <div data-section-list="consumables">
-            ${(inv.consumables ?? []).length === 0
-                ? '<div class="pb-empty">Vuoto</div>'
-                : inv.consumables.map((i) => consumableRow(i, inEditor)).join('')}
-        </div>
-        ${inEditor ? `
-            <div class="pb-add-row">
-                <input class="pb-input" id="pb-add-consumables-name" placeholder="nome">
-                <button class="pb-btn pb-btn--dashed" data-add-item="consumables">+ AGGIUNGI CONSUMABILE</button>
-            </div>
-        ` : ''}
     `;
 
     if (!canEdit) return;
 
-    const findItem = (section, id) => (inv[section] ?? []).find((i) => i.id === id);
+    const findItem = (sec, id) => (inv[sec] ?? []).find((i) => i.id === id);
 
-    async function patchInv(section, body) {
-        const res = await patchInventory(campaignId, character.id, { [section]: body });
+    async function patchInv(sec, body) {
+        const res = await patchInventory(campaignId, character.id, { [sec]: body });
         ctx.onSectionUpdate('inventory', res.section ?? res);
     }
     async function patchRes(body) {
@@ -134,14 +152,27 @@ export function renderGearTab(container, ctx) {
         ctx.onSectionUpdate('resources', res.section ?? res);
     }
 
+    // --- add-item popup (available in both view and editor mode) ------------
+    const addBtn = container.querySelector('[data-add-open]');
+    if (addBtn) {
+        addBtn.addEventListener('click', () => {
+            openAddItemPopup({
+                kind: node.invKind,
+                label: node.label,
+                catalog: ctx.getEquipmentCatalog?.() ?? null,
+                onAdd: (item) => patchInv(section, { items: [item] }),
+            });
+        });
+    }
+
     // --- resources: stepper and direct numeric entry both write the same field
     container.querySelectorAll('[data-resource]').forEach((stepper) => {
         const key = stepper.dataset.resource;
         stepper.querySelectorAll('button').forEach((btn) => {
             btn.addEventListener('click', () => {
-                const next = Math.max(0, (resources[key] ?? 0) + Number(btn.dataset.dir));
-                if (next === resources[key]) return;
-                return patchRes({ [key]: next });
+                const nextVal = Math.max(0, (resources[key] ?? 0) + Number(btn.dataset.dir));
+                if (nextVal === resources[key]) return;
+                return patchRes({ [key]: nextVal });
             });
         });
     });
@@ -155,64 +186,65 @@ export function renderGearTab(container, ctx) {
     // --- view mode: tap a chip to toggle its damaged flag
     container.querySelectorAll('[data-toggle-tag]').forEach((chip) => {
         chip.addEventListener('click', () => {
-            const { section, index } = chip.dataset;
+            const { section: sec, index } = chip.dataset;
             const id = chip.dataset.toggleTag;
-            const item = findItem(section, id);
+            const item = findItem(sec, id);
             if (!item) return;
             const tags = (item.tags ?? []).map((t, i) =>
                 i === Number(index) ? { ...t, damaged: !t.damaged } : t);
-            return patchInv(section, { items: [{ id, tags }] });
+            return patchInv(sec, { items: [{ id, tags }] });
         });
     });
 
-    // --- consumable quantity: available in view mode, not just the editor
+    // --- quantity: available in view mode, not just the editor
     container.querySelectorAll('[data-qty]').forEach((stepper) => {
         const id = stepper.dataset.qty;
+        const sec = stepper.dataset.section;
         stepper.querySelectorAll('button').forEach((btn) => {
             btn.addEventListener('click', () => {
-                const item = findItem('consumables', id);
+                const item = findItem(sec, id);
                 if (!item) return;
-                const next = Math.max(0, (item.quantity ?? 0) + Number(btn.dataset.dir));
-                if (next === item.quantity) return;
-                return patchInv('consumables', { items: [{ id, quantity: next }] });
+                const nextVal = Math.max(0, (item.quantity ?? 0) + Number(btn.dataset.dir));
+                if (nextVal === item.quantity) return;
+                return patchInv(sec, { items: [{ id, quantity: nextVal }] });
             });
         });
     });
 
     if (!inEditor) return;
 
-    // --- editor mode: tag add/remove/rename, item add/remove/rename
+    // --- editor mode: tag add/remove/rename, item name/description/remove
     container.querySelectorAll('[data-add-tag]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            const { section, type } = btn.dataset;
+            const { section: sec, type } = btn.dataset;
             const id = btn.dataset.addTag;
-            const item = findItem(section, id);
+            const item = findItem(sec, id);
             if (!item) return;
             const tags = [...(item.tags ?? []), { name: 'NUOVO', type, damaged: false }];
-            return patchInv(section, { items: [{ id, tags }] });
+            return patchInv(sec, { items: [{ id, tags }] });
         });
     });
 
     container.querySelectorAll('[data-remove-tag]').forEach((btn) => {
         btn.addEventListener('click', () => {
-            const { section, index } = btn.dataset;
+            const { section: sec, index } = btn.dataset;
             const id = btn.dataset.removeTag;
-            const item = findItem(section, id);
+            const item = findItem(sec, id);
             if (!item) return;
             const tags = (item.tags ?? []).filter((_, i) => i !== Number(index));
-            return patchInv(section, { items: [{ id, tags }] });
+            return patchInv(sec, { items: [{ id, tags }] });
         });
     });
 
     container.querySelectorAll('[data-tag-name]').forEach((input) => {
         input.addEventListener('change', () => {
-            const { section, index } = input.dataset;
+            const { section: sec, index } = input.dataset;
             const id = input.dataset.tagName;
-            const item = findItem(section, id);
+            const item = findItem(sec, id);
             if (!item) return;
             const tags = (item.tags ?? []).map((t, i) =>
                 i === Number(index) ? { ...t, name: input.value.trim() } : t);
-            return patchInv(section, { items: [{ id, tags }] });
+            return patchInv(sec, { items: [{ id, tags }] });
         });
     });
 
@@ -221,24 +253,13 @@ export function renderGearTab(container, ctx) {
             patchInv(input.dataset.section, { items: [{ id: input.dataset.itemName, name: input.value.trim() }] }));
     });
 
-    container.querySelectorAll('[data-consumable-name]').forEach((input) => {
+    container.querySelectorAll('[data-item-desc]').forEach((input) => {
         input.addEventListener('change', () =>
-            patchInv('consumables', { items: [{ id: input.dataset.consumableName, name: input.value.trim() }] }));
+            patchInv(input.dataset.section, { items: [{ id: input.dataset.itemDesc, description: input.value.trim() }] }));
     });
 
     container.querySelectorAll('[data-remove-item]').forEach((btn) => {
         btn.addEventListener('click', () =>
             patchInv(btn.dataset.section, { deletedIds: [btn.dataset.removeItem] }));
-    });
-
-    container.querySelectorAll('[data-add-item]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const section = btn.dataset.addItem;
-            const nameEl = container.querySelector(`#pb-add-${section}-name`);
-            const name = nameEl.value.trim();
-            if (!name) return;
-            const item = section === 'consumables' ? { name, quantity: 1 } : { name };
-            return patchInv(section, { items: [item] });
-        });
     });
 }

@@ -50,28 +50,35 @@ test('S.P.E shows approach rows in view mode and steppers in editor mode', async
 
 test('editor mode reveals add and remove controls on abilities and talents', async ({ page }) => {
   await openSheet(page, 'player');
-  await page.locator('.pb-tab', { hasText: 'ABIL' }).click();
+  await page.locator('.pb-tab', { hasText: 'STATS' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Abilità' }).click();
 
   await expect(page.locator('#pb-skill-add-btn')).toHaveCount(0);
   await expect(page.locator('[data-remove-skill]')).toHaveCount(0);
 
   await page.locator('#pb-editor-toggle').click();
 
+  // Abilità subtab: skills add + remove.
   await expect(page.locator('#pb-skill-add-btn')).toBeVisible();
-  await expect(page.locator('#pb-perk-add-btn')).toBeVisible();
   await expect(page.locator('[data-remove-skill]').first()).toBeVisible();
+
+  // Talents subtab (editor mode persists across subtab switches): perks add.
+  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  await expect(page.locator('#pb-perk-add-btn')).toBeVisible();
 });
 
-test('editor mode reveals add and remove controls on weapons and armor', async ({ page }) => {
+test('the + add trigger is present on the weapons and armor subtabs', async ({ page }) => {
   await openSheet(page, 'player');
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
-  await expect(page.locator('[data-add-item="weapons"]')).toHaveCount(0);
+  // The popup add-path is available in view mode (both modes) on every subtab.
+  await expect(page.locator('[data-add-open]')).toHaveCount(1);
+  await page.locator('.pb-subtab', { hasText: 'Armature' }).click();
+  await expect(page.locator('[data-add-open]')).toHaveCount(1);
 
+  // Editor mode keeps the same single + trigger — no separate inline add row.
   await page.locator('#pb-editor-toggle').click();
-
-  await expect(page.locator('[data-add-item="weapons"]')).toBeVisible();
-  await expect(page.locator('[data-add-item="equip"]')).toBeVisible();
+  await expect(page.locator('[data-add-open]')).toHaveCount(1);
 });
 
 test('paMax and paTrackedBy are not editable from the header', async ({ page }) => {
@@ -84,7 +91,7 @@ test('paMax and paTrackedBy are not editable from the header', async ({ page }) 
 
 test('an owning non-admin can increment the BOBBLEHEAD stepper and it persists', async ({ page }) => {
   await openSheet(page, 'player');
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/resources') && r.method() === 'PATCH');
   await page.locator('[data-resource="bobbleheads"] button[data-dir="1"]').click();

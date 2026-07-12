@@ -312,7 +312,7 @@ test('the owner sees ◄ DOSSIER, ESCI and the ✎ toggle in the status bar, wit
   await expect(nav.locator('#pb-editor-toggle')).toBeVisible();
 
   // The tab bar returns to exactly five content tabs and carries no toggle.
-  await expect(page.locator('.pb-tab[data-tab]')).toHaveCount(5);
+  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
   await expect(page.locator('#pb-tabs #pb-editor-toggle')).toHaveCount(0);
 });
 

@@ -476,6 +476,38 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     box-shadow: 0 0 6px var(--phosphor);
 }
 
+/* Second-level subtab row: only rendered when the active first-level tab has
+   subtabs (the [hidden] attribute removes it otherwise). Lighter than the L1
+   bar — smaller text, a tinted fill on the active one, no underline. */
+.pb-subtabs {
+    display: flex;
+    border-bottom: 1px solid var(--green-hairline-faint);
+    overflow-x: auto;
+}
+.pb-subtabs[hidden] { display: none; }
+.pb-subtab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.5;
+    cursor: pointer;
+    white-space: nowrap;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--green-hairline-faint);
+    color: var(--phosphor);
+    font-family: var(--font-body);
+}
+.pb-subtab:last-child { border-right: none; }
+.pb-subtab.active {
+    opacity: 1;
+    background: var(--green-fill);
+    box-shadow: inset 0 -2px 0 var(--green-border-soft);
+}
+
 .pb-footer {
     display: flex;
     justify-content: space-between;
@@ -560,9 +592,24 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     gap: 10px;
     flex-wrap: wrap;
 }
-.pb-pa-control .pb-pips { flex: 1; }
-.pb-pa-control .pb-stepper button { width: 30px; height: 30px; font-size: 18px; }
-.pb-pa-control .pb-stepper .value { font-size: 22px; min-width: 32px; }
+/* Squares only: the − and + flank the pip row; there is no numeric readout. */
+.pb-pa-track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+.pb-pa-track .pb-pips { flex: 1; }
+.pb-pa-track button {
+    width: 30px; height: 30px;
+    border: 1px solid var(--green-border);
+    background: transparent;
+    color: var(--phosphor);
+    font-family: var(--font-display);
+    font-size: 18px;
+    cursor: pointer;
+}
+.pb-pa-track button:disabled { opacity: 0.3; cursor: default; }
 
 .pb-editor-strip {
     border: 1px solid var(--green-border-soft);
@@ -687,20 +734,27 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 /* ── ZAINO tab ──────────────────────────────────────────────────── */
 
-.pb-resource-row { display: flex; gap: 8px; margin-bottom: 6px; }
+/* Pinned at the bottom of every INV subtab. Sized to fit ~360px: three boxes
+   share the width with a min-width of 0 so the numeric input can shrink rather
+   than overflow the case. */
+.pb-resource-row { display: flex; gap: 6px; margin-top: 12px; }
 .pb-resource-box {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
     border: 1px solid var(--green-border-soft);
-    padding: 8px 6px;
+    padding: 6px 4px;
     text-align: center;
 }
-.pb-resource-box .pb-stepper { justify-content: center; gap: 4px; }
+.pb-resource-box .pb-stepper { justify-content: center; gap: 2px; }
+.pb-resource-box .pb-stepper--tiny button { width: 22px; height: 22px; font-size: 14px; }
+.pb-resource-box .pb-label { font-size: 9px; }
 .pb-resource-input {
-    width: 46px;
+    width: 100%;
+    min-width: 0;
     text-align: center;
-    padding: 4px 2px;
+    padding: 4px 0;
     font-family: var(--font-display);
-    font-size: 18px;
+    font-size: 16px;
 }
 /* Hide the native number spinners; the ± buttons are the affordance. */
 .pb-resource-input::-webkit-inner-spin-button,
@@ -933,3 +987,79 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     .pb-case { border-radius: 16px; padding: 10px 8px 8px; }
     .pb-screen { border-radius: 8px; }
 }
+
+/* ── INV subtab: section head with the + add trigger ────────────── */
+
+.pb-inv-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.pb-inv-add { line-height: 1; }
+
+/* ── Add-item popup ─────────────────────────────────────────────── */
+
+.pb-hidden { display: none !important; }
+
+.pb-popup-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(3, 8, 5, 0.75);
+}
+.pb-popup {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    max-height: 90%;
+    overflow-y: auto;
+    border: 1px solid var(--green-border);
+    background: var(--screen-bg);
+    box-shadow: var(--screen-inner-glow);
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+/* Small red ✕ in the top-right cancels with no write. */
+.pb-popup-close {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 24px; height: 24px;
+    border: 1px solid var(--amber-border);
+    background: transparent;
+    color: var(--amber);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+}
+.pb-popup-close:hover { background: var(--amber-fill); }
+.pb-popup-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    letter-spacing: 2px;
+    padding-right: 28px;
+}
+.pb-popup-tabs { display: flex; border-bottom: 1px solid var(--green-hairline); }
+.pb-popup-tab {
+    flex: 1;
+    padding: 6px 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.5;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+}
+.pb-popup-tab.active { opacity: 1; background: var(--green-fill); }
+.pb-popup-body { display: flex; flex-direction: column; gap: 8px; }
+.pb-popup-pane { display: flex; flex-direction: column; gap: 8px; }
+.pb-popup-tags { min-height: 4px; }
+.pb-popup-actions { display: flex; justify-content: flex-end; }

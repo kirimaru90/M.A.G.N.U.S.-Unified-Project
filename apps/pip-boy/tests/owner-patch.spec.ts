@@ -27,15 +27,15 @@ test('owner action-points stepper round-trips via PATCH .../action-points', asyn
   const req = await patchReq;
 
   expect(req.postDataJSON()).toEqual({ paCurrent: 4 });
-  await expect(page.locator('#pb-pa-stepper .value')).toHaveText('4');
-  // paMax = 5, paCurrent = 4 → five pips, four filled
+  // Squares only, no numeric readout: paMax = 5, paCurrent = 4 → five pips, four filled.
   await expect(page.locator('#pb-pa-pips .pb-pip')).toHaveCount(5);
   await expect(page.locator('#pb-pa-pips .pb-pip.filled')).toHaveCount(4);
+  await expect(page.locator('#pb-pa-stepper .value')).toHaveCount(0);
 });
 
 test('owner resources edit round-trips via PATCH .../resources', async ({ page }) => {
   await openSheetAsOwner(page);
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/resources') && r.method() === 'PATCH');
   await page.locator('[data-resource-input="caps"]').fill('25');
@@ -68,10 +68,11 @@ test('owner adds a custom condition round-trips via PATCH .../status', async ({ 
 
 test('owner renames a consumable in editor mode and it persists across a reload', async ({ page }) => {
   await openSheetAsOwner(page, withConsumable);
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Consumabili' }).click();
   await page.locator('#pb-editor-toggle').click();
 
-  const nameInput = page.locator('[data-consumable-name="c1"]');
+  const nameInput = page.locator('[data-item-name="c1"]');
   await expect(nameInput).toHaveValue('Stimpak');
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
@@ -83,14 +84,16 @@ test('owner renames a consumable in editor mode and it persists across a reload'
   // The stub persists the rename; a reload deep-links back to the sheet.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Consumabili' }).click();
   // Back in view mode, the name renders as static text carrying the new value.
   await expect(page.locator('[data-item="c1"] .pb-consumable-name')).toHaveText('RadAway');
 });
 
 test('adjusting a consumable quantity leaves its name unchanged; a resource edit leaves the other two', async ({ page }) => {
   await openSheetAsOwner(page, withConsumable);
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Consumabili' }).click();
 
   // Quantity stepper is a view-mode affordance; the name must survive it.
   const patchReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
@@ -110,24 +113,22 @@ test('adjusting a consumable quantity leaves its name unchanged; a resource edit
   await expect(page.locator('[data-resource-input="bobbleheads"]')).toHaveValue('1');
 });
 
-test('owner adds a weapon round-trips via PATCH .../inventory', async ({ page }) => {
+test('owner adds a custom weapon via the popup, round-tripping PATCH .../inventory', async ({ page }) => {
   await openSheetAsOwner(page);
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
-  // Adding items is an editor-mode affordance.
-  await page.locator('#pb-editor-toggle').click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
-  await page.locator('#pb-add-weapons-name').fill('Fucile a pompa');
+  // The add-path is the popup, available in view mode. Weapons have catalog
+  // entries so the popup opens on "Scegli esistente"; switch to custom.
+  await page.locator('[data-add-open]').click();
+  await page.locator('[data-ptab="custom"]').click();
+  await page.locator('#pb-popup-name').fill('Fucile a pompa');
+
   const patchReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
-  await page.locator('[data-add-item="weapons"]').click();
+  await page.locator('[data-ok]').click();
   const req = await patchReq;
 
   expect(req.postDataJSON()).toEqual({ weapons: { items: [{ name: 'Fucile a pompa' }] } });
-  // In editor mode the item's name renders as an inline input, not static text.
-  await expect(page.locator('[data-section-list="weapons"] [data-item-name]')).toHaveValue(
-    'Fucile a pompa',
-  );
-
-  // Leaving editor mode shows it as static text.
-  await page.locator('#pb-editor-toggle').click();
+  // The popup closes and the new item renders as static text in view mode.
+  await expect(page.locator('.pb-popup-overlay')).toHaveCount(0);
   await expect(page.locator('[data-section-list="weapons"]')).toContainText('Fucile a pompa');
 });

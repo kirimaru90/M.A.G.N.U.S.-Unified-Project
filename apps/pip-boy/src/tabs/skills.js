@@ -22,9 +22,16 @@ function skillName(catalog, slug) {
     return catalog.find((s) => s.slug === slug)?.name ?? slug;
 }
 
+// Display order is alphabetical by catalog name. Identity stays the slug
+// (`s.id`) carried in data-* attributes, so sorting never affects edits.
+function sortedSkills(skills, catalog) {
+    return [...skills].sort((a, b) =>
+        skillName(catalog, a.id).localeCompare(skillName(catalog, b.id)));
+}
+
 function skillsView(skills, catalog) {
     if (skills.length === 0) return '<div class="pb-empty">Nessuna abilità</div>';
-    return skills.map((s) => `
+    return sortedSkills(skills, catalog).map((s) => `
         <div class="pb-row pb-split-row">
             <span>${esc(skillName(catalog, s.id))}</span>
             ${maestriaSquares(s.level)}
@@ -35,7 +42,7 @@ function skillsView(skills, catalog) {
 function skillsEdit(skills, catalog) {
     const unused = catalog.filter((sc) => !skills.some((s) => s.id === sc.slug));
     return `
-        ${skills.map((s) => `
+        ${sortedSkills(skills, catalog).map((s) => `
             <div class="pb-row pb-split-row">
                 <span>${esc(skillName(catalog, s.id))}</span>
                 ${maestriaSquares(s.level)}
@@ -88,18 +95,15 @@ function perksEdit(perks) {
     `;
 }
 
-export function renderSkillsTab(container, ctx) {
+/** STATS › Abilità subtab: tag skills (alphabetical) + the read-only SPESA PA block. */
+export function renderAbilitaTab(container, ctx) {
     const { character, skillsCatalog, canEdit, editMode, campaignId } = ctx;
     const skills = character.skills ?? [];
-    const perks = character.perks ?? [];
     const inEditor = canEdit && editMode;
 
     container.innerHTML = `
         <div class="pb-section-head">TAG SKILLS · MAESTRIA</div>
         <div id="pb-skills-list">${inEditor ? skillsEdit(skills, skillsCatalog) : skillsView(skills, skillsCatalog)}</div>
-
-        <div class="pb-section-head">TALENTI</div>
-        <div id="pb-perks-list">${inEditor ? perksEdit(perks) : perksView(perks)}</div>
 
         <div class="pb-section-head">SPESA PA</div>
         <div class="pb-spend-list" id="pb-pa-spend">
@@ -113,10 +117,6 @@ export function renderSkillsTab(container, ctx) {
     const pushSkills = async (body) => {
         const res = await patchSkills(campaignId, character.id, body);
         ctx.onSectionUpdate('skills', res.section ?? res);
-    };
-    const pushPerks = async (body) => {
-        const res = await patchPerks(campaignId, character.id, body);
-        ctx.onSectionUpdate('perks', res.section ?? res);
     };
 
     container.querySelectorAll('[data-skill-level]').forEach((sel) => {
@@ -137,6 +137,25 @@ export function renderSkillsTab(container, ctx) {
             return pushSkills({ items: [{ id, level }] });
         });
     }
+}
+
+/** STATS › Talents subtab: perks only. */
+export function renderTalentsTab(container, ctx) {
+    const { character, canEdit, editMode, campaignId } = ctx;
+    const perks = character.perks ?? [];
+    const inEditor = canEdit && editMode;
+
+    container.innerHTML = `
+        <div class="pb-section-head">TALENTI</div>
+        <div id="pb-perks-list">${inEditor ? perksEdit(perks) : perksView(perks)}</div>
+    `;
+
+    if (!inEditor) return;
+
+    const pushPerks = async (body) => {
+        const res = await patchPerks(campaignId, character.id, body);
+        ctx.onSectionUpdate('perks', res.section ?? res);
+    };
 
     container.querySelectorAll('[data-remove-perk]').forEach((btn) => {
         btn.addEventListener('click', () => pushPerks({ deletedIds: [btn.dataset.removePerk] }));

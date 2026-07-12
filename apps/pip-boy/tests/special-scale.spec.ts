@@ -67,7 +67,8 @@ test('MAX PA stepper is decoupled from SPECIAL and still reaches 8', async ({ pa
 
 test('a skill at ESPERTO shows two of three filled squares; the select drives the fill', async ({ page }) => {
   await openSheetAsOwner(page, { skills: [{ id: 'lockpicking', level: 'expert' }] });
-  await page.locator('.pb-tab', { hasText: 'ABIL' }).click();
+  await page.locator('.pb-tab', { hasText: 'STATS' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Abilità' }).click();
 
   // View mode: ESPERTO → 2 of 3 filled, right of the skill name.
   const viewPips = page.locator('#pb-skills-list .pb-pips').first();

@@ -8,3 +8,12 @@ import { apiGet } from './client.js';
 export function getStarterEquipment() {
     return apiGet('/equipment-catalog?starter=true');
 }
+
+/**
+ * The full equipment catalog (all kinds, starter or not). Backs the inventory
+ * add-item popup's "Scegli esistente" autocomplete. Read-only, same copy-on-use
+ * semantics as the starter list.
+ */
+export function getEquipmentCatalog() {
+    return apiGet('/equipment-catalog');
+}

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
 
-const TAB_LABELS = ['S.P.E', 'ABIL', 'SALUTE', 'ZAINO', 'DADI'];
+const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'NOTES'];
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {
@@ -23,12 +23,12 @@ const ownedCharacter = (overrides: Record<string, unknown> = {}) =>
 test('exactly five tabs plus one ✎ toggle, with the active tab underlined', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
-  await expect(page.locator('.pb-tab[data-tab]')).toHaveCount(5);
-  await expect(page.locator('.pb-tab[data-tab]')).toHaveText(TAB_LABELS);
+  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
+  await expect(page.locator('.pb-tab[data-top]')).toHaveText(TAB_LABELS);
   await expect(page.locator('#pb-editor-toggle')).toHaveCount(1);
 
   const active = page.locator('.pb-tab.active');
-  await expect(active).toHaveText('S.P.E');
+  await expect(active).toHaveText('STATS');
 
   // The underline is a 2px glowing ::after, not an inset box-shadow.
   const underline = await active.evaluate((el) => {
@@ -42,12 +42,13 @@ test('exactly five tabs plus one ✎ toggle, with the active tab underlined', as
 test('the footer tracks the active tab, caps, and shows an HH:MM clock', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
-  await expect(page.locator('#pb-footer-tab')).toHaveText('S.P.E');
+  // The footer's left slot reflects the active leaf — the subtab when present.
+  await expect(page.locator('#pb-footer-tab')).toHaveText('S.P.E.C.I.A.L.');
   await expect(page.locator('#pb-footer-caps')).toHaveText('TAPPI 10');
   await expect(page.locator('#pb-footer-clock')).toHaveText(/^\d{2}:\d{2}$/);
 
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
-  await expect(page.locator('#pb-footer-tab')).toHaveText('ZAINO');
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await expect(page.locator('#pb-footer-tab')).toHaveText('Armi');
 });
 
 test('the header shows a species chip and the PA source line', async ({ page }) => {
@@ -268,7 +269,7 @@ test('core and extra chips render with distinct border styles', async ({ page })
       inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
   const core = page.locator('.pb-chip--core').first();
   const extra = page.locator('.pb-chip--extra').first();
@@ -286,7 +287,7 @@ test('tapping a tag chip in view mode marks it damaged and shows DANNEGGIATA', a
       inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
   await expect(page.locator('.pb-danger-tag')).toHaveCount(0);
 
@@ -308,7 +309,7 @@ test('tag add and remove controls appear only in editor mode', async ({ page }) 
       inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'ZAINO' }).click();
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
   await expect(page.locator('[data-add-tag]')).toHaveCount(0);
   await expect(page.locator('[data-remove-tag]')).toHaveCount(0);
@@ -335,8 +336,10 @@ test('lowering MAX PA beneath paCurrent clamps and persists paCurrent', async ({
   const req = await patchReq;
 
   expect(req.postDataJSON()).toEqual({ paMax: 4, paCurrent: 4 });
+  // Squares only: paMax drops to four pips, all filled; no numeric readout.
   await expect(page.locator('#pb-pa-pips .pb-pip')).toHaveCount(4);
-  await expect(page.locator('#pb-pa-stepper .value')).toHaveText('4');
+  await expect(page.locator('#pb-pa-pips .pb-pip.filled')).toHaveCount(4);
+  await expect(page.locator('#pb-pa-stepper .value')).toHaveCount(0);
 });
 
 test('changing FONTE PA persists paTrackedBy and updates the header line', async ({ page }) => {
@@ -367,7 +370,8 @@ test('SPECIAL steppers are bounded 1..5', async ({ page }) => {
 
 test('the SPESA PA block is never editable', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'ABIL' }).click();
+  await page.locator('.pb-tab', { hasText: 'STATS' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Abilità' }).click();
   await page.locator('#pb-editor-toggle').click();
 
   const spend = page.locator('#pb-pa-spend');

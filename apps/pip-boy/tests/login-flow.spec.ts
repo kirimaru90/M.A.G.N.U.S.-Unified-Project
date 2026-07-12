@@ -13,7 +13,7 @@ test('login -> campaign select -> character select -> sheet', async ({ page }) =
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
 
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await expect(page.locator('.pb-tab.active')).toHaveText('S.P.E');
+  await expect(page.locator('.pb-tab.active')).toHaveText('STATS');
 });
 
 test('shows an error on invalid credentials without navigating', async ({ page }) => {
