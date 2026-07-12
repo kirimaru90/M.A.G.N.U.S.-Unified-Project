@@ -341,7 +341,7 @@ describe('partial patch preserves omitted fields', () => {
       String(char.campaignId),
       String(char._id),
       {
-        strength: 9,
+        strength: 5,
         perception: undefined,
         endurance: undefined,
         charisma: undefined,
@@ -352,7 +352,7 @@ describe('partial patch preserves omitted fields', () => {
       playerActor(char),
     );
     expect(result.section).toEqual({
-      strength: 9,
+      strength: 5,
       perception: 2,
       endurance: 2,
       charisma: 1,

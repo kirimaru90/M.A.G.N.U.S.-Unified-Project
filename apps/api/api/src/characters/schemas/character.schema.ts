@@ -137,25 +137,25 @@ export const GenericItemSchema = SchemaFactory.createForClass(GenericItem);
 
 @Schema({ _id: false })
 export class SpecialSection {
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   strength: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   perception: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   endurance: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   charisma: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   intelligence: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   agility: number;
 
-  @Prop({ type: Number, min: 0, max: 8, default: 1 })
+  @Prop({ type: Number, min: 1, max: 5, default: 1 })
   luck: number;
 }
 export const SpecialSectionSchema =

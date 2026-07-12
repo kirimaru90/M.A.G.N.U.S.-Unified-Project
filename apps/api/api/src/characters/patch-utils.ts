@@ -30,6 +30,45 @@ export function pruneUndefined<T extends object>(obj: T): Partial<T> {
 /** An incoming patch item: `id` optional (absent = create). */
 export type PatchItem<T extends Identified> = Partial<T> & { id?: string };
 
+/** The seven S.P.E.C.I.A.L. attribute keys, in canonical order. */
+export const SPECIAL_KEYS = [
+  'strength',
+  'perception',
+  'endurance',
+  'charisma',
+  'intelligence',
+  'agility',
+  'luck',
+] as const;
+
+/** Valid stored range for every SPECIAL attribute (see `special-skill-scale`). */
+export const SPECIAL_MIN = 1;
+export const SPECIAL_MAX = 5;
+
+/**
+ * Clamp every present SPECIAL attribute into `1..5`.
+ *
+ * Belt-and-braces guard for the merge site: an attribute the client never sent
+ * is copied from the stored document, which — for characters persisted under the
+ * former `0..8` range — may hold a legacy out-of-range value. `persist()` uses
+ * `findByIdAndUpdate` without `runValidators`, so that value would otherwise
+ * survive the `$set`. The one-time migration clamps them up front; this keeps a
+ * straggler from propagating on the next write. Absent keys stay absent.
+ */
+export function clampSpecial<T extends Record<string, unknown>>(special: T): T {
+  const out = { ...special };
+  for (const key of SPECIAL_KEYS) {
+    const value = out[key];
+    if (typeof value === 'number') {
+      out[key as keyof T] = Math.max(
+        SPECIAL_MIN,
+        Math.min(SPECIAL_MAX, value),
+      ) as T[keyof T];
+    }
+  }
+  return out;
+}
+
 /**
  * An entry describing something the server silently dropped during a section PATCH.
  *

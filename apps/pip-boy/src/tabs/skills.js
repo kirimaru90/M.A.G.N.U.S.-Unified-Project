@@ -1,6 +1,14 @@
 import { esc } from '../engine/render.js';
 import { patchSkills, patchPerks } from '../api/characters.js';
 import { SKILL_LEVELS, SKILL_LEVEL_LABELS } from '../sheet/model.js';
+import { pips } from '../sheet/pips.js';
+
+// Maestria maps to a filled count on a three-slot square row, in the same visual
+// language as the SPECIAL pips: COMPETENTE=1, ESPERTO=2, MAESTRO=3.
+const SKILL_SLOTS = 3;
+function maestriaSquares(level) {
+    return pips(SKILL_LEVELS.indexOf(level) + 1, SKILL_SLOTS);
+}
 
 // Maestria is narrative only: COMPETENTE raises the Risk a GM applies by one
 // grade, ESPERTO leaves it, MAESTRO lowers it. No mechanical dice effect.
@@ -19,7 +27,7 @@ function skillsView(skills, catalog) {
     return skills.map((s) => `
         <div class="pb-row pb-split-row">
             <span>${esc(skillName(catalog, s.id))}</span>
-            <span class="pb-label">${SKILL_LEVEL_LABELS[s.level] ?? s.level}</span>
+            ${maestriaSquares(s.level)}
         </div>
     `).join('');
 }
@@ -30,6 +38,7 @@ function skillsEdit(skills, catalog) {
         ${skills.map((s) => `
             <div class="pb-row pb-split-row">
                 <span>${esc(skillName(catalog, s.id))}</span>
+                ${maestriaSquares(s.level)}
                 <select class="pb-select pb-select--inline" data-skill-level="${esc(s.id)}">
                     ${SKILL_LEVELS.map((l) =>
                         `<option value="${l}" ${s.level === l ? 'selected' : ''}>${SKILL_LEVEL_LABELS[l]}</option>`).join('')}

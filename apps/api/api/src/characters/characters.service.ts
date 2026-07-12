@@ -19,6 +19,7 @@ import {
   patchCollectionArray,
   pruneUndefined,
   scrubPayload,
+  clampSpecial,
 } from './patch-utils';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
@@ -216,7 +217,12 @@ export class CharactersService {
   ) {
     const existing = await this.loadOr404(campaignId, characterId);
     const { scrubbed, ignored } = scrubPayload('special', { ...dto }, actor);
-    const special = { ...existing.special, ...pruneUndefined(scrubbed) };
+    // Clamp defends the merge: an unsent attribute copied from a legacy `0..8`
+    // document must not propagate out of the tightened `1..5` range on write.
+    const special = clampSpecial({
+      ...existing.special,
+      ...pruneUndefined(scrubbed),
+    });
     const updated = await this.persist(existing._id, { special });
     return { section: updated.special, ignored };
   }

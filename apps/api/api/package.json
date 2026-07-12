@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "bootstrap:admin": "ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts"
+    "bootstrap:admin": "ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts",
+    "migrate:special-clamp": "ts-node -r tsconfig-paths/register scripts/migrate-special-clamp.ts"
   },
   "dependencies": {
     "@fastify/helmet": "^13.0.2",

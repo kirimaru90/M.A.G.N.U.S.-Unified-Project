@@ -20,6 +20,7 @@ import {
   Campaign,
   CampaignSchema,
 } from '../src/campaigns/schemas/campaign.schema';
+import { Character } from '../src/characters/schemas/character.schema';
 import configuration from '../src/config/configuration';
 
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
@@ -28,6 +29,7 @@ describe('CharactersModule (e2e)', () => {
   let app: NestFastifyApplication;
   let userModel: Model<User>;
   let campaignModel: Model<Campaign>;
+  let characterModel: Model<Character>;
   let adminToken: string;
   let playerAToken: string;
   let playerBToken: string;
@@ -76,6 +78,7 @@ describe('CharactersModule (e2e)', () => {
     app = await createTestApp(module);
     userModel = module.get(getModelToken(User.name));
     campaignModel = module.get(getModelToken(Campaign.name));
+    characterModel = module.get(getModelToken(Character.name));
 
     const hash = await bcrypt.hash('pass', 12);
     await userModel.create({
@@ -391,7 +394,7 @@ describe('CharactersModule (e2e)', () => {
     expect(sectionOf(res).strength).toBe(4);
   });
 
-  it('SPECIAL accepts the 0 and 8 bounds; -1 and 9 → 400', async () => {
+  it('SPECIAL accepts the 1 and 5 bounds; 0 and 6 → 400', async () => {
     const id = await createCharacter(playerAId);
     const patch = (payload: Record<string, number>) =>
       app.inject({
@@ -401,16 +404,41 @@ describe('CharactersModule (e2e)', () => {
         payload,
       });
 
-    const ok = await patch({ strength: 8, luck: 0 });
+    const ok = await patch({ strength: 5, luck: 1 });
     expect(ok.statusCode).toBe(200);
     const sp = sectionOf(ok);
-    expect(sp.strength).toBe(8);
-    expect(sp.luck).toBe(0);
+    expect(sp.strength).toBe(5);
+    expect(sp.luck).toBe(1);
     // omitted attributes are untouched by the partial merge
     expect(sp.perception).toBe(1);
 
-    expect((await patch({ strength: 9 })).statusCode).toBe(400);
-    expect((await patch({ strength: -1 })).statusCode).toBe(400);
+    expect((await patch({ strength: 6 })).statusCode).toBe(400);
+    expect((await patch({ strength: 0 })).statusCode).toBe(400);
+  });
+
+  it('a legacy out-of-range attribute is clamped into 1..5 on the next SPECIAL write', async () => {
+    const id = await createCharacter(playerAId);
+
+    // Seed a legacy value straight through the model, bypassing the DTO that now
+    // rejects it — this is the state the migration exists to repair.
+    await characterModel.updateOne(
+      { _id: id },
+      { $set: { 'special.strength': 8, 'special.luck': 0 } },
+    );
+
+    // A patch that touches only one attribute re-merges the whole special object;
+    // the defensive clamp keeps the untouched legacy values from propagating.
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/special`,
+      headers: auth(playerAToken),
+      payload: { perception: 3 },
+    });
+    expect(res.statusCode).toBe(200);
+    const sp = sectionOf(res);
+    expect(sp.perception).toBe(3);
+    expect(sp.strength).toBe(5); // 8 clamped down
+    expect(sp.luck).toBe(1); // 0 clamped up
   });
 
   // --- partial-patch clobber regression (live ValidationPipe) ---
@@ -492,11 +520,11 @@ describe('CharactersModule (e2e)', () => {
       payload: {
         strength: 5,
         perception: 4,
-        endurance: 6,
+        endurance: 3,
         charisma: 3,
-        intelligence: 7,
+        intelligence: 2,
         agility: 2,
-        luck: 8,
+        luck: 1,
       },
     });
 
@@ -509,11 +537,11 @@ describe('CharactersModule (e2e)', () => {
     expect(sectionOf(patch)).toMatchObject({
       strength: 4,
       perception: 4,
-      endurance: 6,
+      endurance: 3,
       charisma: 3,
-      intelligence: 7,
+      intelligence: 2,
       agility: 2,
-      luck: 8,
+      luck: 1,
     });
   });
 

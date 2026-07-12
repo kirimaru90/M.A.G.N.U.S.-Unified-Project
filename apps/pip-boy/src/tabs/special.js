@@ -1,14 +1,17 @@
 import { patchSpecial, patchActionPoints } from '../api/characters.js';
-import { APPROACHES, PA_SOURCES, SPECIAL_MIN, SPECIAL_MAX, clamp } from '../sheet/model.js';
+import {
+    APPROACHES,
+    PA_SOURCES,
+    SPECIAL_MIN,
+    SPECIAL_MAX,
+    PA_MAX_MIN,
+    PA_MAX_MAX,
+    clamp,
+} from '../sheet/model.js';
+import { pips } from '../sheet/pips.js';
 
 const DICE_LEGEND =
     '6 = Successo Pieno · 4/5 = Successo con Costo · 1/2/3 = Fallimento. Ogni 6 oltre il primo restituisce 1 PA.';
-
-/** Five slots: the reference's pip row, independent of the 0..8 stored range. */
-function pips(value) {
-    return `<div class="pb-pips">${Array.from({ length: 5 }, (_, i) =>
-        `<span class="pb-pip${i < value ? ' filled' : ''}"></span>`).join('')}</div>`;
-}
 
 function viewMode(special) {
     return `
@@ -62,9 +65,9 @@ function editorMode(special, ap) {
         <div class="pb-section-head">MAX PA</div>
         <div class="pb-row pb-stepper-row">
             <div class="pb-stepper" id="pb-pa-max-stepper">
-                <button data-dir="-1" ${paMax <= SPECIAL_MIN ? 'disabled' : ''}>−</button>
+                <button data-dir="-1" ${paMax <= PA_MAX_MIN ? 'disabled' : ''}>−</button>
                 <span class="value">${paMax}</span>
-                <button data-dir="1" ${paMax >= SPECIAL_MAX ? 'disabled' : ''}>+</button>
+                <button data-dir="1" ${paMax >= PA_MAX_MAX ? 'disabled' : ''}>+</button>
             </div>
         </div>
     `;
@@ -105,7 +108,7 @@ export function renderSpecialTab(container, ctx) {
     container.querySelectorAll('#pb-pa-max-stepper button').forEach((btn) => {
         btn.addEventListener('click', async () => {
             const current = ap.paMax ?? 0;
-            const next = clamp(current + Number(btn.dataset.dir), SPECIAL_MIN, SPECIAL_MAX);
+            const next = clamp(current + Number(btn.dataset.dir), PA_MAX_MIN, PA_MAX_MAX);
             if (next === current) return;
 
             // Lowering paMax beneath paCurrent clamps and persists the current value too.

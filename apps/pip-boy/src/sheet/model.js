@@ -13,8 +13,13 @@ export const APPROACHES = [
     { key: 'luck', letter: 'L', name: 'FORTUNA', desc: 'Il jolly: affidarsi al caso' },
 ];
 
-export const SPECIAL_MIN = 0;
-export const SPECIAL_MAX = 8;
+export const SPECIAL_MIN = 1;
+export const SPECIAL_MAX = 5;
+
+// MAX PA is decoupled from the SPECIAL range: narrowing SPECIAL to 1..5 must not
+// lower the reachable paMax, which keeps its own 0..8 bound.
+export const PA_MAX_MIN = 0;
+export const PA_MAX_MAX = 8;
 
 /** `paTrackedBy` names an approach; the header shows `PA · <that approach>`. */
 export const PA_SOURCES = [

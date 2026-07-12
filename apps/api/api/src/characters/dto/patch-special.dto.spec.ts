@@ -16,23 +16,23 @@ function errorsFor(payload: Record<string, unknown>) {
   return validateSync(plainToInstance(PatchSpecialDto, payload));
 }
 
-describe('PatchSpecialDto — SPECIAL bounds are 0..8', () => {
-  it.each(ATTRIBUTES)('accepts the lower bound 0 for %s', (attr) => {
-    expect(errorsFor({ [attr]: 0 })).toEqual([]);
+describe('PatchSpecialDto — SPECIAL bounds are 1..5', () => {
+  it.each(ATTRIBUTES)('accepts the lower bound 1 for %s', (attr) => {
+    expect(errorsFor({ [attr]: 1 })).toEqual([]);
   });
 
-  it.each(ATTRIBUTES)('accepts the upper bound 8 for %s', (attr) => {
-    expect(errorsFor({ [attr]: 8 })).toEqual([]);
+  it.each(ATTRIBUTES)('accepts the upper bound 5 for %s', (attr) => {
+    expect(errorsFor({ [attr]: 5 })).toEqual([]);
   });
 
-  it.each(ATTRIBUTES)('rejects -1 for %s', (attr) => {
-    const errors = errorsFor({ [attr]: -1 });
+  it.each(ATTRIBUTES)('rejects 0 for %s', (attr) => {
+    const errors = errorsFor({ [attr]: 0 });
     expect(errors).toHaveLength(1);
     expect(errors[0].constraints).toHaveProperty('min');
   });
 
-  it.each(ATTRIBUTES)('rejects 9 for %s', (attr) => {
-    const errors = errorsFor({ [attr]: 9 });
+  it.each(ATTRIBUTES)('rejects 6 for %s', (attr) => {
+    const errors = errorsFor({ [attr]: 6 });
     expect(errors).toHaveLength(1);
     expect(errors[0].constraints).toHaveProperty('max');
   });

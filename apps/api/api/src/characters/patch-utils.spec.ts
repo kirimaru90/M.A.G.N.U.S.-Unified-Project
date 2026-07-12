@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   PLAYER_UPDATABLE_FIELDS,
+  clampSpecial,
   patchCollectionArray,
   pruneUndefined,
   scrubPayload,
@@ -324,5 +325,37 @@ describe('scrubPayload', () => {
         },
       ],
     });
+  });
+});
+
+// ─── clampSpecial: legacy out-of-range guard ─────────────────
+
+describe('clampSpecial', () => {
+  it('maps a stored 0 up to 1 and a stored 8 down to 5', () => {
+    expect(clampSpecial({ strength: 8, luck: 0 })).toEqual({
+      strength: 5,
+      luck: 1,
+    });
+  });
+
+  it('leaves every in-range value untouched (1 and 5 are boundaries)', () => {
+    const inRange = {
+      strength: 1,
+      perception: 2,
+      endurance: 3,
+      charisma: 4,
+      intelligence: 5,
+      agility: 3,
+      luck: 2,
+    };
+    expect(clampSpecial(inRange)).toEqual(inRange);
+  });
+
+  it('ignores absent keys and does not mutate its input', () => {
+    const partial = { strength: 6 };
+    const out = clampSpecial(partial);
+    expect(out).toEqual({ strength: 5 });
+    expect(partial.strength).toBe(6);
+    expect(out).not.toHaveProperty('luck');
   });
 });

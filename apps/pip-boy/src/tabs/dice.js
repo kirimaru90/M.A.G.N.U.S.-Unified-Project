@@ -75,10 +75,21 @@ export function renderDiceTab(container, ctx) {
 
     function diceGrid() {
         if (!s.faces) return '';
-        const dice = s.result && !s.rolling
-            ? s.result.classified
-            : s.faces.map((value) => ({ value, kind: 'fail', dropped: false }));
-        return dice.map(dieCell).join('');
+        if (s.result && !s.rolling) {
+            // Settled: sort a *copy* highest→lowest for display only. Each die
+            // carries its original index as identity, so reroll selection and the
+            // SVANTAGGIO drop keep pointing at the right die regardless of order.
+            return s.result.classified
+                .map((die, i) => ({ die, i }))
+                .sort((a, b) => b.die.value - a.die.value)
+                .map(({ die, i }) => dieCell(die, i))
+                .join('');
+        }
+        // Mid-tumble: faces flicker in place, unsorted.
+        return s.faces
+            .map((value) => ({ value, kind: 'fail', dropped: false }))
+            .map(dieCell)
+            .join('');
     }
 
     function draw() {
@@ -212,8 +223,13 @@ export function renderDiceTab(container, ctx) {
         if (rerollBtn) rerollBtn.addEventListener('click', reroll);
     }
 
-    /** Re-randomise the displayed faces for ~540ms; dice are not selectable. */
-    function tumble(finalFaces, onSettled) {
+    /**
+     * Re-randomise the displayed faces for ~540ms; dice are not selectable.
+     * `animating` (a Set of indices) restricts which dice flicker: only those
+     * indices re-randomise while the rest hold their settled `finalFaces` value.
+     * `animating == null` flickers every die — an initial roll's behaviour.
+     */
+    function tumble(finalFaces, onSettled, animating = null) {
         s.rolling = true;
         s.selected = new Set();
         let tick = 0;
@@ -226,7 +242,8 @@ export function renderDiceTab(container, ctx) {
                 draw();
                 return;
             }
-            s.faces = finalFaces.map(() => tumbleFace());
+            s.faces = finalFaces.map((v, i) =>
+                (!animating || animating.has(i)) ? tumbleFace() : v);
             tick += 1;
             draw();
             setTimeout(spin, TUMBLE_TICK_MS);
@@ -273,13 +290,16 @@ export function renderDiceTab(container, ctx) {
         const afterCost = applyPaDelta(ap().paCurrent, ap().paMax, -REROLL_COST);
         await persistPa(afterCost);
 
+        // Capture the animating set *before* tumble clears s.selected: only the
+        // rerolled dice should flicker; the kept dice hold their settled face.
+        const animating = new Set(s.selected);
         const rerolled = s.faces.map((v, i) => (s.selected.has(i) ? rollDie() : v));
 
         tumble(rerolled, () => {
             // A reroll never grants PA back — the six-refund rule is roll-only.
             s.result = summarizeRoll(rerolled, { disadvantage: s.disadvantage, rewardOnSixes: false });
             record(s.result);
-        });
+        }, animating);
     }
 
     draw();

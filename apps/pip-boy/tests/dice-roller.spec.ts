@@ -342,3 +342,65 @@ test('dice are not selectable mid-tumble', async ({ page }) => {
   await expect(page.locator('.pb-die[disabled]')).toHaveCount(0);
   await expect(page.locator('#pb-dice-roll')).toBeEnabled();
 });
+
+// ── 7.T.7 display ordering + reroll animation scope ─────────────────
+
+test('settled dice render highest→lowest for display', async ({ page }) => {
+  await openDice(page, { faces: [3, 6, 1, 5] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await page.locator('#pb-dice-mod button[data-dir="1"]').click(); // +1 → 4d6
+  await rollAndSettle(page);
+
+  // the roll order is [3, 6, 1, 5]; the settled grid reads it sorted descending
+  await expect(page.locator('.pb-dice-grid .pb-die')).toHaveText(['6', '5', '3', '1']);
+});
+
+test('SVANTAGGIO drops the highest die, which sorts to the front and is unselectable', async ({ page }) => {
+  await openDice(page, { faces: [4, 6, 2] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await page.locator('#pb-dice-dis').click();
+  await rollAndSettle(page);
+
+  // the 6 (highest, dropped) sorts to the front of the descending display
+  const dice = page.locator('.pb-dice-grid .pb-die');
+  await expect(dice).toHaveText(['6', '4', '2']);
+  await expect(dice.first()).toHaveClass(/dropped/);
+  await expect(dice.first()).toHaveCSS('text-decoration-line', 'line-through');
+
+  // a dropped die is a span, not a button, so tapping it selects nothing
+  await dice.first().click();
+  await expect(page.locator('#pb-dice-hint')).toContainText('0 selezionati');
+});
+
+test('a reroll animates only the selected die; the kept dice hold steady and the full pool resolves', async ({ page }) => {
+  // four initial dice, then the fifth draw feeds the single rerolled die a 6
+  await openDice(page, { faces: [1, 2, 3, 4, 6] });
+  await page.locator('[data-approach="strength"]').click();
+  await page.locator('#pb-dice-mod button[data-dir="1"]').click(); // +1 → 4d6
+  await rollAndSettle(page);
+
+  // settled display sorts 4,3,2,1; select the die showing 2 (original index 1).
+  // Identity is index-keyed, so data-die stays 1 regardless of sorted position.
+  await page.locator('button[data-die="1"]').click();
+  await expect(page.locator('#pb-dice-hint')).toContainText('1 selezionati');
+  await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+
+  await page.locator('#pb-dice-reroll').click();
+
+  // Mid-tumble the kept dice (original indices 0, 2, 3) hold their settled faces
+  // while only the selected die flickers. data-die identity is stable, so these
+  // hold before, during, and after the tumble.
+  let sawTumble = false;
+  for (let i = 0; i < 14; i++) {
+    if (await page.locator('#pb-dice-roll').isDisabled()) sawTumble = true;
+    await expect(page.locator('button[data-die="0"]')).toHaveText('1');
+    await expect(page.locator('button[data-die="2"]')).toHaveText('3');
+    await expect(page.locator('button[data-die="3"]')).toHaveText('4');
+    await page.waitForTimeout(50);
+  }
+  expect(sawTumble).toBe(true);
+
+  await page.waitForTimeout(SETTLE_MS);
+  // the rerolled die lands a 6 → the full pool [1, 6, 3, 4] resolves as a full success
+  await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
+});

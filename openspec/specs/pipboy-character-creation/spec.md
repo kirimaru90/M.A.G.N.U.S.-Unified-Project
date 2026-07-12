@@ -61,11 +61,11 @@ Beneath the picker, a bordered info box SHALL show the selected species' `permes
 
 Step `S.P.E.C.I.A.L.` SHALL present the hint `18 punti · min 1 · max 4 per attributo`, a `N rimasti` counter in the top-right, and one stepper row per approach.
 
-Each attribute SHALL be clamped to `1..4`. An increment SHALL be blocked once all 18 points are spent. The remaining counter SHALL render amber while greater than `0` and glowing green at exactly `0`.
+Each attribute SHALL be clamped to `1..4` during the build. An increment SHALL be blocked once all 18 points are spent. The remaining counter SHALL render amber while greater than `0` and glowing green at exactly `0`.
 
 `AVANTI ▸` SHALL be disabled until exactly `0` points remain.
 
-This 18-point build rule is enforced **client-side only**; per `api-character-stats` the API accepts any attribute in `0..8` and does not enforce the build.
+This 18-point build rule is enforced **client-side only**; per `api-character-stats` the API accepts any attribute in `1..5` and does not enforce the build. The build's per-attribute cap of `4` sits inside the stored `1..5` range, leaving headroom for later advancement to `5` via the sheet editor.
 
 #### Scenario: Attributes start at the minimum
 - **WHEN** step 2 first renders

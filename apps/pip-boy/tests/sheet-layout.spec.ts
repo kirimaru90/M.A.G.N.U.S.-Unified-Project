@@ -351,10 +351,10 @@ test('changing FONTE PA persists paTrackedBy and updates the header line', async
   await expect(page.locator('#pb-sheet-header')).toContainText('PA · RESISTENZA');
 });
 
-test('SPECIAL steppers are bounded 0..8', async ({ page }) => {
+test('SPECIAL steppers are bounded 1..5', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
-      special: { strength: 8, perception: 0, endurance: 3, charisma: 3, intelligence: 3, agility: 3, luck: 3 },
+      special: { strength: 5, perception: 1, endurance: 3, charisma: 3, intelligence: 3, agility: 3, luck: 3 },
     }),
   });
   await page.locator('#pb-editor-toggle').click();
