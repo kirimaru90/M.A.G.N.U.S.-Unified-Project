@@ -6,6 +6,14 @@
     <title>M.A.G.N.U.S. Pip-Boy</title>
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#33ff66">
+    <!-- Chrome-free home-screen launch. iOS ignores the manifest `display`, so
+         these opt it into standalone; `black-translucent` + viewport-fit=cover +
+         the shell's safe-area insets draw the green screen under the status bar.
+         iOS cannot hide the status bar / home indicator for a PWA (platform
+         limit) — content stays legible via the safe-area insets instead. -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

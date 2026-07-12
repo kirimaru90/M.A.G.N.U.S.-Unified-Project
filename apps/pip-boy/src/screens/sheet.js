@@ -295,29 +295,56 @@ export function renderSheet(root, opts) {
 
     // --- swipe navigation ---------------------------------------------------
     // Listeners live on the content container, so they survive per-tab
-    // innerHTML re-renders. A gesture that begins on an interactive control is
-    // opted out entirely; vertical scrolling is never preventDefault-ed.
-    const INTERACTIVE = 'button, input, select, textarea, a, label, .pb-chip, .pb-pip, .pb-stepper, [data-approach]';
+    // innerHTML re-renders. Every pointerdown starts a candidate gesture — the
+    // whole surface is swipeable, including over controls. On pointerup the
+    // travel distance decides tap vs swipe: a short gesture is left to reach the
+    // control as a normal tap/click; a horizontal, direction-locked gesture past
+    // the threshold navigates and swallows the trailing click so it does not also
+    // activate a control it passed over. `touch-action: pan-y` on
+    // `.pb-screen-content` (pipboy.css) keeps native vertical scroll while
+    // handing horizontal gestures here rather than cancelling them.
     let swipeStartX = 0;
     let swipeStartY = 0;
-    let swipeCandidate = false;
+    let swipeActive = false;
+
+    // After a resolved swipe, swallow exactly the next click (capture phase, so
+    // it never reaches the control) then disarm. A stale suppressor from a swipe
+    // that produced no click is cleared on the next pointerdown.
+    let clickSuppressor = null;
+    function disarmClickSuppression() {
+        if (clickSuppressor) {
+            contentEl.removeEventListener('click', clickSuppressor, true);
+            clickSuppressor = null;
+        }
+    }
+    function armClickSuppression() {
+        disarmClickSuppression();
+        clickSuppressor = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            disarmClickSuppression();
+        };
+        contentEl.addEventListener('click', clickSuppressor, true);
+    }
 
     contentEl.addEventListener('pointerdown', (e) => {
-        swipeCandidate = !e.target.closest(INTERACTIVE);
+        disarmClickSuppression();
+        swipeActive = true;
         swipeStartX = e.clientX;
         swipeStartY = e.clientY;
     });
     contentEl.addEventListener('pointerup', (e) => {
-        if (!swipeCandidate) return;
-        swipeCandidate = false;
+        if (!swipeActive) return;
+        swipeActive = false;
         const dx = e.clientX - swipeStartX;
         const dy = e.clientY - swipeStartY;
         if (Math.abs(dx) < SWIPE_THRESHOLD) return;
         if (Math.abs(dx) < Math.abs(dy) * SWIPE_RATIO) return;
+        armClickSuppression();
         if (dx < 0) next();
         else prev();
     });
-    contentEl.addEventListener('pointercancel', () => { swipeCandidate = false; });
+    contentEl.addEventListener('pointercancel', () => { swipeActive = false; });
 
     renderHeader();
     renderTabs();

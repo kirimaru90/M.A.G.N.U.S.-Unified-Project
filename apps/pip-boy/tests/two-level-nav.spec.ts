@@ -92,7 +92,7 @@ test('swipe left advances and spills from a section into the next tab; right ret
   await expect(page.locator('.pb-subtab.active')).toHaveText('Talents');
 });
 
-test('a short, vertical, or on-control gesture does not navigate', async ({ page }) => {
+test('a short or predominantly-vertical gesture does not navigate', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
   await swipe(page, -30); // below the distance threshold
@@ -100,10 +100,8 @@ test('a short, vertical, or on-control gesture does not navigate', async ({ page
 
   await swipe(page, 15, -150); // predominantly vertical (scroll)
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
-
-  // A long horizontal drag that begins on an interactive control is ignored.
-  await swipe(page, -120, 0, '.pb-approach-row[data-approach="strength"]');
-  await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
+  // A gesture that *begins* on a control now navigates too (distance-based, not
+  // start-target-based); that behavior is covered in mobile-swipe-fullscreen.spec.ts.
 });
 
 // ── STATS split ─────────────────────────────────────────────────────
