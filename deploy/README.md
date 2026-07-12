@@ -58,6 +58,18 @@ docker network create edge      # once, if the edge network does not exist yet
 docker compose up -d            # attaches to `edge`, publishes no app ports
 ```
 
+### Pip-Boy is image-built (cache-version stamping)
+
+The `pip-boy` service builds an image instead of volume-mounting its source, so its
+service-worker cache version can be stamped at build time. `start.sh` exports
+`BUILD_ID=$(git rev-parse --short HEAD)` before `docker compose up -d --build`, and the
+Dockerfile seds that into `sw.js`'s `pipboy-__BUILD_ID__` placeholder — so every code
+deploy produces a byte-different `sw.js` and installed clients self-heal on next launch.
+
+For **local** editing (no stamping needed), rebuild on demand with
+`docker compose up -d --build pip-boy`, or copy `docker-compose.override.yml.example` to
+`docker-compose.override.yml` (git-ignored) to re-mount the source for live edits.
+
 Then verify each hostname serves its app and `/api/*` reaches the API with no CORS error.
 The [`smoke.sh`](./smoke.sh) script automates that check:
 

@@ -45,4 +45,47 @@ test.describe(() => {
       await Promise.all(regs.map((r) => r.unregister()));
     });
   });
+
+  // The self-heal contract the deploy-cache-busting change relies on: on
+  // activation the SW deletes every cache whose name != CACHE_VERSION, leaving
+  // only the current version's shell cache. Here CACHE_VERSION is the unstamped
+  // source placeholder ('pipboy-__BUILD_ID__'); the served bytes stay stable, so
+  // the assertion is on the cache-name shape and the purge, not a concrete SHA.
+  test('activation caches the shell under a single pipboy-* cache and purges stale ones', async ({ page }) => {
+    // Seed a stale, differently-named shell cache before the app registers the
+    // SW, so activation's cleanup has a prior version to delete.
+    await page.addInitScript(() => {
+      caches.open('pipboy-stale-v0').then((c) => c.put('/__stale__', new Response('old')));
+    });
+
+    await stubEnvironment(page, { allowServiceWorker: true });
+    await page.goto('/index.html');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    // Wait for the activate cleanup (install -> addAll -> activate purge) to run.
+    const keys = await page.evaluate(async () => {
+      const deadline = Date.now() + 5000;
+      let names = await caches.keys();
+      while (names.includes('pipboy-stale-v0') && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 100));
+        names = await caches.keys();
+      }
+      return names;
+    });
+
+    // The stale cache did not survive activation.
+    expect(keys).not.toContain('pipboy-stale-v0');
+    // Exactly one shell cache remains, and its name carries the version segment.
+    const shellCaches = keys.filter((k) => k.startsWith('pipboy-'));
+    expect(shellCaches).toHaveLength(1);
+    expect(shellCaches[0]).toMatch(/^pipboy-.+/);
+
+    // Clean up so this SW / its caches don't leak into later specs.
+    await page.evaluate(async () => {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+    });
+  });
 });

@@ -1,0 +1,18 @@
+# Local live-edit override for the image-built pip-boy PWA.
+#
+# Copy to `docker-compose.override.yml` (git-ignored) to re-mount the pip-boy
+# source over the built image, so local edits appear without a rebuild:
+#
+#     cp docker-compose.override.yml.example docker-compose.override.yml
+#     docker compose up -d
+#
+# The mounted source keeps sw.js's literal `pipboy-__BUILD_ID__` cache name
+# (unstamped) — fine for local work. Do NOT commit the real override file: on
+# the server it would mask the stamped image and break per-deploy cache busting.
+#
+# Alternative without an override: rebuild on demand with
+#     docker compose up -d --build pip-boy
+services:
+  pip-boy:
+    volumes:
+      - ./apps/pip-boy:/usr/share/nginx/html

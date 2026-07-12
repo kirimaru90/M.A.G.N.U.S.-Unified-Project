@@ -1,4 +1,8 @@
-const CACHE_VERSION = 'pipboy-v1';
+// Version segment is stamped at image-build time from the deployed commit
+// (see deploy-cache-busting): the Dockerfile seds `__BUILD_ID__` → ${BUILD_ID}.
+// The tracked source keeps the stable placeholder so `git pull` on deploy never
+// dirties this file. A build with no BUILD_ID falls back to `pipboy-dev`.
+const CACHE_VERSION = 'pipboy-__BUILD_ID__';
 
 const FONT_CDN_URLS = [
   'https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap',

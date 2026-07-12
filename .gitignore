@@ -45,6 +45,11 @@ desktop.ini
 *.swp
 *.swo
 
+# Local compose override (live-edit mount); template is committed as
+# docker-compose.override.yml.example. Never commit the real file — it would
+# re-mount source over the stamped pip-boy image on the server.
+docker-compose.override.yml
+
 # Misc
 *.local
 .cache/

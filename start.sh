@@ -26,6 +26,10 @@ echo "==> [3/5] Pulling latest '$BRANCH'..."
 git pull origin "$BRANCH"
 
 echo "==> [4/5] Building and starting containers (docker compose up -d --build)..."
+# Stamp the pip-boy PWA's service-worker cache version from the deployed commit,
+# so the version changes iff the code changed and installed clients self-heal.
+export BUILD_ID="$(git rev-parse --short HEAD)"
+echo "==> BUILD_ID=$BUILD_ID"
 docker compose up -d --build
 
 echo "==> [5/5] Container status:"

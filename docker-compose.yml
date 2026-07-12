@@ -64,10 +64,13 @@ services:
 
   # 5. PIP-BOY (character-sheet PWA)
   pip-boy:
-    image: nginx:alpine
+    build:
+      context: ./apps/pip-boy
+      args:
+        # Stamps sw.js's cache version; start.sh exports the deployed commit's
+        # short SHA. Falls back to `dev` when unset (e.g. local `docker compose`).
+        BUILD_ID: ${BUILD_ID:-dev}
     container_name: magnus-pipboy
-    volumes:
-      - ./apps/pip-boy:/usr/share/nginx/html
     networks:
       - edge
       - internal
