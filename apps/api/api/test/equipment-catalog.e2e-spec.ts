@@ -161,7 +161,9 @@ describe('EquipmentCatalogModule (e2e)', () => {
 
     expect(all.some((e) => e.slug === 'coltello')).toBe(true);
     expect(starters.some((e) => e.slug === 'coltello')).toBe(false);
-    expect(starters).toHaveLength(DEFAULT_EQUIPMENT_CATALOG.length);
+    expect(starters).toHaveLength(
+      DEFAULT_EQUIPMENT_CATALOG.filter((e) => e.isStarter).length,
+    );
     expect(starters.every((e) => e.isStarter)).toBe(true);
   });
 
@@ -353,5 +355,146 @@ describe('EquipmentCatalogModule (e2e)', () => {
       type: 'core',
       damaged: false,
     });
+  });
+
+  // --- misc-items-catalog: misc kind, starter exclusion, tag order ---
+
+  it('accepts a misc template and forces isStarter false', async () => {
+    const res = await patchCatalog([
+      {
+        action: 'add',
+        slug: 'chiave-inglese-e2e',
+        entry: {
+          name: 'Chiave inglese',
+          kind: 'misc',
+          description: 'Attrezzo',
+          defaultQuantity: 1,
+          isStarter: true,
+        },
+      },
+    ]);
+    expect(res.statusCode).toBe(200);
+
+    const entry = (await listEquipment()).find(
+      (e) => e.slug === 'chiave-inglese-e2e',
+    );
+    expect(entry).toMatchObject({
+      kind: 'misc',
+      defaultQuantity: 1,
+      isStarter: false,
+    });
+    expect(entry?.tags).toEqual([]);
+
+    // The starter filter never surfaces a misc entry.
+    const starters = await listEquipment('?starter=true');
+    expect(starters.some((e) => e.slug === 'chiave-inglese-e2e')).toBe(false);
+  });
+
+  it('rejects tags on a misc entry → 400', async () => {
+    const res = await patchCatalog([
+      {
+        action: 'add',
+        slug: 'misc-tagged',
+        entry: {
+          name: 'X',
+          kind: 'misc',
+          tags: [{ name: 'X', type: 'core' }],
+        },
+      },
+    ]);
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('persists and returns catalog tags in canonical core→extra→alpha order', async () => {
+    await patchCatalog([
+      {
+        action: 'add',
+        slug: 'arma-ordinata',
+        entry: {
+          name: 'Arma',
+          kind: 'weapon',
+          tags: [
+            { name: 'Zeta', type: 'core' },
+            { name: 'Alfa', type: 'extra' },
+            { name: 'Beta', type: 'core' },
+          ],
+        },
+      },
+    ]);
+    const entry = (await listEquipment()).find(
+      (e) => e.slug === 'arma-ordinata',
+    );
+    expect(entry?.tags).toEqual([
+      { name: 'Beta', type: 'core' },
+      { name: 'Zeta', type: 'core' },
+      { name: 'Alfa', type: 'extra' },
+    ]);
+  });
+
+  it('inventory accepts a { misc } block and rejects the legacy { other } key', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/campaigns/${campaignId}/characters`,
+      headers: auth(adminToken),
+      payload: { name: 'Nadia', userId: playerId },
+    });
+    const charId = JSON.parse(created.body).id as string;
+
+    const okMisc = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${charId}/inventory`,
+      headers: auth(playerToken),
+      payload: { misc: { items: [{ name: 'Chiave inglese', quantity: 1 }] } },
+    });
+    expect(okMisc.statusCode).toBe(200);
+    const miscItems = JSON.parse(okMisc.body).section.misc;
+    expect(miscItems).toHaveLength(1);
+    expect(miscItems[0]).toMatchObject({ name: 'Chiave inglese', quantity: 1 });
+    expect(miscItems[0].id).toBeTruthy();
+
+    const rejectOther = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${charId}/inventory`,
+      headers: auth(playerToken),
+      payload: { other: { items: [{ name: 'X', quantity: 1 }] } },
+    });
+    expect(rejectOther.statusCode).toBe(400);
+  });
+
+  it('persists and returns inventory weapon tags in canonical order', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: `/campaigns/${campaignId}/characters`,
+      headers: auth(adminToken),
+      payload: { name: 'Ivo', userId: playerId },
+    });
+    const charId = JSON.parse(created.body).id as string;
+
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${charId}/inventory`,
+      headers: auth(playerToken),
+      payload: {
+        weapons: {
+          items: [
+            {
+              name: 'Arma',
+              tags: [
+                { name: 'Zeta', type: 'core' },
+                { name: 'Alfa', type: 'extra' },
+                { name: 'Beta', type: 'core' },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const tags = JSON.parse(res.body).section.weapons[0].tags;
+    expect(tags.map((t: { name: string }) => t.name)).toEqual([
+      'Beta',
+      'Zeta',
+      'Alfa',
+    ]);
   });
 });

@@ -25,6 +25,23 @@ const STIMPACK: EquipmentCatalogEntryDto = {
   isStarter: true,
 };
 
+const CHIAVE: EquipmentCatalogEntryDto = {
+  slug: 'chiave-inglese',
+  name: 'Chiave inglese',
+  kind: 'misc',
+  tags: [],
+  defaultQuantity: 1,
+  isStarter: false,
+};
+
+const GIUBBOTTO: EquipmentCatalogEntryDto = {
+  slug: 'giubbotto-di-pelle',
+  name: 'Giubbotto di Pelle',
+  kind: 'armor',
+  tags: [{ name: 'CUOIO', type: 'core' }],
+  isStarter: false,
+};
+
 describe('EquipmentCatalogPage', () => {
   let fixture: ComponentFixture<EquipmentCatalogPage>;
   let component: EquipmentCatalogPage;
@@ -315,5 +332,121 @@ describe('EquipmentCatalogPage', () => {
     const emptyFixture = TestBed.createComponent(EquipmentCatalogPage);
     emptyFixture.detectChanges();
     expect(emptyFixture.nativeElement.textContent).toContain('Nessun equipaggiamento nel catalogo');
+  });
+
+  // --- misc-items-catalog: misc (Vari) kind ---
+
+  it('treats a misc draft as untagged so the quantity editor shows, not tags', () => {
+    component['showAddRow']();
+    component['draft'].kind = 'misc';
+    expect(component['draftIsTagged']()).toBe(false);
+  });
+
+  it('offers a Vari option in the kind selector', () => {
+    component['showAddRow']();
+    fixture.detectChanges();
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.bo-select');
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values).toContain('misc');
+    const variOption = Array.from(select.options).find((o) => o.value === 'misc');
+    expect(variOption?.textContent?.trim()).toBe('Vari');
+  });
+
+  it('adds a misc (Vari) template with a defaultQuantity and no tags', () => {
+    component['showAddRow']();
+    component['draft'] = {
+      slug: 'chiave-inglese',
+      name: 'Chiave inglese',
+      kind: 'misc',
+      tags: [],
+      defaultQuantity: 1,
+      isStarter: false,
+      description: 'Attrezzo',
+    };
+    component['submitAdd']();
+    fixture.detectChanges();
+
+    const [[ops]] = patchSpy.mock.calls as [[{ entry: Record<string, unknown> }[]]];
+    expect(ops[0]).toMatchObject({ action: 'add', slug: 'chiave-inglese' });
+    expect(ops[0].entry).toEqual({
+      name: 'Chiave inglese',
+      kind: 'misc',
+      isStarter: false,
+      description: 'Attrezzo',
+      defaultQuantity: 1,
+    });
+    expect(ops[0].entry).not.toHaveProperty('tags');
+  });
+
+  it('does not render the starter toggle for a misc entry row', async () => {
+    TestBed.resetTestingModule();
+    await setup([CHIAVE]);
+    const f = TestBed.createComponent(EquipmentCatalogPage);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('[data-testid="starter-chiave-inglese"]')).toBeNull();
+    // a non-misc row still shows its toggle
+    TestBed.resetTestingModule();
+    await setup([PISTOL]);
+    const f2 = TestBed.createComponent(EquipmentCatalogPage);
+    f2.detectChanges();
+    expect(f2.nativeElement.querySelector('[data-testid="starter-pistola-10mm"]')).toBeTruthy();
+  });
+
+  // --- misc-items-catalog: filter bar ---
+
+  describe('filter bar', () => {
+    async function withEntries(entries: EquipmentCatalogEntryDto[]) {
+      TestBed.resetTestingModule();
+      await setup(entries);
+      const f = TestBed.createComponent(EquipmentCatalogPage);
+      f.detectChanges();
+      return f.componentInstance as EquipmentCatalogPage;
+    }
+
+    const slugs = (c: EquipmentCatalogPage) =>
+      (c['filteredEntries']() ?? []).map((e) => e.slug);
+
+    it('narrows by name substring, case-insensitively', async () => {
+      const c = await withEntries([PISTOL, STIMPACK, CHIAVE]);
+      c['nameFilter'].set('chiave');
+      expect(slugs(c)).toEqual(['chiave-inglese']);
+      c['nameFilter'].set('PISTOLA');
+      expect(slugs(c)).toEqual(['pistola-10mm']);
+    });
+
+    it('narrows by slug substring', async () => {
+      const c = await withEntries([PISTOL, STIMPACK, CHIAVE]);
+      c['slugFilter'].set('stim');
+      expect(slugs(c)).toEqual(['stimpack']);
+    });
+
+    it('narrows to starters when the checkbox is set', async () => {
+      const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
+      c['starterFilter'].set(true);
+      expect(slugs(c).sort()).toEqual(['pistola-10mm', 'stimpack']);
+    });
+
+    it('narrows by the kind multi-select and restores all when cleared', async () => {
+      const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
+      c['toggleKindFilter']('weapon', true);
+      c['toggleKindFilter']('misc', true);
+      expect(slugs(c).sort()).toEqual(['chiave-inglese', 'pistola-10mm']);
+      c['toggleKindFilter']('weapon', false);
+      expect(slugs(c)).toEqual(['chiave-inglese']);
+      c['toggleKindFilter']('misc', false);
+      expect(slugs(c).sort()).toEqual([
+        'chiave-inglese',
+        'giubbotto-di-pelle',
+        'pistola-10mm',
+        'stimpack',
+      ]);
+    });
+
+    it('ANDs all active filters together', async () => {
+      const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
+      c['starterFilter'].set(true);
+      c['toggleKindFilter']('weapon', true);
+      expect(slugs(c)).toEqual(['pistola-10mm']);
+    });
   });
 });

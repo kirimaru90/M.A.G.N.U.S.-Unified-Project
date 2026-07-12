@@ -57,7 +57,7 @@ export class WeaponEquipItemDto {
   broken?: boolean;
 }
 
-/** consumables / other item — server-minted nanoid id (absent `id` = create). */
+/** consumables / misc item — server-minted nanoid id (absent `id` = create). */
 export class ConsumableGenericItemDto {
   @ApiPropertyOptional({ description: 'Omit to create; provide to update' })
   @IsOptional()
@@ -137,5 +137,5 @@ export class PatchInventoryDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => ConsumableGenericCollectionDto)
-  other?: ConsumableGenericCollectionDto;
+  misc?: ConsumableGenericCollectionDto;
 }

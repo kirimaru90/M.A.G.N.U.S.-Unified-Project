@@ -9,10 +9,11 @@ import {
 type SeedEntry = {
   slug: string;
   name: string;
-  kind: 'weapon' | 'armor' | 'consumable';
+  kind: 'weapon' | 'armor' | 'consumable' | 'misc';
   tags?: Array<{ name: string; type: 'core' | 'extra' }>;
   defaultQuantity?: number;
   isStarter: boolean;
+  description?: string;
 };
 
 /**
@@ -91,6 +92,23 @@ export const DEFAULT_EQUIPMENT_CATALOG: SeedEntry[] = [
     kind: 'consumable',
     defaultQuantity: 2,
     isStarter: true,
+  },
+  // Vari (misc) samples — GM loot / quest items, never starters.
+  {
+    slug: 'chiave-inglese',
+    name: 'Chiave Inglese',
+    kind: 'misc',
+    description: 'Attrezzo da riparazione.',
+    defaultQuantity: 1,
+    isStarter: false,
+  },
+  {
+    slug: 'corda',
+    name: 'Corda',
+    kind: 'misc',
+    description: 'Dieci metri di corda robusta.',
+    defaultQuantity: 1,
+    isStarter: false,
   },
 ];
 

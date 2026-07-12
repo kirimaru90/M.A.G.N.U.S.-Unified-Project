@@ -3,7 +3,7 @@ import { Document } from 'mongoose';
 
 export type EquipmentCatalogEntryDocument = EquipmentCatalogEntry & Document;
 
-export const EQUIPMENT_KINDS = ['weapon', 'armor', 'consumable'] as const;
+export const EQUIPMENT_KINDS = ['weapon', 'armor', 'consumable', 'misc'] as const;
 export const TAG_TYPES = ['core', 'extra'] as const;
 
 /** Mirrors the tag shape persisted on a character's weapons/equip items. */
@@ -34,11 +34,11 @@ export class EquipmentCatalogEntry {
   @Prop({ type: String, enum: EQUIPMENT_KINDS, required: true })
   kind: string;
 
-  /** Meaningful for `weapon`/`armor`; always empty for `consumable`. */
+  /** Meaningful for `weapon`/`armor`; always empty for `consumable`/`misc`. */
   @Prop({ type: [EquipmentTagSchema], default: [] })
   tags: EquipmentTag[];
 
-  /** Quantity used when instantiating a `consumable`; ignored for other kinds. */
+  /** Quantity used when instantiating a `consumable`/`misc`; ignored otherwise. */
   @Prop({ type: Number, min: 0 })
   defaultQuantity?: number;
 

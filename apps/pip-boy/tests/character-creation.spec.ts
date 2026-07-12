@@ -360,10 +360,10 @@ test('the starter stimpack is instantiated at quantity 2 and a blank keepsake ad
 
   const inv = reqs.patch('/inventory')!.postDataJSON();
   expect(inv.consumables.items).toEqual([{ name: 'Stimpack', quantity: 2 }]);
-  expect(inv).not.toHaveProperty('other');
+  expect(inv).not.toHaveProperty('misc');
 });
 
-test('a non-blank keepsake is added to inventory.other', async ({ page }) => {
+test('a non-blank keepsake is added to inventory.misc', async ({ page }) => {
   await openWizard(page);
   const reqs = recordRequests(page);
 
@@ -372,7 +372,7 @@ test('a non-blank keepsake is added to inventory.other', async ({ page }) => {
   await expect(page.locator('#pb-sheet-header')).toBeVisible();
 
   const inv = reqs.patch('/inventory')!.postDataJSON();
-  expect(inv.other.items).toEqual([{ name: 'Foto di famiglia', quantity: 1 }]);
+  expect(inv.misc.items).toEqual([{ name: 'Foto di famiglia', quantity: 1 }]);
 });
 
 test('resources are seeded with the rolled scraps and caps from luck', async ({ page }) => {

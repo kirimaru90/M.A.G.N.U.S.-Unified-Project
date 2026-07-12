@@ -25,7 +25,7 @@ function makeMockChar(overrides: Record<string, unknown> = {}) {
     paCurrent: 10,
     paTrackedBy: 'agility',
     resources: { caps: 100, bobbleheads: 5, scraps: 50 },
-    inventory: { weapons: [], equip: [], consumables: [], other: [] },
+    inventory: { weapons: [], equip: [], consumables: [], misc: [] },
     isDeleted: false,
     ...overrides,
   };
@@ -261,7 +261,7 @@ describe('partial patch preserves omitted fields', () => {
         ],
         equip: [],
         consumables: [],
-        other: [],
+        misc: [],
       },
     });
     const svc = makeService(char);
@@ -293,7 +293,7 @@ describe('partial patch preserves omitted fields', () => {
         ],
         equip: [],
         consumables: [],
-        other: [],
+        misc: [],
       },
     });
     const svc = makeService(char);
@@ -317,7 +317,7 @@ describe('partial patch preserves omitted fields', () => {
         weapons: [],
         equip: [],
         consumables: [{ id: 'c1', name: 'Stimpak', quantity: 3 }],
-        other: [],
+        misc: [],
       },
     });
     const svc = makeService(char);
@@ -413,7 +413,7 @@ describe('update (PUT) — full-document replace', () => {
         weapons: [{ id: 'w0', name: 'old' }],
         equip: [{ id: 'e0', name: 'oldequip' }],
         consumables: [],
-        other: [],
+        misc: [],
       },
     });
     const svc = makeService(char);
@@ -427,6 +427,6 @@ describe('update (PUT) — full-document replace', () => {
     // equip was present before but omitted from the PUT body → cleared.
     expect(result.inventory.equip).toEqual([]);
     expect(result.inventory.consumables).toEqual([]);
-    expect(result.inventory.other).toEqual([]);
+    expect(result.inventory.misc).toEqual([]);
   });
 });

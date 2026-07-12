@@ -38,7 +38,7 @@ export class EquipmentCatalogEntryDto {
   @ApiPropertyOptional({ enum: EQUIPMENT_KINDS })
   @IsOptional()
   @IsIn(EQUIPMENT_KINDS)
-  kind?: 'weapon' | 'armor' | 'consumable';
+  kind?: 'weapon' | 'armor' | 'consumable' | 'misc';
 
   @ApiPropertyOptional({ type: [EquipmentTagDto] })
   @IsOptional()

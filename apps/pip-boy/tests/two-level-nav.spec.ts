@@ -4,7 +4,7 @@ import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtu
 // Covers the new pipboy-sheet-navigation capability (two-level tabs, the
 // flattened prev/next order, swipe with a deadzone) plus the character-sheet
 // deltas that ride with it (STATS split, squares-only PA control, the inventory
-// add-item popup, Vari→inventory.other, and the tag/skill display orderings).
+// add-item popup, Vari→inventory.misc, and the tag/skill display orderings).
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {
@@ -183,7 +183,7 @@ test('the popup opens in view mode; the red ✕ cancels with no write', async ({
   expect(inventoryPatched).toBe(false);
 });
 
-test('a custom weapon in the popup carries its tags; the Vari popup hides the existing-item tab', async ({ page }) => {
+test('a custom weapon in the popup carries its tags; the Vari popup offers Scegli esistente from the misc catalog', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
@@ -200,21 +200,42 @@ test('a custom weapon in the popup carries its tags; the Vari popup hides the ex
     weapons: { items: [{ name: 'Coltello', tags: [{ name: 'AFFILATO', type: 'core' }] }] },
   });
 
-  // Vari has no catalog kind: the popup opens straight on Aggiungi custom with
-  // only name/description/quantity, and no "Scegli esistente" tab.
+  // Vari now has a catalog kind (`misc`): the popup presents the "Scegli
+  // esistente" tab populated from the misc catalog, and the custom form still
+  // carries name/description/quantity with no tag buttons.
   await page.locator('.pb-subtab', { hasText: 'Vari' }).click();
   await page.locator('[data-add-open]').click();
-  await expect(page.locator('[data-ptab="existing"]')).toHaveCount(0);
+  await expect(page.locator('[data-ptab="existing"]')).toHaveCount(1);
+  await expect(page.locator('#pb-popup-datalist option')).toHaveAttribute('value', 'Chiave inglese');
+  await page.locator('[data-ptab="custom"]').click();
   await expect(page.locator('#pb-popup-desc')).toBeVisible();
   await expect(page.locator('[data-add-custom-tag]')).toHaveCount(0);
 });
 
-test('a custom Vari item persists to inventory.other and renders under Vari', async ({ page }) => {
+test('selecting a misc template in the Vari popup copies it onto inventory.misc', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
   await page.locator('.pb-subtab', { hasText: 'Vari' }).click();
 
   await page.locator('[data-add-open]').click();
+  await page.locator('#pb-popup-existing').fill('Chiave inglese');
+
+  const req = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
+  await page.locator('[data-ok]').click();
+  expect((await req).postDataJSON()).toEqual({
+    misc: { items: [{ name: 'Chiave inglese', quantity: 1, description: 'Attrezzo' }] },
+  });
+
+  await expect(page.locator('[data-section-list="misc"]')).toContainText('Chiave inglese');
+});
+
+test('a custom Vari item persists to inventory.misc and renders under Vari', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Vari' }).click();
+
+  await page.locator('[data-add-open]').click();
+  await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-popup-name').fill('Chiave inglese');
   await page.locator('#pb-popup-desc').fill('arrugginita');
   await page.locator('#pb-popup-qty button[data-dir="1"]').click(); // 1 → 2
@@ -222,43 +243,45 @@ test('a custom Vari item persists to inventory.other and renders under Vari', as
   const req = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
   await page.locator('[data-ok]').click();
   expect((await req).postDataJSON()).toEqual({
-    other: { items: [{ name: 'Chiave inglese', quantity: 2, description: 'arrugginita' }] },
+    misc: { items: [{ name: 'Chiave inglese', quantity: 2, description: 'arrugginita' }] },
   });
 
-  await expect(page.locator('[data-section-list="other"]')).toContainText('Chiave inglese');
+  await expect(page.locator('[data-section-list="misc"]')).toContainText('Chiave inglese');
 });
 
 // ── tag display ordering with correct edit routing ──────────────────
 
-test('tags render core→extra→alpha, and editing a reordered chip targets the stored tag', async ({ page }) => {
+test('tags render in the server-canonical stored order and edits target the stored tag', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
       inventory: {
+        // The API persists tags canonically (core-first, then extra, alpha), so
+        // the stored array is already ordered and the client renders it directly.
         weapons: [{
           id: 'w1', name: 'Fucile', broken: false,
           tags: [
-            { name: 'Zeta', type: 'extra', damaged: false },
             { name: 'Alfa', type: 'core', damaged: false },
             { name: 'Beta', type: 'core', damaged: false },
+            { name: 'Zeta', type: 'extra', damaged: false },
           ],
         }],
-        equip: [], consumables: [], other: [],
+        equip: [], consumables: [], misc: [],
       },
     }),
   });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
-  // Display order: Alfa (core), Beta (core), Zeta (extra).
+  // Display order equals stored order: Alfa (core), Beta (core), Zeta (extra).
   const chipTexts = await page.locator('[data-item="w1"] .pb-chip').allInnerTexts();
   expect(chipTexts.map((t) => t.trim().split(/\s+/)[0])).toEqual(['Alfa', 'Beta', 'Zeta']);
 
-  // The displayed-first chip is Alfa, whose STORED index is 1. Toggling it must
-  // flip the stored tag at index 1, not the tag at stored index 0 (Zeta).
+  // Toggling the first chip (Alfa) flips the stored tag at index 0 directly —
+  // stored order now equals display order, so no index reconciliation is needed.
   const req = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
   await page.locator('[data-item="w1"] .pb-chip').first().click();
   const tags = (await req).postDataJSON().weapons.items[0].tags;
-  expect(tags[1]).toMatchObject({ name: 'Alfa', damaged: true });
-  expect(tags[0]).toMatchObject({ name: 'Zeta', damaged: false });
+  expect(tags[0]).toMatchObject({ name: 'Alfa', damaged: true });
+  expect(tags[2]).toMatchObject({ name: 'Zeta', damaged: false });
 });
 
 // ── resources relocated to the bottom, fitting the width ────────────

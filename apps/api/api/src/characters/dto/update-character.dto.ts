@@ -48,7 +48,7 @@ export class UpdateInventoryDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ConsumableGenericItemDto)
-  other?: ConsumableGenericItemDto[];
+  misc?: ConsumableGenericItemDto[];
 }
 
 /** Status as direct condition arrays + scalar (full replace). */

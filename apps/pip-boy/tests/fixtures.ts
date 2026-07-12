@@ -24,7 +24,7 @@ export function makeCharacter(overrides: Record<string, unknown> = {}) {
     status: { positiveConditions: [], negativeConditions: [], criticalState: false },
     perks: [],
     resources: { caps: 10, bobbleheads: 1, scraps: 2 },
-    inventory: { weapons: [], equip: [], consumables: [], other: [] },
+    inventory: { weapons: [], equip: [], consumables: [], misc: [] },
     ...overrides,
   };
 }
@@ -64,6 +64,13 @@ export const DEFAULT_STARTER_EQUIPMENT = [
   { slug: 'stimpack', name: 'Stimpack', kind: 'consumable', isStarter: true, tags: [], defaultQuantity: 2 },
 ];
 
+// Misc (Vari) templates are never starters, so they live outside the starter set.
+// The full-catalog endpoint (`GET /equipment-catalog`) returns them; the wizard's
+// `?starter=true` query never does.
+export const DEFAULT_MISC_CATALOG = [
+  { slug: 'chiave-inglese', name: 'Chiave inglese', kind: 'misc', isStarter: false, tags: [], defaultQuantity: 1, description: 'Attrezzo' },
+];
+
 export interface StubOptions {
   role?: 'player' | 'admin';
   userId?: string;
@@ -77,6 +84,7 @@ export interface StubOptions {
   conditionsCatalog?: typeof DEFAULT_CONDITIONS_CATALOG;
   speciesCatalog?: typeof DEFAULT_SPECIES_CATALOG;
   starterEquipment?: typeof DEFAULT_STARTER_EQUIPMENT;
+  miscCatalog?: typeof DEFAULT_MISC_CATALOG;
   allowServiceWorker?: boolean;
 }
 
@@ -94,6 +102,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   const conditionsCatalog = opts.conditionsCatalog ?? DEFAULT_CONDITIONS_CATALOG;
   const speciesCatalog = opts.speciesCatalog ?? DEFAULT_SPECIES_CATALOG;
   const starterEquipment = opts.starterEquipment ?? DEFAULT_STARTER_EQUIPMENT;
+  const miscCatalog = opts.miscCatalog ?? DEFAULT_MISC_CATALOG;
   const players = opts.players ?? DEFAULT_PLAYERS;
 
   // Registered first so later, more specific routes take priority.
@@ -212,7 +221,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   await page.route(/\/characters\/[^/]+\/resources$/, patchSection('resources', (body) => ({ ...character.resources, ...body })));
   await page.route(/\/characters\/[^/]+\/inventory$/, patchSection('inventory', (body: any) => {
     const next = { ...character.inventory };
-    for (const section of ['weapons', 'equip', 'consumables', 'other']) {
+    for (const section of ['weapons', 'equip', 'consumables', 'misc']) {
       if (!body[section]) continue;
       let items = [...(next as any)[section]];
       for (const it of body[section].items ?? []) {
@@ -237,10 +246,14 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   await page.route('**/species-catalog', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(speciesCatalog) }),
   );
-  // The wizard requests only starter templates; the stub set is all starters.
-  await page.route('**/equipment-catalog*', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(starterEquipment) }),
-  );
+  // The wizard requests only starter templates (`?starter=true`); the inventory
+  // add-item popup requests the full catalog (bare path), which also carries the
+  // misc (Vari) templates that are never starters.
+  await page.route('**/equipment-catalog*', (route) => {
+    const starterOnly = new URL(route.request().url()).searchParams.get('starter') === 'true';
+    const body = starterOnly ? starterEquipment : [...starterEquipment, ...miscCatalog];
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+  });
   await page.route(/\/campaigns\/[^/]+\/characters\/[^/]+$/, (route) => {
     if (route.request().method() !== 'DELETE') return route.fallback();
     return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });

@@ -266,7 +266,7 @@ const taggedWeapon = {
 test('core and extra chips render with distinct border styles', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
-      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
+      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], misc: [] },
     }),
   });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
@@ -284,7 +284,7 @@ test('core and extra chips render with distinct border styles', async ({ page })
 test('tapping a tag chip in view mode marks it damaged and shows DANNEGGIATA', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
-      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
+      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], misc: [] },
     }),
   });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
@@ -306,7 +306,7 @@ test('tapping a tag chip in view mode marks it damaged and shows DANNEGGIATA', a
 test('tag add and remove controls appear only in editor mode', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
-      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], other: [] },
+      inventory: { weapons: [taggedWeapon], equip: [], consumables: [], misc: [] },
     }),
   });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();

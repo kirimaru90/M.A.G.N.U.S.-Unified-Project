@@ -488,7 +488,7 @@ export function renderCreate(root, opts) {
                 };
             }
             if (draft.keepsake.trim()) {
-                inventory.other = { items: [{ name: draft.keepsake.trim(), quantity: 1 }] };
+                inventory.misc = { items: [{ name: draft.keepsake.trim(), quantity: 1 }] };
             }
             if (Object.keys(inventory).length > 0) {
                 await patchInventory(campaignId, created.id, inventory);

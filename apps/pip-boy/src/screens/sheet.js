@@ -14,7 +14,8 @@ import { renderNotesTab } from '../tabs/notes.js';
 // Two-level tab tree. A first-level node either renders directly (`render`) or
 // carries `subtabs`. Inventory leaves also carry `invKey` (the character
 // inventory collection they surface) and `invKind` (the equipment-catalog kind
-// their add-item popup filters by; `null` for Vari, which has no catalog kind).
+// their add-item popup filters by). Every subtab now has a catalog kind,
+// including Vari (`misc`).
 const TAB_TREE = [
     { key: 'stats', label: 'STATS', subtabs: [
         { key: 'special', label: 'S.P.E.C.I.A.L.', render: renderSpecialTab },
@@ -26,7 +27,7 @@ const TAB_TREE = [
         { key: 'weapons', label: 'Armi', invKey: 'weapons', invKind: 'weapon', render: renderInvSubtab },
         { key: 'equip', label: 'Armature', invKey: 'equip', invKind: 'armor', render: renderInvSubtab },
         { key: 'consumables', label: 'Consumabili', invKey: 'consumables', invKind: 'consumable', render: renderInvSubtab },
-        { key: 'other', label: 'Vari', invKey: 'other', invKind: null, render: renderInvSubtab },
+        { key: 'misc', label: 'Vari', invKey: 'misc', invKind: 'misc', render: renderInvSubtab },
     ] },
     { key: 'dice', label: 'DADI', render: renderDiceTab },
     { key: 'notes', label: 'NOTES', render: renderNotesTab },

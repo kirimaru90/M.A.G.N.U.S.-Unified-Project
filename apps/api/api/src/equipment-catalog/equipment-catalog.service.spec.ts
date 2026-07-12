@@ -301,6 +301,136 @@ describe('EquipmentCatalogService — entry validation', () => {
   );
 });
 
+// misc-items-catalog Tasks 1.x / 2.x — misc kind, starter exclusion, tag order.
+describe('EquipmentCatalogService — misc kind', () => {
+  it('accepts a misc template with a description and defaultQuantity, no tags', async () => {
+    const { service, updateOne } = makeService([]);
+    const result = await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'chiave-inglese',
+        entry: {
+          name: 'Chiave inglese',
+          kind: 'misc',
+          description: 'Attrezzo',
+          defaultQuantity: 1,
+        },
+      } as never,
+    ]);
+    expect(result.ignored).toEqual([]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'chiave-inglese' },
+      {
+        $set: {
+          slug: 'chiave-inglese',
+          name: 'Chiave inglese',
+          kind: 'misc',
+          tags: [],
+          defaultQuantity: 1,
+          isStarter: false,
+          description: 'Attrezzo',
+        },
+      },
+      { upsert: true },
+    );
+  });
+
+  it('rejects non-empty tags on a misc entry', async () => {
+    const { service } = makeService([]);
+    await expect(
+      service.patchSchema([
+        {
+          action: 'add',
+          slug: 'x',
+          entry: {
+            name: 'X',
+            kind: 'misc',
+            tags: [{ name: 'X', type: 'core' }],
+          },
+        } as never,
+      ]),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('forces isStarter false on a misc add even when true is submitted', async () => {
+    const { service, updateOne } = makeService([]);
+    await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'corda',
+        entry: { name: 'Corda', kind: 'misc', isStarter: true },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'corda' },
+      expect.objectContaining({
+        $set: expect.objectContaining({ kind: 'misc', isStarter: false }),
+      }),
+      { upsert: true },
+    );
+  });
+
+  it('clears isStarter when an update changes an entry kind to misc', async () => {
+    const { service, updateOne } = makeService([
+      {
+        slug: 'stimpack',
+        name: 'Stimpack',
+        kind: 'consumable',
+        isStarter: true,
+        defaultQuantity: 2,
+      },
+    ]);
+    await service.patchSchema([
+      {
+        action: 'update',
+        slug: 'stimpack',
+        entry: { kind: 'misc' },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'stimpack' },
+      expect.objectContaining({
+        $set: expect.objectContaining({ kind: 'misc', isStarter: false }),
+      }),
+      { upsert: true },
+    );
+  });
+});
+
+describe('EquipmentCatalogService — canonical tag order', () => {
+  it('stores tags core-first then extra, alphabetical within each group', async () => {
+    const { service, updateOne } = makeService([]);
+    await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'arma',
+        entry: {
+          name: 'Arma',
+          kind: 'weapon',
+          tags: [
+            { name: 'Zeta', type: 'core' },
+            { name: 'Alfa', type: 'extra' },
+            { name: 'Beta', type: 'core' },
+          ],
+        },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'arma' },
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          tags: [
+            { name: 'Beta', type: 'core' },
+            { name: 'Zeta', type: 'core' },
+            { name: 'Alfa', type: 'extra' },
+          ],
+        }),
+      }),
+      { upsert: true },
+    );
+  });
+});
+
 describe('EquipmentCatalogService.findAll', () => {
   it('filters to starter templates when asked', async () => {
     const { service, entryModel } = makeService([PISTOL]);
@@ -314,6 +444,28 @@ describe('EquipmentCatalogService.findAll', () => {
     expect(entryModel.find).toHaveBeenCalledWith({});
     expect(all).toEqual([
       expect.objectContaining({ slug: 'pistola-10mm', isStarter: true }),
+    ]);
+  });
+
+  it('returns tags in canonical order defensively for an unsorted document', async () => {
+    const { service } = makeService([
+      {
+        slug: 'arma',
+        name: 'Arma',
+        kind: 'weapon',
+        tags: [
+          { name: 'Zeta', type: 'core' },
+          { name: 'Alfa', type: 'extra' },
+          { name: 'Beta', type: 'core' },
+        ],
+        isStarter: false,
+      },
+    ]);
+    const all = await service.findAll();
+    expect(all[0].tags).toEqual([
+      { name: 'Beta', type: 'core' },
+      { name: 'Zeta', type: 'core' },
+      { name: 'Alfa', type: 'extra' },
     ]);
   });
 });

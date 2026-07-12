@@ -242,6 +242,36 @@
         ]
       }
     },
+    "/users/me/last-selection": {
+      "put": {
+        "operationId": "UserLastSelectionController_setLastSelection",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LastSelectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set own last-used campaign + character (authenticated)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/campaigns": {
       "get": {
         "operationId": "CampaignsController_list",
@@ -1505,7 +1535,7 @@
             "bearer": []
           }
         ],
-        "summary": "Patch SPECIAL stats (admin-only writes)",
+        "summary": "Patch SPECIAL stats (owner or admin)",
         "tags": [
           "characters"
         ]
@@ -1552,7 +1582,7 @@
             "bearer": []
           }
         ],
-        "summary": "Patch skills (admin-only writes)",
+        "summary": "Patch skills (owner or admin)",
         "tags": [
           "characters"
         ]
@@ -1599,7 +1629,7 @@
             "bearer": []
           }
         ],
-        "summary": "Patch perks (admin-only writes)",
+        "summary": "Patch perks (owner or admin)",
         "tags": [
           "characters"
         ]
@@ -1793,6 +1823,256 @@
         ]
       }
     },
+    "/species-catalog": {
+      "get": {
+        "operationId": "SpeciesCatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global species catalog (authenticated)",
+        "tags": [
+          "species-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "SpeciesCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeciesCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug, or species still in use by a character"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of species catalog (admin)",
+        "tags": [
+          "species-catalog"
+        ]
+      }
+    },
+    "/skills-catalog": {
+      "get": {
+        "operationId": "SkillsCatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global skills catalog (authenticated)",
+        "tags": [
+          "skills-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "SkillsCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillsCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug on add or rename"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of skills catalog (admin)",
+        "tags": [
+          "skills-catalog"
+        ]
+      }
+    },
+    "/conditions-catalog": {
+      "get": {
+        "operationId": "ConditionsCatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global conditions catalog (authenticated)",
+        "tags": [
+          "conditions-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "ConditionsCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConditionsCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug on add or rename"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of conditions catalog (admin)",
+        "tags": [
+          "conditions-catalog"
+        ]
+      }
+    },
+    "/equipment-catalog": {
+      "get": {
+        "operationId": "EquipmentCatalogController_list",
+        "parameters": [
+          {
+            "name": "starter",
+            "required": false,
+            "in": "query",
+            "description": "When \"true\", return only templates flagged isStarter",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global equipment catalog (authenticated)",
+        "tags": [
+          "equipment-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "EquipmentCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipmentCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug on add or rename"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of equipment catalog (admin)",
+        "tags": [
+          "equipment-catalog"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -1886,6 +2166,10 @@
             "type": "object",
             "description": "Server-owned; accepted but ignored."
           },
+          "lastCharacterId": {
+            "type": "object",
+            "description": "Server-owned; accepted but ignored."
+          },
           "unlockedHiddenIds": {
             "description": "Server-owned; accepted but ignored.",
             "type": "array",
@@ -1894,6 +2178,21 @@
             }
           }
         }
+      },
+      "LastSelectionDto": {
+        "type": "object",
+        "properties": {
+          "campaignId": {
+            "type": "string"
+          },
+          "characterId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "campaignId",
+          "characterId"
+        ]
       },
       "CreateCampaignDto": {
         "type": "object",
@@ -2137,12 +2436,7 @@
           },
           "species": {
             "type": "string",
-            "enum": [
-              "human",
-              "ghoul",
-              "super_mutant",
-              "robot"
-            ]
+            "description": "Species catalog slug (default: human)"
           },
           "userId": {
             "type": "string",
@@ -2399,7 +2693,7 @@
               "$ref": "#/components/schemas/ConsumableGenericItemDto"
             }
           },
-          "other": {
+          "misc": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ConsumableGenericItemDto"
@@ -2415,12 +2709,7 @@
           },
           "species": {
             "type": "string",
-            "enum": [
-              "human",
-              "ghoul",
-              "super_mutant",
-              "robot"
-            ]
+            "description": "Species catalog slug"
           },
           "special": {
             "$ref": "#/components/schemas/PatchSpecialDto"
@@ -2563,10 +2852,292 @@
           "consumables": {
             "$ref": "#/components/schemas/ConsumableGenericCollectionDto"
           },
-          "other": {
+          "misc": {
             "$ref": "#/components/schemas/ConsumableGenericCollectionDto"
           }
         }
+      },
+      "SpeciesCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "permesso": {
+            "type": "string",
+            "description": "The species' permanent benefit copy"
+          },
+          "svantaggio": {
+            "type": "string",
+            "description": "The species' drawback copy"
+          },
+          "tagSkillBudget": {
+            "type": "number",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "SpeciesCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/SpeciesCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "SpeciesCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpeciesCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "SkillCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "SkillsCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/SkillCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "SkillsCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkillsCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "ConditionCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "defaultSeverity": {
+            "type": "string",
+            "enum": [
+              "minor",
+              "major"
+            ]
+          },
+          "polarity": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "ConditionsCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/ConditionCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "ConditionsCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionsCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "EquipmentTagDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "core",
+              "extra"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "type"
+        ]
+      },
+      "EquipmentCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "weapon",
+              "armor",
+              "consumable",
+              "misc"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentTagDto"
+            }
+          },
+          "defaultQuantity": {
+            "type": "number",
+            "minimum": 0
+          },
+          "isStarter": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "EquipmentCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/EquipmentCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "EquipmentCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EquipmentCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
       }
     }
   }

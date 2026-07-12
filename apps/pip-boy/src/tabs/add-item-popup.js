@@ -3,15 +3,15 @@ import { esc } from '../engine/render.js';
 // A modal for adding one inventory item. Two inner tabs:
 //  - "Scegli esistente": an autocomplete over the equipment catalog filtered by
 //    `kind`; confirming copies the chosen template onto the character
-//    (copy-on-use). Hidden when `kind` is null (Vari has no catalog kind yet),
-//    so the popup opens straight on the custom tab.
+//    (copy-on-use). Present for every subtab, including Vari (kind `misc`).
+//    Only hidden if `kind` is null (no subtab passes null anymore).
 //  - "Aggiungi custom": a kind-shaped form. Weapons/armor get name + core/extra
 //    tags; consumables and Vari get name + description + quantity.
 // The popup owns no persistence: on OK it calls `onAdd(item)` with the item body
 // and the caller issues the PATCH. The red ✕ (and a backdrop click) cancel with
 // no write.
 
-const KIND_NOUN = { weapon: 'arma', armor: 'armatura', consumable: 'consumabile' };
+const KIND_NOUN = { weapon: 'arma', armor: 'armatura', consumable: 'consumabile', misc: 'oggetto' };
 
 export function openAddItemPopup({ kind, label, catalog, onAdd }) {
     const hasCatalog = kind !== null;
@@ -119,7 +119,7 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
             const name = overlay.querySelector('#pb-popup-existing').value.trim();
             const entry = entries.find((e) => e.name === name);
             if (!entry) return; // nothing selected — keep the popup open
-            if (entry.kind === 'consumable') {
+            if (entry.kind === 'consumable' || entry.kind === 'misc') {
                 item = { name: entry.name, quantity: entry.defaultQuantity ?? 1 };
                 if (entry.description) item.description = entry.description;
             } else {

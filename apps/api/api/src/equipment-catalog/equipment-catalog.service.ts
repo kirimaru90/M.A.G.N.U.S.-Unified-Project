@@ -13,6 +13,7 @@ import {
 } from './schemas/equipment-catalog-entry.schema';
 import { EquipmentCatalogOpDto } from './dto/equipment-catalog-patch.dto';
 import { definedOnly } from '../common/utils/defined-only';
+import { sortTags } from '../common/utils/sort-tags';
 
 export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
 
@@ -48,8 +49,11 @@ function assertValidEntry(entry: CatalogEntry) {
       );
   }
 
-  if (entry.kind === 'consumable' && (entry.tags?.length ?? 0) > 0)
-    throw new BadRequestException('a consumable may not carry tags');
+  if (
+    (entry.kind === 'consumable' || entry.kind === 'misc') &&
+    (entry.tags?.length ?? 0) > 0
+  )
+    throw new BadRequestException(`a ${entry.kind} may not carry tags`);
 
   if (entry.defaultQuantity !== undefined) {
     if (!Number.isInteger(entry.defaultQuantity) || entry.defaultQuantity < 0)
@@ -57,6 +61,19 @@ function assertValidEntry(entry: CatalogEntry) {
         'entry.defaultQuantity must be a non-negative integer',
       );
   }
+}
+
+/**
+ * Coerce an entry into its canonical stored form: tags in canonical order, and
+ * — because a `misc` entry is never a starter — `isStarter` forced to `false`
+ * for `misc` (a submitted `true` is ignored, not rejected).
+ */
+function normalizeEntry(entry: CatalogEntry): CatalogEntry {
+  return {
+    ...entry,
+    isStarter: entry.kind === 'misc' ? false : entry.isStarter,
+    tags: sortTags(entry.tags ?? []),
+  };
 }
 
 @Injectable()
@@ -74,7 +91,7 @@ export class EquipmentCatalogService {
       slug: e.slug,
       name: e.name,
       kind: e.kind,
-      tags: e.tags ?? [],
+      tags: sortTags(e.tags ?? []),
       defaultQuantity: e.defaultQuantity,
       isStarter: e.isStarter ?? false,
       description: e.description,
@@ -110,14 +127,14 @@ export class EquipmentCatalogService {
         if (!e?.name) throw new BadRequestException('entry.name is required');
         if (!e.kind) throw new BadRequestException('entry.kind is required');
 
-        const entry: CatalogEntry = {
+        const entry = normalizeEntry({
           name: e.name,
           kind: e.kind,
           tags: e.tags ?? [],
           defaultQuantity: e.defaultQuantity,
           isStarter: e.isStarter ?? false,
           description: e.description,
-        };
+        });
         assertValidEntry(entry);
         map.set(op.slug, entry);
         toUpsert.set(op.slug, entry);
@@ -127,7 +144,10 @@ export class EquipmentCatalogService {
           ignored.push({ slug: op.slug, reason: 'unknown_slug' });
           continue;
         }
-        const merged: CatalogEntry = { ...existing, ...definedOnly(op.entry) };
+        const merged = normalizeEntry({
+          ...existing,
+          ...definedOnly(op.entry),
+        });
         assertValidEntry(merged);
         map.set(op.slug, merged);
         toUpsert.set(op.slug, merged);

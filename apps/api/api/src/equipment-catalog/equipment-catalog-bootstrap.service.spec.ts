@@ -45,15 +45,22 @@ describe('EquipmentCatalogBootstrapService', () => {
     expect(stimpack?.tags).toBeUndefined();
   });
 
-  it('flags every seeded entry as a starter', () => {
+  it('flags every seeded weapon/armor/consumable as a starter, but never a misc', () => {
     for (const e of DEFAULT_EQUIPMENT_CATALOG) {
-      expect(e.isStarter).toBe(true);
+      expect(e.isStarter).toBe(e.kind !== 'misc');
     }
+  });
+
+  it('seeds at least one misc (Vari) sample, none of them a starter', () => {
+    const misc = DEFAULT_EQUIPMENT_CATALOG.filter((e) => e.kind === 'misc');
+    expect(misc.length).toBeGreaterThan(0);
+    expect(misc.every((e) => !e.isStarter)).toBe(true);
+    expect(misc.every((e) => (e.tags?.length ?? 0) === 0)).toBe(true);
   });
 
   it('gives every weapon and armor at least one core tag', () => {
     for (const e of DEFAULT_EQUIPMENT_CATALOG) {
-      if (e.kind === 'consumable') continue;
+      if (e.kind === 'consumable' || e.kind === 'misc') continue;
       expect(e.tags?.some((t) => t.type === 'core')).toBe(true);
     }
   });

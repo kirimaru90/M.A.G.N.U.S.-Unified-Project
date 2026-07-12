@@ -1,0 +1,116 @@
+# pipboy-sheet-navigation Specification
+
+## Purpose
+
+Navigation for the `apps/pip-boy` character sheet: a two-level tab layout (five first-level tabs with conditional subtab rows for `STATS` and `INV`), a single flattened prev/next traversal order over every reachable position, horizontal swipe-gesture navigation with a deadzone that yields to interactive controls and vertical scroll, and a footer that reflects the active tab (or subtab). Sheet content and editing behaviour are specified by `pipboy-character-sheet`.
+
+## Requirements
+
+### Requirement: Two-level tab layout
+
+The character sheet SHALL present navigation on two levels.
+
+The **first level** SHALL be exactly five equal-width tabs, in order — `STATS`, `SALUTE`, `INV`, `DADI`, `NOTES` — rendered as flex buttons divided by a hairline right border. The active first-level tab SHALL render at full opacity with a tinted background and a 2px glowing green underline pinned to its bottom edge; inactive first-level tabs SHALL render at reduced opacity.
+
+The **second level** SHALL be a subtab row rendered immediately beneath the first-level tab bar. It SHALL appear **only** when the active first-level tab defines subtabs:
+
+- `STATS` SHALL define three subtabs, in order: `S.P.E.C.I.A.L.`, `Abilità`, `Talents`.
+- `INV` SHALL define four subtabs, in order: `Armi`, `Armature`, `Consumabili`, `Vari`.
+- `SALUTE`, `DADI`, and `NOTES` SHALL define no subtabs, and the subtab row SHALL NOT be rendered while they are active.
+
+The active subtab SHALL be styled to distinguish it from its siblings in the same visual language as the first-level active tab. The rendered content region SHALL be a function of the pair `(first-level tab, active subtab)`; for a first-level tab with no subtabs it is a function of the first-level tab alone.
+
+Each first-level tab with subtabs SHALL remember its own active subtab across first-level switches, defaulting to that tab's first subtab when never visited.
+
+#### Scenario: First level renders five tabs
+- **WHEN** a character sheet opens
+- **THEN** exactly five first-level tabs labelled `STATS`, `SALUTE`, `INV`, `DADI`, `NOTES` are rendered
+
+#### Scenario: Subtab row appears for STATS
+- **WHEN** the user selects the `STATS` first-level tab
+- **THEN** a subtab row with `S.P.E.C.I.A.L.`, `Abilità`, and `Talents` is rendered beneath the first-level tab bar
+
+#### Scenario: Subtab row appears for INV
+- **WHEN** the user selects the `INV` first-level tab
+- **THEN** a subtab row with `Armi`, `Armature`, `Consumabili`, and `Vari` is rendered
+
+#### Scenario: Subtab row is absent for tabs without subtabs
+- **WHEN** the user selects `SALUTE`, `DADI`, or `NOTES`
+- **THEN** no subtab row is rendered and the content region reflects only that first-level tab
+
+#### Scenario: Content follows the active pair
+- **GIVEN** the `STATS` tab is active with the `Abilità` subtab selected
+- **WHEN** the user selects the `Talents` subtab
+- **THEN** the content region switches from the abilities view to the talents view without changing the first-level tab
+
+#### Scenario: Active subtab is remembered per first-level tab
+- **GIVEN** the user selected the `Consumabili` subtab under `INV`, then switched to `STATS`
+- **WHEN** the user returns to `INV`
+- **THEN** the `Consumabili` subtab is active again
+
+### Requirement: Flattened prev/next traversal order
+
+The sheet SHALL define a single flattened ordering of every reachable tab position that visits each first-level tab's subtabs before moving to the next first-level tab, in this order:
+
+`S.P.E.C.I.A.L. → Abilità → Talents → SALUTE → Armi → Armature → Consumabili → Vari → DADI → NOTES`
+
+A **next** navigation SHALL move one position forward in this order; a **previous** navigation SHALL move one position backward. Navigation SHALL cross first-level boundaries: advancing from a section's last subtab SHALL land on the next first-level tab's first position, and retreating from a first-level tab's first position SHALL land on the previous section's last subtab. Navigation SHALL stop (no wrap) at the two ends of the order.
+
+#### Scenario: Next within a section
+- **GIVEN** the active position is `Abilità`
+- **WHEN** the user navigates next
+- **THEN** the active position becomes `Talents`
+
+#### Scenario: Next spills into the following first-level tab
+- **GIVEN** the active position is `Talents` (the last STATS subtab)
+- **WHEN** the user navigates next
+- **THEN** the active position becomes `SALUTE`
+
+#### Scenario: Previous crosses back into a section's last subtab
+- **GIVEN** the active position is `SALUTE`
+- **WHEN** the user navigates previous
+- **THEN** the active position becomes `Talents`
+
+#### Scenario: Ends do not wrap
+- **GIVEN** the active position is `S.P.E.C.I.A.L.` (the first position)
+- **WHEN** the user navigates previous
+- **THEN** the active position is unchanged
+
+### Requirement: Swipe gesture navigation with deadzone
+
+The sheet SHALL let the user navigate the flattened order by horizontal swipe: a swipe **left** SHALL perform a **next** navigation and a swipe **right** SHALL perform a **previous** navigation.
+
+A gesture SHALL be treated as a navigation swipe only when it clears a **deadzone**: the horizontal travel SHALL exceed a minimum distance threshold, and the gesture SHALL be direction-locked to horizontal — its horizontal travel SHALL dominate its vertical travel by a clear margin. A gesture that does not clear the deadzone SHALL NOT navigate and SHALL NOT interfere with the underlying interaction.
+
+The gesture SHALL NOT hijack normal interactions: taps and drags that begin on an interactive control (tag chips, steppers, numeric inputs, selects, buttons, and the dice roller's controls) SHALL NOT trigger navigation, and vertical scrolling SHALL remain unaffected.
+
+#### Scenario: Swipe left advances
+- **GIVEN** the active position is `Armi`
+- **WHEN** the user swipes left past the distance threshold, predominantly horizontally
+- **THEN** the active position becomes `Armature`
+
+#### Scenario: Swipe right retreats
+- **GIVEN** the active position is `Armature`
+- **WHEN** the user swipes right past the distance threshold, predominantly horizontally
+- **THEN** the active position becomes `Armi`
+
+#### Scenario: Short drag does not navigate
+- **WHEN** the user drags horizontally a distance shorter than the threshold and releases
+- **THEN** the active position is unchanged
+
+#### Scenario: Vertical scroll does not navigate
+- **WHEN** the user drags predominantly vertically to scroll the content
+- **THEN** the content scrolls and the active position is unchanged
+
+#### Scenario: Interaction on a control is not a swipe
+- **GIVEN** a gesture that begins on a stepper button or numeric input
+- **WHEN** the gesture completes
+- **THEN** the control receives the interaction and no navigation occurs
+
+### Requirement: Footer reflects the active tab
+
+The sheet footer SHALL show the active tab's name on the left, `TAPPI n` (current caps) in the centre, and an `HH:MM` clock on the right. When a first-level tab has subtabs, the footer's left slot SHALL reflect the active subtab.
+
+#### Scenario: Footer tracks the active subtab
+- **WHEN** the user selects the `Consumabili` subtab under `INV`
+- **THEN** the footer's left slot reflects the `Consumabili` position, its centre reads `TAPPI n`, and its right slot shows an `HH:MM` clock

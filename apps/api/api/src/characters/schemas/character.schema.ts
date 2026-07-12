@@ -187,7 +187,7 @@ export class InventorySection {
   consumables: ConsumableItem[];
 
   @Prop({ type: [GenericItemSchema], default: [] })
-  other: GenericItem[];
+  misc: GenericItem[];
 }
 export const InventorySectionSchema =
   SchemaFactory.createForClass(InventorySection);

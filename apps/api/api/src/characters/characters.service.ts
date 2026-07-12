@@ -31,6 +31,7 @@ import { PatchActionPointsDto } from './dto/patch-action-points.dto';
 import { PatchInventoryDto } from './dto/patch-inventory.dto';
 import { PatchResourcesDto } from './dto/patch-resources.dto';
 import { SpeciesCatalogService } from '../species-catalog/species-catalog.service';
+import { sortTags } from '../common/utils/sort-tags';
 
 /** A character loaded via `.lean()` — plain object with an ObjectId `_id`. */
 type LeanCharacter = Character & { _id: Types.ObjectId };
@@ -39,6 +40,19 @@ type LeanCharacter = Character & { _id: Types.ObjectId };
 function assignIds<T extends Identified>(items: PatchItem<T>[]): T[] {
   return items.map((item) =>
     item.id ? (item as T) : ({ ...item, id: nanoid(8) } as T),
+  );
+}
+
+/**
+ * Persist each weapon/equip item's `tags` in canonical order (`core` first,
+ * then `extra`, alphabetical by name within each group). Idempotent, so it is
+ * safe to run over both patched and untouched arrays.
+ */
+function sortItemTags<T extends { tags?: { name: string; type: string }[] }>(
+  items: T[],
+): T[] {
+  return items.map((item) =>
+    item.tags ? { ...item, tags: sortTags(item.tags) } : item,
   );
 }
 
@@ -194,10 +208,10 @@ export class CharactersService {
     if (s.inventory) {
       const inv = s.inventory;
       set.inventory = {
-        weapons: assignIds(inv.weapons ?? []),
-        equip: assignIds(inv.equip ?? []),
+        weapons: sortItemTags(assignIds(inv.weapons ?? [])),
+        equip: sortItemTags(assignIds(inv.equip ?? [])),
         consumables: assignIds(inv.consumables ?? []),
-        other: assignIds(inv.other ?? []),
+        misc: assignIds(inv.misc ?? []),
       };
     }
 
@@ -372,14 +386,14 @@ export class CharactersService {
       ...(inv.weapons ?? []).map((i) => i.id),
       ...(inv.equip ?? []).map((i) => i.id),
       ...(inv.consumables ?? []).map((i) => i.id),
-      ...(inv.other ?? []).map((i) => i.id),
+      ...(inv.misc ?? []).map((i) => i.id),
     ]);
 
     const inventory = {
-      weapons: inv.weapons ?? [],
-      equip: inv.equip ?? [],
+      weapons: sortItemTags(inv.weapons ?? []),
+      equip: sortItemTags(inv.equip ?? []),
       consumables: inv.consumables ?? [],
-      other: inv.other ?? [],
+      misc: inv.misc ?? [],
     };
 
     if (scrubbed.weapons) {
@@ -389,7 +403,7 @@ export class CharactersService {
         scrubbed.weapons.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.weapons = result;
+      inventory.weapons = sortItemTags(result);
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -401,7 +415,7 @@ export class CharactersService {
         scrubbed.equip.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.equip = result;
+      inventory.equip = sortItemTags(result);
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
@@ -418,14 +432,14 @@ export class CharactersService {
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );
     }
-    if (scrubbed.other) {
+    if (scrubbed.misc) {
       const { result, unknownIds } = patchCollectionArray(
-        inventory.other,
-        scrubbed.other.items,
-        scrubbed.other.deletedIds,
+        inventory.misc,
+        scrubbed.misc.items,
+        scrubbed.misc.deletedIds,
         { onIdless: 'create', onUnknownId: 'skip', idPool },
       );
-      inventory.other = result;
+      inventory.misc = result;
       unknownIds.forEach((id) =>
         ignored.push({ section: 'inventory', id, reason: 'unknown_id' }),
       );

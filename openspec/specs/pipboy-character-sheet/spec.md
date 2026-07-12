@@ -2,29 +2,29 @@
 
 ## Purpose
 
-Character sheet screens for `apps/pip-boy`: a five-tab layout (`S.P.E`, `ABIL`, `SALUTE`, `ZAINO`, `DADI`) with an owner/admin editor-mode toggle, an owner/admin-writable action-points stepper, an S.P.E.C.I.A.L. approaches tab, an abilities/talents tab, a status/conditions (logoramento) editor with catalog quick-pick, inventory/gear editor, and resources display/edit. The client-side dice roller is now specified by `pipboy-dice-roller`.
+Character sheet screens for `apps/pip-boy`: a two-level tab layout with an owner/admin editor-mode toggle, an owner/admin-writable action-points stepper, an S.P.E.C.I.A.L. approaches subtab, abilities and talents subtabs, a status/conditions (logoramento) editor with catalog quick-pick, an inventory/gear editor with an add-item popup, and resources display/edit. Navigation (first-level tabs, the conditional subtab row, the flattened traversal order, swipe gestures, and the footer's active-tab tracking) is specified by `pipboy-sheet-navigation`. The client-side dice roller is specified by `pipboy-dice-roller`.
 
 ## Requirements
 
 ### Requirement: Action points stepper
 
-The sheet header SHALL present the character's action points per the reference layout: the label `PUNTI AZIONE`, a row of `paMax` pip squares (filled and glowing when "on"), and a `[−][+]` stepper. Adjusting the stepper SHALL write `paCurrent` via the existing `PATCH .../action-points` endpoint.
+The sheet header SHALL present the character's action points per the reference layout: the label `PUNTI AZIONE` and a row of `paMax` pip squares (filled and glowing when "on") **flanked by a `−` control on the left and a `+` control on the right**. The header SHALL NOT render a numeric `paCurrent` readout — the filled square count is the sole indication of the current value. Activating the `−`/`+` controls SHALL write `paCurrent` via the existing `PATCH .../action-points` endpoint.
 
-`paMax` and `paTrackedBy` SHALL NOT be editable from the header. They are edited by the owner (or an admin) in the S.P.E.C.I.A.L. tab's editor mode, via a `FONTE PA` selector and a `MAX PA` stepper, consistent with `api-character-stats` now making both owner-writable. When `paMax` is lowered below `paCurrent`, the app SHALL clamp `paCurrent` to the new maximum and persist the clamped value.
+`paMax` and `paTrackedBy` SHALL NOT be editable from the header. They are edited by the owner (or an admin) in the S.P.E.C.I.A.L. subtab's editor mode, via a `FONTE PA` selector and a `MAX PA` stepper, consistent with `api-character-stats` making both owner-writable. When `paMax` is lowered below `paCurrent`, the app SHALL clamp `paCurrent` to the new maximum and persist the clamped value.
 
 The header SHALL also show the character's name, a bordered species chip, and a `PA · <source approach name>` line derived from `paTrackedBy`.
 
-#### Scenario: Owner spends action points
-- **WHEN** the owning player decrements the PA stepper by 1
-- **THEN** the app issues `PATCH .../action-points { paCurrent: <new value> }` and the pips reflect the persisted result
-
-#### Scenario: Pip row is sized to paMax
+#### Scenario: Header renders squares flanked by steppers with no number
 - **GIVEN** a character with `paMax: 5` and `paCurrent: 2`
 - **WHEN** the sheet header renders
-- **THEN** five pip squares are shown, two of them filled
+- **THEN** a `−` control, five pip squares (two filled), and a `+` control are shown in that order, and no numeric `paCurrent` value is displayed
+
+#### Scenario: Owner spends action points
+- **WHEN** the owning player activates the `−` control
+- **THEN** the app issues `PATCH .../action-points { paCurrent: <new value> }` and the pips reflect the persisted result
 
 #### Scenario: Owner changes paMax from the editor
-- **WHEN** the owning player raises `MAX PA` in the S.P.E.C.I.A.L. tab's editor mode
+- **WHEN** the owning player raises `MAX PA` in the S.P.E.C.I.A.L. subtab's editor mode
 - **THEN** the app issues `PATCH .../action-points { paMax: <new value> }` and the header's pip row resizes
 
 #### Scenario: Lowering paMax clamps paCurrent
@@ -82,61 +82,52 @@ The SALUTE tab SHALL present the character's `status` as owner- and admin-editab
 
 #### Scenario: Critical banner appears on every tab
 - **GIVEN** a character whose `criticalState` is `true`
-- **WHEN** the user switches to the ZAINO tab
+- **WHEN** the user switches to the INV tab
 - **THEN** the amber `⚠ STATO CRITICO — NON PUOI AGIRE` banner is still displayed beneath the tab bar
 
 ### Requirement: Inventory and gear editor
 
-The ZAINO tab SHALL present the character's `inventory` as owner- and admin-editable via the existing `PATCH .../inventory` endpoint, laid out per the reference:
+The `INV` first-level tab SHALL present the character's `inventory` across four subtabs — `Armi` (`inventory.weapons`), `Armature` (`inventory.equip`), `Consumabili` (`inventory.consumables`), and `Vari` (`inventory.misc`) — each owner- and admin-editable via the existing `PATCH .../inventory` endpoint. Each subtab SHALL show only its own collection's items. The `Vari` collection is the character schema's `misc` (`GenericItem[]`) collection — the renamed successor of the former `other` collection, with the same name/description/quantity shape as consumables — which the API accepts on `PATCH .../inventory { misc: … }`.
 
-- `▸ ARMI` and `▸ ARMATURE`: one row-card per item (`inventory.weapons` and `inventory.equip` respectively), each showing the item name, an amber `DANNEGGIATA` tag when any of its tags is marked damaged, and its tags as chips. `CORE` chips render with a tinted fill and solid border; `EXTRA` chips render outline-only with a dashed border. Each chip carries a small `CORE`/`EXTRA` kind-label.
+- `Armi` and `Armature`: one row-card per item, each showing the item name, an amber `DANNEGGIATA` tag when any of its tags is marked damaged, and its tags as chips. `CORE` chips render with a tinted fill and solid border; `EXTRA` chips render outline-only with a dashed border. Each chip carries a small `CORE`/`EXTRA` kind-label.
+- Item tags SHALL render all `core` tags first, then all `extra` tags, alphabetical by name within each group. This order is now **guaranteed by the server** (`api-character-inventory` persists tags canonically), so the client MAY render the stored array directly and per-tag edit actions (toggle damaged, rename, remove) target tags by their stored index.
 - Tapping a tag chip in **view** mode SHALL toggle that tag's `damaged` flag (struck-through, dimmed). In **editor** mode a chip's label becomes an inline text input with a `✕` remover, and `+ core` / `+ extra` dashed buttons appear to add tags.
-- `▸ CONSUMABILI`: compact dashed-divider rows showing name, `×qty`, a `[−][+]` stepper, and — in editor mode only — a `✕`. In **editor** mode the name SHALL be an inline text input (mirroring the weapons/armor item-name field); in view mode it renders as static text.
-- In editor mode each list gains a dashed `+ AGGIUNGI` action and each row a `✕` remover, per the `Editor mode toggle` requirement.
+- `Consumabili` and `Vari`: compact dashed-divider rows showing name, `×qty`, a `[−][+]` stepper, and — in editor mode only — a `✕`. In **editor** mode the name SHALL be an inline text input; in view mode it renders as static text. `Vari` rows MAY also carry a `description`.
+- Each subtab SHALL offer a single add-path per the `Inventory add-item popup` requirement, available in both view and editor mode. Editor mode SHALL NOT render a separate inline `+ AGGIUNGI …` add row for inventory lists.
 
-All item edits — including renaming a consumable and adjusting its quantity — SHALL be issued as partial `PATCH .../inventory` merges that carry only the changed field, relying on the endpoint's partial-merge guarantee to preserve the item's other fields.
+All item edits — including renaming a consumable and adjusting its quantity — SHALL be issued as partial `PATCH .../inventory` merges that carry only the changed field, relying on the endpoint's partial-merge guarantee to preserve the item's other fields. Writes to the `Vari` collection SHALL target the `misc` key (`PATCH .../inventory { misc: … }`); the former `other` key is no longer accepted.
 
 #### Scenario: Owner adds a weapon
-- **WHEN** the owning player adds a weapon with a name in editor mode
-- **THEN** the app issues `PATCH .../inventory { weapons: { items: [{ name }] } }` and the new item (with its server-assigned id) appears in the list
+- **WHEN** the owning player adds a weapon with a name
+- **THEN** the app issues `PATCH .../inventory { weapons: { items: [{ name }] } }` and the new item (with its server-assigned id) appears under `Armi`
 
-#### Scenario: Owner marks a tag damaged from view mode
-- **WHEN** the owning player taps a weapon's tag chip while not in editor mode
-- **THEN** the app issues a `PATCH .../inventory` merge for that item setting the tag's `damaged: true`, and the chip renders struck-through, while the item's name is unchanged
+#### Scenario: Owner adds a custom Vari item
+- **WHEN** the owning player adds a custom item under `Vari` with a name, description, and quantity
+- **THEN** the app issues `PATCH .../inventory { misc: { items: [{ name, description, quantity }] } }` and the item appears under `Vari`
 
-#### Scenario: Owner renames a consumable
-- **GIVEN** editor mode is on and a consumable named `Stimpak` with `quantity: 3`
-- **WHEN** the owning player edits the consumable's name input to `RadAway` and commits
-- **THEN** the app issues `PATCH .../inventory { consumables: { items: [{ id, name: "RadAway" }] } }` and the row shows `RadAway ×3` — the quantity is unchanged
-
-#### Scenario: Adjusting consumable quantity keeps the name
-- **GIVEN** a consumable named `Stimpak` with `quantity: 3`
-- **WHEN** the owning player increments its quantity stepper
-- **THEN** the app issues `PATCH .../inventory { consumables: { items: [{ id, quantity: 4 }] } }` and the row shows `Stimpak ×4` — the name is unchanged
-
-#### Scenario: Consumable name editing is gated behind editor mode
-- **WHEN** editor mode is off
-- **THEN** the consumable name renders as static text with no input, and only the `[−][+]` quantity stepper is interactive
+#### Scenario: Tags render core-first then extra, alphabetical
+- **GIVEN** a weapon whose stored tags are `[{name:"Beta",type:"core"},{name:"Zeta",type:"core"},{name:"Alfa",type:"extra"}]`
+- **WHEN** its row-card renders
+- **THEN** the chips appear in the order `Beta`, `Zeta`, `Alfa`
 
 #### Scenario: Item with any damaged tag shows the DANNEGGIATA marker
 - **GIVEN** a weapon with one of its two tags marked `damaged`
 - **WHEN** its row-card renders
 - **THEN** an amber `DANNEGGIATA` tag is shown on the card
 
-#### Scenario: Core and extra chips render differently
-- **GIVEN** an item with one `core` tag and one `extra` tag
-- **WHEN** its chips render
-- **THEN** the `core` chip has a tinted fill and a solid border, and the `extra` chip has a dashed, unfilled border
-
-#### Scenario: Tag editing is gated behind editor mode
-- **WHEN** editor mode is off
-- **THEN** no `+ core` / `+ extra` buttons and no per-tag `✕` removers are rendered
-
 ### Requirement: Resources display and edit
 
-The ZAINO tab SHALL present `resources` as three bordered boxes in a row — `TAPPI` (caps), `ROTTAMI` (scraps), and `BOBBLEHEAD` (bobbleheads) — each with a label and a `[−] value [+]` stepper whose value is also a directly-editable numeric input. All three SHALL be editable by the character's owner or an admin via the existing `PATCH .../resources` endpoint, consistent with `api-character-resources` now making `bobbleheads` owner-writable.
+The `INV` subtabs SHALL present `resources` as three bordered boxes in a row — `TAPPI` (caps), `ROTTAMI` (scraps), and `BOBBLEHEAD` (bobbleheads) — each with a label and a `[−] value [+]` stepper whose value is also a directly-editable numeric input. The resource row SHALL be rendered at the **bottom** of every INV subtab (below the item list), not at the top. The three boxes SHALL be sized to fit the device width (≈360px) without causing horizontal overflow.
 
-The sheet footer SHALL show `TAPPI n` reflecting the current caps value.
+All three SHALL be editable by the character's owner or an admin via the existing `PATCH .../resources` endpoint, consistent with `api-character-resources` making `bobbleheads` owner-writable. The sheet footer SHALL show `TAPPI n` reflecting the current caps value.
+
+#### Scenario: Resources appear at the bottom of every INV subtab
+- **WHEN** the user selects any of `Armi`, `Armature`, `Consumabili`, or `Vari`
+- **THEN** the `TAPPI`/`ROTTAMI`/`BOBBLEHEAD` resource row is rendered below that subtab's item list
+
+#### Scenario: Resource row fits the device width
+- **WHEN** an INV subtab renders on a ≈360px-wide device
+- **THEN** the three resource boxes fit within the case width with no horizontal overflow
 
 #### Scenario: Owner adjusts caps
 - **WHEN** the owning player changes the caps value
@@ -146,10 +137,6 @@ The sheet footer SHALL show `TAPPI n` reflecting the current caps value.
 - **WHEN** the owning (non-admin) player increments the `BOBBLEHEAD` stepper
 - **THEN** the app issues `PATCH .../resources { bobbleheads: <new value> }` and the persisted value reflects the change
 
-#### Scenario: Resource value is directly editable
-- **WHEN** the owning player types a value into a resource box's numeric input
-- **THEN** the app issues the matching `PATCH .../resources` write
-
 ### Requirement: Editor mode toggle
 
 The sheet SHALL provide a single `✎` editor-mode toggle, rendered in the **case status bar** alongside the `◄ DOSSIER` and `ESCI` controls (per `pipboy-app-shell`), styled with the same status-bar control theme — not in the tab bar. Editor mode is a client-side view state; it SHALL default to off on every sheet open and SHALL NOT be persisted.
@@ -158,7 +145,8 @@ While editor mode is **on**:
 - A green `◉ EDITOR — modifica S.P.E.C.I.A.L., abilità e talenti` strip SHALL appear beneath the tab bar (yielding to the amber critical banner when both apply).
 - The screen SHALL carry the green editor-mode ring specified by `pipboy-terminal-chrome`, giving an always-visible signal that edits are live.
 - The status-bar `✎` toggle SHALL render in an active/pressed state.
-- Every editable list SHALL swap from its view layout to its edit layout: static text becomes inline `<input>`s, each row gains a `✕` remover, and each list gains a dashed `+ AGGIUNGI …` action.
+- Each **skills** and **perks** list SHALL swap from its view layout to its edit layout: static text becomes inline `<input>`s, each row gains a `✕` remover, and each list gains a dashed `+ AGGIUNGI …` action.
+- Each **inventory** list SHALL swap static item names to inline `<input>`s and gain per-row `✕` removers and per-tag edit affordances, but SHALL NOT gain a dashed `+ AGGIUNGI …` add row — adding an inventory item is always done through the `+` popup, in both view and editor mode.
 
 Editor mode SHALL be offered only to a user who may actually write the character — its owner, or an admin. For any other viewer the `✎` toggle SHALL NOT be rendered.
 
@@ -168,56 +156,31 @@ Each list SHALL be implemented as a view/edit pair, never as a single mutable re
 - **WHEN** the owning player opens their character's sheet
 - **THEN** a `✎` toggle is rendered in the case status bar beside `◄ DOSSIER` and `ESCI`
 
-#### Scenario: Admin sees the editor toggle on another player's sheet
-- **WHEN** an admin opens a character owned by another player in the campaign
-- **THEN** the `✎` toggle is rendered in the status bar
-
 #### Scenario: Editor mode reveals edit affordances and the ring
 - **WHEN** the owning player activates the `✎` toggle
-- **THEN** the `◉ EDITOR` strip appears, the green editor-mode ring is shown, the `✎` toggle renders active, and the abilities, talents, weapons, and armor lists each present a dashed `+ AGGIUNGI …` action and per-row `✕` removers
+- **THEN** the `◉ EDITOR` strip appears, the green editor-mode ring is shown, the `✎` toggle renders active, the skills and talents lists each present a dashed `+ AGGIUNGI …` action and per-row `✕` removers, and inventory rows present inline name inputs and `✕` removers
+
+#### Scenario: Inventory add stays on the popup in editor mode
+- **WHEN** editor mode is on and an INV subtab is shown
+- **THEN** the inventory list presents no dashed inline add row, and the `+` popup trigger remains the add-path
 
 #### Scenario: Editor mode resets on reopen
 - **GIVEN** a user left the sheet with editor mode on
 - **WHEN** they reopen that character's sheet
 - **THEN** editor mode is off and the editor-mode ring is not shown
 
-#### Scenario: Critical banner takes precedence over the editor strip
-- **GIVEN** a character in critical state
-- **WHEN** editor mode is on
-- **THEN** the amber `⚠ STATO CRITICO — NON PUOI AGIRE` banner is displayed
+### Requirement: S.P.E.C.I.A.L. approaches subtab
 
-### Requirement: Five-tab sheet layout
-
-The sheet SHALL present exactly five content tabs, in order — `S.P.E`, `ABIL`, `SALUTE`, `ZAINO`, `DADI` — as equal-width flex buttons. Each tab is divided from the next by a hairline right border. The `✎` editor toggle SHALL NOT appear in the tab bar; it lives in the case status bar per the `Editor mode toggle` requirement.
-
-The active tab SHALL render at full opacity with a tinted background and a 2px glowing green underline pinned to its bottom edge. Inactive tabs SHALL render at reduced opacity. The sheet footer SHALL show the current tab's name on the left, `TAPPI n` in the centre, and an `HH:MM` clock on the right.
-
-The `ABIL` tab is **new**: abilities (Tag Skills with maestria) and talents (perks) move out of the S.P.E tab, which previously carried both.
-
-#### Scenario: Five tabs render without an editor toggle in the tab bar
-- **WHEN** a character sheet opens
-- **THEN** exactly five tab buttons labelled `S.P.E`, `ABIL`, `SALUTE`, `ZAINO`, `DADI` are rendered, and no `✎` toggle appears in the tab bar
-
-#### Scenario: Active tab carries the glowing underline
-- **WHEN** the user selects the `SALUTE` tab
-- **THEN** it renders at full opacity with a tinted background and a 2px glowing underline, and the other four render dimmed
-
-#### Scenario: Footer tracks the active tab
-- **WHEN** the user selects the `ZAINO` tab
-- **THEN** the footer's left slot reads the ZAINO tab's name, its centre reads `TAPPI n`, and its right slot shows an `HH:MM` clock
-
-### Requirement: S.P.E.C.I.A.L. approaches tab
-
-The `S.P.E` tab SHALL present, in **view** mode, the header `▸ APPROCCI · TOCCA PER TIRARE` and the hint `Il valore = numero di d6 nel pool`, followed by seven full-width approach rows. Each row SHALL show the approach's display letter, its name, its one-line description, and a five-slot pip row rendering that attribute's value (`1..5`).
+The `S.P.E.C.I.A.L.` subtab SHALL present, in **view** mode, the header `▸ APPROCCI · TOCCA PER TIRARE` and the hint `Il valore = numero di d6 nel pool`, followed by seven full-width approach rows. Each row SHALL show the approach's display letter, its name, its one-line description, and a five-slot pip row rendering that attribute's value (`1..5`).
 
 Activating an approach row SHALL switch to the `DADI` tab with that approach preselected as the dice-pool source.
 
 Beneath the rows, a bordered legend box SHALL render the dice-outcome reference: `6 = Successo Pieno · 4/5 = Successo con Costo · 1/2/3 = Fallimento. Ogni 6 oltre il primo restituisce 1 PA.`
 
-In **editor** mode the tab SHALL instead show the header `▸ MODIFICA S.P.E.C.I.A.L.` and seven stepper rows (letter · name · `[−] value [+]`) bounded `1..5`, writing through `PATCH .../special`; followed by a `FONTE PA` selector writing `paTrackedBy` and a `MAX PA` stepper writing `paMax`. The `MAX PA` stepper's bounds SHALL be independent of the SPECIAL range — narrowing SPECIAL to `1..5` SHALL NOT lower the reachable `paMax`, which retains its `0..8` range.
+In **editor** mode the subtab SHALL instead show the header `▸ MODIFICA S.P.E.C.I.A.L.` and seven stepper rows (letter · name · `[−] value [+]`) bounded `1..5`, writing through `PATCH .../special`; followed by a `FONTE PA` selector writing `paTrackedBy` and a `MAX PA` stepper writing `paMax`. The `MAX PA` stepper's bounds SHALL be independent of the SPECIAL range — narrowing SPECIAL to `1..5` SHALL NOT lower the reachable `paMax`, which retains its `0..8` range.
 
 #### Scenario: Approach rows render with pips
-- **WHEN** the `S.P.E` tab renders in view mode
+- **WHEN** the `S.P.E.C.I.A.L.` subtab renders in view mode
 - **THEN** seven rows are shown, each with a display letter, name, description, and a pip row reflecting that attribute's value
 
 #### Scenario: Tapping an approach jumps to the dice tab preselected
@@ -244,36 +207,79 @@ In **editor** mode the tab SHALL instead show the header `▸ MODIFICA S.P.E.C.I
 
 ### Requirement: Abilities tab
 
-The `ABIL` tab SHALL present two editable sections and one read-only reference block.
+The `Abilità` subtab (under `STATS`) SHALL present one editable section and one read-only reference block.
 
-- `▸ TAG SKILLS · MAESTRIA`: one row-card per entry in `skills`, showing the skill's catalog name and, to the right of the name, a three-slot competence square row rendering its maestria as `COMPETENTE`=1 filled, `ESPERTO`=2, `MAESTRO`=3 — in the same visual language as the SPECIAL pip row. In editor mode the level becomes a `<select>` (`COMPETENTE` / `ESPERTO` / `MAESTRO`) and a `✕` remover appears, with a dashed `+ ABILITÀ` action adding a row backed by the skills catalog. Writes go through `PATCH .../skills`.
-- `▸ TALENTI`: one row-card per entry in `perks`, showing name and description. In editor mode both become inputs, a `✕` remover appears, and a dashed `+ TALENTO` action adds a row. Writes go through `PATCH .../perks`.
+- `▸ TAG SKILLS · MAESTRIA`: one row-card per entry in `skills`, showing the skill's catalog name and, to the right of the name, a three-slot competence square row rendering its maestria as `COMPETENTE`=1 filled, `ESPERTO`=2, `MAESTRO`=3 — in the same visual language as the SPECIAL pip row. Skill rows SHALL be rendered in alphabetical order by catalog name; this ordering is **display-only** and does not change stored data. In editor mode the level becomes a `<select>` (`COMPETENTE` / `ESPERTO` / `MAESTRO`) and a `✕` remover appears, with a dashed `+ ABILITÀ` action adding a row backed by the skills catalog. Writes go through `PATCH .../skills`.
 - A view-only `▸ SPESA PA` block listing three dashed-divider lines: `RITIRA FALLITI` (1 PA, requires the relevant Tag Skill), `RUBA LA SCENA` (1 PA, act out of turn or again), and `V.A.T.S.` (1 PA, exploit an advantage or targeted effect).
 
-The competence squares are a display of the existing maestria enum, not a new stored field. Maestria tiers remain **narrative**: `COMPETENTE` raises the Risk a GM applies by one grade, `ESPERTO` leaves it unchanged, and `MAESTRO` lowers it by one grade. The app SHALL NOT apply any mechanical dice effect from maestria.
+Talents (perks) are no longer part of this subtab; they move to the `Talents` subtab. The competence squares are a display of the existing maestria enum, not a new stored field. Maestria tiers remain **narrative**: `COMPETENTE` raises the Risk a GM applies by one grade, `ESPERTO` leaves it unchanged, and `MAESTRO` lowers it by one grade. The app SHALL NOT apply any mechanical dice effect from maestria.
+
+#### Scenario: Skills render alphabetically
+- **GIVEN** skills whose catalog names are `Sopravvivenza`, `Armi da fuoco`, and `Medicina`
+- **WHEN** the `Abilità` subtab renders
+- **THEN** the rows appear in the order `Armi da fuoco`, `Medicina`, `Sopravvivenza`
 
 #### Scenario: Skill renders maestria as competence squares
 - **GIVEN** a skill at maestria `ESPERTO`
-- **WHEN** the `ABIL` tab renders in view mode
+- **WHEN** the `Abilità` subtab renders in view mode
 - **THEN** a three-slot square row with two of three slots filled is shown to the right of the skill name
 
 #### Scenario: Owner adds a tag skill
 - **WHEN** the owning player activates `+ ABILITÀ`, picks a catalog skill and a level, and confirms
 - **THEN** the app issues `PATCH .../skills { items: [{ id: <slug>, level: <level> }] }` and the row appears
 
-#### Scenario: Owner changes a maestria level
-- **WHEN** the owning player changes a skill's level select in editor mode to `MAESTRO`
-- **THEN** the app issues `PATCH .../skills` with that skill's slug and the new level, and the competence squares fill all three slots
-
-#### Scenario: Owner removes a talent
-- **WHEN** the owning player activates a talent row's `✕`
-- **THEN** the app issues `PATCH .../perks { deletedIds: [<id>] }` and the row disappears
-
 #### Scenario: SPESA PA block is never editable
 - **WHEN** editor mode is on
 - **THEN** the `▸ SPESA PA` block presents no inputs, removers, or add actions
 
-#### Scenario: Maestria has no mechanical dice effect
-- **GIVEN** a character with a `MAESTRO` tag skill
-- **WHEN** a dice pool is computed for any approach
-- **THEN** the pool size is unaffected by that skill's maestria tier
+#### Scenario: Talents are not shown on the Abilità subtab
+- **WHEN** the `Abilità` subtab renders
+- **THEN** no perks/talents section is present
+
+### Requirement: Talents subtab
+
+The `Talents` subtab (under `STATS`) SHALL present the character's `perks`: one row-card per entry, showing name and description. In editor mode both become inputs, a `✕` remover appears, and a dashed `+ TALENTO` action adds a row. Writes go through `PATCH .../perks`.
+
+#### Scenario: Talents render on their own subtab
+- **WHEN** the user selects the `Talents` subtab
+- **THEN** each perk is shown with its name and description, and no skills section is present
+
+#### Scenario: Owner removes a talent
+- **WHEN** the owning player activates a talent row's `✕` in editor mode
+- **THEN** the app issues `PATCH .../perks { deletedIds: [<id>] }` and the row disappears
+
+#### Scenario: Owner adds a talent
+- **WHEN** the owning player types a talent name into the `+ TALENTO` add row and confirms
+- **THEN** the app issues `PATCH .../perks { items: [{ name }] }` and the row appears
+
+### Requirement: NOTES tab
+
+The `NOTES` first-level tab SHALL render a static placeholder. In this change it SHALL NOT read from or write to any backend, and SHALL NOT present editable fields.
+
+#### Scenario: Notes shows a placeholder
+- **WHEN** the user selects the `NOTES` tab
+- **THEN** a placeholder is shown and no persistence request is issued
+
+### Requirement: Inventory add-item popup
+
+Each `INV` subtab SHALL offer a single add-path: a `+` trigger (available in both view and editor mode) that opens a modal popup with an `OK` action and a small red `✕` that cancels without any write. The popup owns no persistence — on `OK` it hands the assembled item body to its caller, which issues the `PATCH .../inventory`.
+
+The popup SHALL present two inner tabs:
+- **Scegli esistente** — an autocomplete over `GET /equipment-catalog` filtered to the subtab's `kind`; confirming a selection copies the chosen template onto the character (copy-on-use). This tab SHALL be present for **all four** subtabs, including `Vari`, whose kind is `misc`.
+- **Aggiungi custom** — a kind-shaped custom entry form: name + `core`/`extra` tags for `Armi`/`Armature`; name + description + quantity for `Consumabili` and `Vari`.
+
+Because every subtab now has a catalog kind (`weapon`, `armor`, `consumable`, `misc`), the popup SHALL default to the **Scegli esistente** tab for all four subtabs.
+
+#### Scenario: Vari popup offers Scegli esistente from the misc catalog
+- **GIVEN** the equipment catalog holds one or more `misc` entries
+- **WHEN** the owning player opens the add-item popup on the `Vari` subtab
+- **THEN** the `Scegli esistente` tab is present and its autocomplete lists the `misc` catalog entries
+
+#### Scenario: Selecting a misc template copies it onto inventory.misc
+- **GIVEN** a `misc` catalog entry `{ name: "Chiave inglese", defaultQuantity: 1 }`
+- **WHEN** the owning player selects it in the `Vari` popup and confirms
+- **THEN** the app issues `PATCH .../inventory { misc: { items: [{ name: "Chiave inglese", quantity: 1 }] } }`
+
+#### Scenario: Cancel writes nothing
+- **WHEN** the owning player opens the popup and taps the red `✕`
+- **THEN** the popup closes and no `PATCH` is issued

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -35,8 +42,20 @@ const emptyDraft = (): DraftRow => ({
   description: '',
 });
 
-/** Consumables carry no tags and a quantity; weapons and armor are the reverse. */
-export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
+/**
+ * Weapons and armor carry tags; consumables and misc (Vari) carry a quantity and
+ * an optional description instead.
+ */
+export const isTagged = (kind: EquipmentKind): boolean =>
+  kind === 'weapon' || kind === 'armor';
+
+/** The four catalog kinds, with the Italian label the UI shows for each. */
+export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }> = [
+  { value: 'weapon', label: 'weapon' },
+  { value: 'armor', label: 'armor' },
+  { value: 'consumable', label: 'consumable' },
+  { value: 'misc', label: 'Vari' },
+];
 
 @Component({
   selector: 'app-equipment-catalog-page',
@@ -53,8 +72,50 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
       </div>
 
       <div class="bo-card">
+        <div
+          class="bo-filter-bar"
+          style="display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 12px;"
+        >
+          <input
+            pInputText
+            data-testid="filter-name"
+            [ngModel]="nameFilter()"
+            (ngModelChange)="nameFilter.set($event)"
+            placeholder="Filtra per nome"
+          />
+          <input
+            pInputText
+            data-testid="filter-slug"
+            [ngModel]="slugFilter()"
+            (ngModelChange)="slugFilter.set($event)"
+            placeholder="Filtra per slug"
+          />
+          <label style="display: inline-flex; gap: 4px; align-items: center;">
+            <input
+              type="checkbox"
+              data-testid="filter-starter"
+              [ngModel]="starterFilter()"
+              (ngModelChange)="starterFilter.set($event)"
+            />
+            Solo iniziali
+          </label>
+          <div style="display: inline-flex; gap: 10px; align-items: center;">
+            @for (opt of kindOptions; track opt.value) {
+              <label style="display: inline-flex; gap: 4px; align-items: center;">
+                <input
+                  type="checkbox"
+                  [attr.data-testid]="'filter-kind-' + opt.value"
+                  [checked]="isKindFiltered(opt.value)"
+                  (change)="toggleKindFilter(opt.value, $any($event.target).checked)"
+                />
+                {{ opt.label }}
+              </label>
+            }
+          </div>
+        </div>
+
         <p-table
-          [value]="entries() ?? []"
+          [value]="filteredEntries() ?? []"
           [loading]="entries() === undefined"
           [tableStyle]="{ 'min-width': '900px' }"
           styleClass="bo-table"
@@ -77,9 +138,9 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                 <td><input pInputText [(ngModel)]="draft.name" style="width: 100%;" /></td>
                 <td>
                   <select class="bo-select" [(ngModel)]="draft.kind" style="width: 100%;">
-                    <option value="weapon">weapon</option>
-                    <option value="armor">armor</option>
-                    <option value="consumable">consumable</option>
+                    @for (opt of kindOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
                   </select>
                 </td>
                 <td>
@@ -132,7 +193,9 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                   }
                 </td>
                 <td>
-                  <input type="checkbox" [(ngModel)]="draft.isStarter" aria-label="Iniziale" />
+                  @if (draft.kind !== 'misc') {
+                    <input type="checkbox" [(ngModel)]="draft.isStarter" aria-label="Iniziale" />
+                  }
                 </td>
                 <td>
                   <div
@@ -170,7 +233,7 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                   <span class="bo-pill">{{ entry.kind }}</span>
                 </td>
                 <td>
-                  @if (entry.kind === 'consumable') {
+                  @if (entry.kind === 'consumable' || entry.kind === 'misc') {
                     ×{{ entry.defaultQuantity ?? 0 }}
                   } @else {
                     @for (tag of entry.tags ?? []; track tag.name) {
@@ -181,13 +244,15 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                   }
                 </td>
                 <td>
-                  <input
-                    type="checkbox"
-                    [attr.data-testid]="'starter-' + entry.slug"
-                    [checked]="entry.isStarter"
-                    aria-label="Iniziale"
-                    (change)="toggleStarter(entry)"
-                  />
+                  @if (entry.kind !== 'misc') {
+                    <input
+                      type="checkbox"
+                      [attr.data-testid]="'starter-' + entry.slug"
+                      [checked]="entry.isStarter"
+                      aria-label="Iniziale"
+                      (change)="toggleStarter(entry)"
+                    />
+                  }
                 </td>
                 <td>
                   <div class="row-actions">
@@ -265,9 +330,9 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                 </td>
                 <td>
                   <select class="bo-select" [(ngModel)]="draft.kind" style="width: 100%;">
-                    <option value="weapon">weapon</option>
-                    <option value="armor">armor</option>
-                    <option value="consumable">consumable</option>
+                    @for (opt of kindOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
                   </select>
                 </td>
                 <td>
@@ -320,7 +385,9 @@ export const isTagged = (kind: EquipmentKind): boolean => kind !== 'consumable';
                   }
                 </td>
                 <td>
-                  <input type="checkbox" [(ngModel)]="draft.isStarter" aria-label="Iniziale" />
+                  @if (draft.kind !== 'misc') {
+                    <input type="checkbox" [(ngModel)]="draft.isStarter" aria-label="Iniziale" />
+                  }
                 </td>
                 <td>
                   <div
@@ -386,6 +453,46 @@ export class EquipmentCatalogPage implements OnInit {
   protected readonly addRowVisible = signal(false);
   protected readonly rowError = signal<string | null>(null);
   protected draft: DraftRow = emptyDraft();
+
+  protected readonly kindOptions = KIND_OPTIONS;
+
+  // --- Client-side filter bar (Task 4.5) — all filters AND together. ---
+  protected readonly nameFilter = signal('');
+  protected readonly slugFilter = signal('');
+  protected readonly starterFilter = signal(false);
+  protected readonly kindFilter = signal<EquipmentKind[]>([]);
+
+  /**
+   * The loaded catalog narrowed by the active filters. Returns `undefined` while
+   * the catalog is still loading (so the table keeps showing its loading state)
+   * and re-derives whenever `entries()` reloads after an add/update/delete.
+   */
+  protected readonly filteredEntries = computed(() => {
+    const all = this.entries();
+    if (!all) return all;
+    const name = this.nameFilter().trim().toLowerCase();
+    const slug = this.slugFilter().trim().toLowerCase();
+    const starterOnly = this.starterFilter();
+    const kinds = this.kindFilter();
+    return all.filter((e) => {
+      if (name && !e.name.toLowerCase().includes(name)) return false;
+      if (slug && !e.slug.toLowerCase().includes(slug)) return false;
+      if (starterOnly && !e.isStarter) return false;
+      if (kinds.length > 0 && !kinds.includes(e.kind)) return false;
+      return true;
+    });
+  });
+
+  protected isKindFiltered(kind: EquipmentKind): boolean {
+    return this.kindFilter().includes(kind);
+  }
+
+  protected toggleKindFilter(kind: EquipmentKind, checked: boolean): void {
+    const current = this.kindFilter();
+    this.kindFilter.set(
+      checked ? [...current, kind] : current.filter((k) => k !== kind),
+    );
+  }
 
   ngOnInit(): void {
     this.load();

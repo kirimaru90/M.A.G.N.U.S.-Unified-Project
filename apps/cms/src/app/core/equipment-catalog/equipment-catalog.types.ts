@@ -2,7 +2,7 @@
 // Hand-typed to match specs/api-equipment-catalog/spec.md; regenerate (`npm run api:gen`) and
 // replace with generated types once the backend spec declares this shape.
 
-export type EquipmentKind = 'weapon' | 'armor' | 'consumable';
+export type EquipmentKind = 'weapon' | 'armor' | 'consumable' | 'misc';
 export type EquipmentTagType = 'core' | 'extra';
 
 export interface EquipmentTagDto {
@@ -14,9 +14,9 @@ export interface EquipmentCatalogEntryDto {
   slug: string;
   name: string;
   kind: EquipmentKind;
-  /** Meaningful for weapon/armor; always empty for consumable. */
+  /** Meaningful for weapon/armor; always empty for consumable/misc. */
   tags?: EquipmentTagDto[];
-  /** Quantity used when a consumable is copied onto a character. */
+  /** Quantity used when a consumable/misc is copied onto a character. */
   defaultQuantity?: number;
   /** Marks the template as offered by the pip-boy creation wizard. */
   isStarter: boolean;

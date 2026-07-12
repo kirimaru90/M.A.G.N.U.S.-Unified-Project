@@ -15,7 +15,7 @@ async function openSheetAsOwner(page: Page, overrides: Record<string, unknown> =
 }
 
 const withConsumable = {
-  inventory: { weapons: [], equip: [], consumables: [{ id: 'c1', name: 'Stimpak', quantity: 2 }], other: [] },
+  inventory: { weapons: [], equip: [], consumables: [{ id: 'c1', name: 'Stimpak', quantity: 2 }], misc: [] },
 };
 
 test('owner action-points stepper round-trips via PATCH .../action-points', async ({ page }) => {

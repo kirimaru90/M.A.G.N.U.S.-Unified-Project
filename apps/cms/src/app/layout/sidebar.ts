@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { CurrentCampaignService } from '../core/campaign/current-campaign.service';
+import { AuthService } from '../core/auth/auth.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -111,6 +112,7 @@ import { CurrentCampaignService } from '../core/campaign/current-campaign.servic
         </nav>
       </div>
 
+      @if (isAdmin()) {
       <div>
         <div class="section-label">Catalogo</div>
         <nav class="bo-nav">
@@ -199,12 +201,23 @@ import { CurrentCampaignService } from '../core/campaign/current-campaign.servic
           </a>
         </nav>
       </div>
+      }
     </aside>
   `,
 })
 export class SidebarComponent {
   private readonly currentCampaign = inject(CurrentCampaignService);
+  private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+
+  /**
+   * The Catalogo section links to admin-guarded routes; a non-admin who clicked
+   * one would just be bounced. Hide the whole section for non-admins (the route
+   * guard stays as the security boundary — this is a UX layer on top of it).
+   */
+  protected readonly isAdmin = computed(
+    () => this.auth.currentUser()?.role === 'admin',
+  );
 
   private readonly currentUrl = toSignal(
     this.router.events.pipe(

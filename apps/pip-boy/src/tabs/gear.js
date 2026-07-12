@@ -8,27 +8,14 @@ const RESOURCES = [
     { key: 'bobbleheads', label: 'BOBBLEHEAD' },
 ];
 
-// Weapons/armor render tag chips; consumables/other render quantity rows (with
+// Weapons/armor render tag chips; consumables/misc render quantity rows (with
 // an optional description on Vari).
 const TAG_SECTIONS = new Set(['weapons', 'equip']);
 
-/**
- * Display order for an item's tags: all `core` first, then all `extra`,
- * alphabetical by name within each group. This is display-only — it never
- * reorders the stored array. Each entry keeps its ORIGINAL stored index so the
- * per-tag edit handlers (toggle damaged / rename / remove) still target the
- * right stored slot even when display order differs.
- */
-function orderedTags(tags) {
-    return (tags ?? [])
-        .map((t, i) => ({ t, i }))
-        .sort((a, b) => {
-            const ra = a.t.type === 'core' ? 0 : 1;
-            const rb = b.t.type === 'core' ? 0 : 1;
-            if (ra !== rb) return ra - rb;
-            return (a.t.name ?? '').localeCompare(b.t.name ?? '');
-        });
-}
+// Tags arrive from the API already in canonical order (`core` first, then
+// `extra`, alphabetical by name within each group — see api-character-inventory),
+// so the client renders the stored array directly and per-tag edit handlers
+// (toggle damaged / rename / remove) target tags by their stored index.
 
 /** `core` chips are tinted + solid; `extra` chips are unfilled + dashed. `index` is the stored index. */
 function tagChip(tag, itemId, section, index, editMode) {
@@ -63,7 +50,7 @@ function tagItemRow(item, section, editMode) {
                 ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
             </div>
             <div class="pb-chip-row">
-                ${orderedTags(tags).map(({ t, i }) => tagChip(t, item.id, section, i, editMode)).join('')}
+                ${tags.map((t, i) => tagChip(t, item.id, section, i, editMode)).join('')}
                 ${editMode ? `
                     <button class="pb-btn pb-btn--dashed pb-btn--tiny" data-add-tag="${esc(item.id)}" data-section="${section}" data-type="core">+ core</button>
                     <button class="pb-btn pb-btn--dashed pb-btn--tiny" data-add-tag="${esc(item.id)}" data-section="${section}" data-type="extra">+ extra</button>
@@ -73,7 +60,7 @@ function tagItemRow(item, section, editMode) {
     `;
 }
 
-/** Compact quantity row for consumables and Vari (`other`). Vari also shows a description. */
+/** Compact quantity row for consumables and Vari (`misc`). Vari also shows a description. */
 function qtyItemRow(item, section, editMode, withDesc) {
     return `
         <div class="pb-consumable-row" data-item="${esc(item.id)}">
@@ -99,13 +86,13 @@ function qtyItemRow(item, section, editMode, withDesc) {
  * Renders one INV subtab: exactly one inventory collection, its `+` add trigger
  * (view and editor mode both), and the resources row pinned at the bottom.
  * `node` carries `invKey` (the collection) and `invKind` (the catalog kind the
- * add-item popup filters by; null for Vari).
+ * add-item popup filters by).
  */
 export function renderInvSubtab(container, ctx, node) {
     const { character, canEdit, editMode, campaignId } = ctx;
     const section = node.invKey;
     const isTagSection = TAG_SECTIONS.has(section);
-    const withDesc = section === 'other';
+    const withDesc = section === 'misc';
     const inv = character.inventory ?? {};
     const resources = character.resources ?? {};
     const items = inv[section] ?? [];
