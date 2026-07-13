@@ -31,9 +31,11 @@ import { EditCampaignDialogComponent } from './edit-campaign-dialog';
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Campagne</h1>
-        <button type="button" class="bo-btn primary" (click)="showCreate.set(true)">
-          Nuova campagna
-        </button>
+        <div class="bo-page-head-actions">
+          <button type="button" class="bo-btn primary" (click)="showCreate.set(true)">
+            Nuova campagna
+          </button>
+        </div>
       </div>
 
       <div class="bo-card">
@@ -45,9 +47,9 @@ import { EditCampaignDialogComponent } from './edit-campaign-dialog';
         >
           <ng-template pTemplate="header">
             <tr>
-              <th>Nome</th>
-              <th>Attiva</th>
-              <th>Pubblica</th>
+              <th pSortableColumn="name">Nome <p-sortIcon field="name" /></th>
+              <th pSortableColumn="isActive">Attiva <p-sortIcon field="isActive" /></th>
+              <th pSortableColumn="isPublic">Pubblica <p-sortIcon field="isPublic" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>
@@ -132,7 +134,7 @@ import { EditCampaignDialogComponent } from './edit-campaign-dialog';
       [visible]="showEdit()"
       [campaign]="campaignToEdit()"
       (closed)="closeEdit()"
-      (saved)="onSaved($event)"
+      (saved)="onSaved()"
     />
   `,
 })
@@ -164,7 +166,7 @@ export class CampaignsPage {
     this.messageService.add({ severity: 'success', summary: 'Campagna creata' });
   }
 
-  protected onSaved(_updated: CampaignDto): void {
+  protected onSaved(): void {
     this.closeEdit();
     this.currentCampaign.refresh();
     this.messageService.add({ severity: 'success', summary: 'Campagna aggiornata' });

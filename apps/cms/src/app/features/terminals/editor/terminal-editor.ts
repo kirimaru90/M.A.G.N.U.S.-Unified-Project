@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { FormArray, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { merge } from 'rxjs';
 import { startWith } from 'rxjs/operators';
@@ -29,19 +29,6 @@ import { NodesSectionComponent } from './nodes-section';
   template: `
     <div class="terminal-editor">
 
-      <!-- Toolbar -->
-      <div class="editor-toolbar">
-        @if (dirty) {
-          <span class="dirty-badge">Modifiche non salvate</span>
-        }
-        <button type="button" class="bo-btn ghost" [disabled]="!dirty" (click)="discard()">
-          Annulla modifiche
-        </button>
-        <button type="button" class="bo-btn primary" (click)="save()">
-          Salva
-        </button>
-      </div>
-
       <!-- Validation summary (unresolvable Zod issues) -->
       @if (validationSummary.length) {
         <div class="validation-summary">
@@ -67,8 +54,6 @@ import { NodesSectionComponent } from './nodes-section';
   `,
   styles: [`
     .terminal-editor { }
-    .editor-toolbar { display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding: 12px 0; margin-bottom: 8px; border-bottom: 1px solid var(--bo-border, #ddd); }
-    .dirty-badge { font-size: 12px; color: var(--bo-warning, #e67e22); font-weight: 600; margin-right: auto; }
     .validation-summary { background: #fdf3f3; border: 1px solid #e74c3c; border-radius: 6px; padding: 12px; margin-bottom: 12px; font-size: 13px; color: #c0392b; }
     .validation-summary ul { margin: 6px 0 0; padding-left: 20px; }
     .api-error { background: #fdf3f3; border: 1px solid #e74c3c; border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: #c0392b; }
@@ -96,7 +81,8 @@ export class TerminalEditorComponent implements OnInit {
   });
 
   protected form!: FormGroup;
-  protected dirty = false;
+  /** Exposed as a signal so the detail page's header actions react to it. */
+  readonly dirty = signal(false);
   protected validationSummary: string[] = [];
   protected apiError: string | null = null;
   protected availableUsernames: string[] = [];
@@ -112,9 +98,9 @@ export class TerminalEditorComponent implements OnInit {
   private buildForm(content: TerminalContent): void {
     this.form = toForm(content, this.fictionalUsers);
     this.addRequiredValidators();
-    this.dirty = false;
+    this.dirty.set(false);
     this.form.valueChanges.subscribe(() => {
-      this.dirty = true;
+      this.dirty.set(true);
     });
     this.computeAvailableUsernames();
     this.computeAvailableKeys();
@@ -212,7 +198,7 @@ export class TerminalEditorComponent implements OnInit {
         });
       },
       error: (err: unknown) => {
-        this.dirty = true;
+        this.dirty.set(true);
         const msg = (err as { error?: { message?: string }; message?: string })?.error?.message
           ?? (err as { message?: string })?.message
           ?? 'Errore durante il salvataggio';
@@ -222,7 +208,7 @@ export class TerminalEditorComponent implements OnInit {
   }
 
   discard(): void {
-    if (!this.dirty) return;
+    if (!this.dirty()) return;
     const confirmed = window.confirm('Annullare tutte le modifiche non salvate?');
     if (confirmed) {
       this.buildForm(this.baseline);

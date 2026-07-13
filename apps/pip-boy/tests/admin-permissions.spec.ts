@@ -48,23 +48,26 @@ test('S.P.E shows approach rows in view mode and steppers in editor mode', async
   await expect(page.locator('.pb-approach-row')).toHaveCount(0);
 });
 
-test('editor mode reveals add and remove controls on abilities and talents', async ({ page }) => {
+test('the + add trigger is present in both modes on abilities and talents; remove appears only in editor', async ({ page }) => {
   await openSheet(page, 'player');
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();
   await page.locator('.pb-subtab', { hasText: 'Abilità' }).click();
 
-  await expect(page.locator('#pb-skill-add-btn')).toHaveCount(0);
+  // The + popup trigger is available in view mode too (matching inventory); the
+  // per-row ✕ remover is the only editor-gated skills control.
+  await expect(page.locator('[data-add-skill]')).toBeVisible();
   await expect(page.locator('[data-remove-skill]')).toHaveCount(0);
 
   await page.locator('#pb-editor-toggle').click();
 
-  // Abilità subtab: skills add + remove.
-  await expect(page.locator('#pb-skill-add-btn')).toBeVisible();
+  // Abilità subtab: + trigger still present, remove now visible.
+  await expect(page.locator('[data-add-skill]')).toBeVisible();
   await expect(page.locator('[data-remove-skill]').first()).toBeVisible();
 
-  // Talents subtab (editor mode persists across subtab switches): perks add.
+  // Talents subtab (editor mode persists across subtab switches): the + trigger
+  // is present regardless of mode.
   await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
-  await expect(page.locator('#pb-perk-add-btn')).toBeVisible();
+  await expect(page.locator('[data-add-talent]')).toBeVisible();
 });
 
 test('the + add trigger is present on the weapons and armor subtabs', async ({ page }) => {

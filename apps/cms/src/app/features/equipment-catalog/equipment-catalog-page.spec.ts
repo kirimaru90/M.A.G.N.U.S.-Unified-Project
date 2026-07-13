@@ -209,8 +209,8 @@ describe('EquipmentCatalogPage', () => {
     expect(component['rowError']()).toBe('Ogni tag deve avere un nome');
   });
 
-  // 3.T.2 — the isStarter toggle round-trips through an update op.
-  it('toggles isStarter in place via an update op carrying only the flag', () => {
+  // Starter is edited only within row-edit; promoting an entry rides the update op.
+  it('promotes an entry to a starter within row edit via an update op carrying isStarter', () => {
     const coltello: EquipmentCatalogEntryDto = {
       slug: 'coltello',
       name: 'Coltello',
@@ -218,21 +218,27 @@ describe('EquipmentCatalogPage', () => {
       tags: [],
       isStarter: false,
     };
-    component['toggleStarter'](coltello);
+    component['startEdit'](coltello);
+    fixture.detectChanges();
+    component['draft'].isStarter = true;
+    component['submitEdit'](coltello);
     fixture.detectChanges();
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'coltello', entry: { isStarter: true } },
-    ]);
+    const [[ops]] = patchSpy.mock.calls as [[{ action: string; entry: Record<string, unknown> }[]]];
+    expect(ops[0].action).toBe('update');
+    expect(ops[0].entry).toMatchObject({ isStarter: true });
     // and the list is refetched so the row reflects the new flag
     expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('toggles isStarter back off', () => {
-    component['toggleStarter'](PISTOL);
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'pistola-10mm', entry: { isStarter: false } },
-    ]);
+  it('renders the starter flag as a read-only indicator on the display row (no checkbox)', () => {
+    const cell: HTMLElement = fixture.nativeElement.querySelector(
+      '[data-testid="starter-pistola-10mm"]',
+    );
+    expect(cell).toBeTruthy();
+    // It is a static pill, not an interactive checkbox.
+    expect(cell.tagName).not.toBe('INPUT');
+    expect(cell.querySelector('input')).toBeNull();
   });
 
   // 7.1 — editing a consumable sends its description, never a quantity.
@@ -412,12 +418,6 @@ describe('EquipmentCatalogPage', () => {
       expect(slugs(c)).toEqual(['pistola-10mm']);
     });
 
-    it('narrows by slug substring', async () => {
-      const c = await withEntries([PISTOL, STIMPACK, CHIAVE]);
-      c['slugFilter'].set('stim');
-      expect(slugs(c)).toEqual(['stimpack']);
-    });
-
     it('narrows to starters when the checkbox is set', async () => {
       const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
       c['starterFilter'].set(true);
@@ -426,12 +426,11 @@ describe('EquipmentCatalogPage', () => {
 
     it('narrows by the kind multi-select and restores all when cleared', async () => {
       const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
-      c['toggleKindFilter']('weapon', true);
-      c['toggleKindFilter']('misc', true);
+      c['kindFilter'].set(['weapon', 'misc']);
       expect(slugs(c).sort()).toEqual(['chiave-inglese', 'pistola-10mm']);
-      c['toggleKindFilter']('weapon', false);
+      c['kindFilter'].set(['misc']);
       expect(slugs(c)).toEqual(['chiave-inglese']);
-      c['toggleKindFilter']('misc', false);
+      c['kindFilter'].set([]);
       expect(slugs(c).sort()).toEqual([
         'chiave-inglese',
         'giubbotto-di-pelle',
@@ -443,7 +442,7 @@ describe('EquipmentCatalogPage', () => {
     it('ANDs all active filters together', async () => {
       const c = await withEntries([PISTOL, STIMPACK, CHIAVE, GIUBBOTTO]);
       c['starterFilter'].set(true);
-      c['toggleKindFilter']('weapon', true);
+      c['kindFilter'].set(['weapon']);
       expect(slugs(c)).toEqual(['pistola-10mm']);
     });
   });

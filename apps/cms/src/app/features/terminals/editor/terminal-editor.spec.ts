@@ -58,10 +58,10 @@ describe('TerminalEditorComponent', () => {
     const messageService = TestBed.inject(MessageService);
     const addSpy = vi.spyOn(messageService, 'add');
 
-    component.dirty = true;
+    component.dirty.set(true);
     expect(() => component.save()).not.toThrow();
 
-    expect(component.dirty).toBe(false);
+    expect(component.dirty()).toBe(false);
     expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({ severity: 'success' }));
     expect(component.usersArray.at(0).get('password')?.value).toBe('robco123-new');
   });
@@ -71,7 +71,7 @@ describe('TerminalEditorComponent', () => {
 
     component.save();
 
-    expect(component.dirty).toBe(true);
+    expect(component.dirty()).toBe(true);
     expect(component.apiError).toBe('Boom');
   });
 });

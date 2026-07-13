@@ -4,7 +4,8 @@ import { stubEnvironment, login, makeCharacter } from './fixtures';
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
  * round in the reference design (a 9px circle in the case status bar), so it
- * joins the case, screen, and the three bezel parts as case chrome.
+ * joins the case, screen, and the three bezel parts as case chrome. The
+ * editor-mode case LED is likewise a round indicator (matching the status LED).
  */
 const ROUNDED_ALLOWLIST = [
   '.pb-case',
@@ -15,6 +16,7 @@ const ROUNDED_ALLOWLIST = [
   '.pb-grille',
   '.pb-nub',
   '.pb-statusbar .dot',
+  '.pb-editor-led',
 ];
 
 async function openSheet(page: Page) {
@@ -300,16 +302,22 @@ test('a non-critical character shows no ring and a green status dot', async ({ p
   await expect(page.locator('.pb-statusbar')).not.toHaveClass(/critical/);
 });
 
-// ── editor toggle in the status bar (sheet-chrome-and-layout) ────────
+// ── editor toggle in the bezel (sheet-chrome-and-layout) ─────────────
 
-test('the owner sees ◄ DOSSIER, ESCI and the ✎ toggle in the status bar, with no ✎ in the tab bar', async ({ page }) => {
+test('the owner sees ◄ DOSSIER and ESCI in the status bar, and the ✎ toggle + LED in the bezel (not the status bar or tab bar)', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
   const nav = page.locator('#pb-statusbar-nav');
   await expect(nav.locator('#pb-nav-dossier')).toBeVisible();
   await expect(nav.locator('#pb-nav-logout')).toBeVisible();
-  await expect(nav.locator('#pb-editor-toggle')).toBeVisible();
+  // The ✎ toggle no longer lives among the status-bar controls.
+  await expect(nav.locator('#pb-editor-toggle')).toHaveCount(0);
+
+  // It seats in the bottom-right of the bezel, alongside its (unlit) green LED.
+  await expect(page.locator('.pb-bezel #pb-editor-toggle')).toBeVisible();
+  await expect(page.locator('.pb-bezel #pb-editor-led')).toBeVisible();
+  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
 
   // The tab bar returns to exactly five content tabs and carries no toggle.
   await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
@@ -335,10 +343,14 @@ test('toggling editor mode adds and removes the green ring and the ◉ EDITOR st
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
   await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
 
+  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
+
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-editor-ring')).toBeVisible();
   await expect(page.locator('.pb-editor-strip')).toContainText('◉ EDITOR');
   await expect(page.locator('#pb-editor-toggle')).toHaveClass(/active/);
+  // The green case LED lights alongside the active toggle.
+  await expect(page.locator('#pb-editor-led')).toHaveClass(/on/);
 
   const ring = await page.locator('#pb-editor-ring').evaluate((el) => {
     const cs = getComputedStyle(el);
@@ -352,6 +364,7 @@ test('toggling editor mode adds and removes the green ring and the ◉ EDITOR st
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
   await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
   await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/active/);
+  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
 });
 
 test('a critical character in editor mode shows the amber ring, not the green one', async ({ page }) => {
@@ -366,6 +379,9 @@ test('a critical character in editor mode shows the amber ring, not the green on
 
   await expect(page.locator('#pb-critical-ring')).toBeVisible();
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
+  // The editor LED stays green even while critical — the amber critical ring and
+  // the green LED never share a color, and both may show at once.
+  await expect(page.locator('#pb-editor-led')).toHaveClass(/on/);
 });
 
 test('a select option renders on the dark screen theme, not white', async ({ page }) => {

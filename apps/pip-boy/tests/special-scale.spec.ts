@@ -65,7 +65,7 @@ test('MAX PA stepper is decoupled from SPECIAL and still reaches 8', async ({ pa
 
 // --- Task 3.T.1: skill maestria renders as three competence squares ---
 
-test('a skill at ESPERTO shows two of three filled squares; the select drives the fill', async ({ page }) => {
+test('a skill at ESPERTO shows two of three filled squares; the ± stepper drives the fill', async ({ page }) => {
   await openSheetAsOwner(page, { skills: [{ id: 'lockpicking', level: 'expert' }] });
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();
   await page.locator('.pb-subtab', { hasText: 'Abilità' }).click();
@@ -75,17 +75,25 @@ test('a skill at ESPERTO shows two of three filled squares; the select drives th
   await expect(viewPips.locator('.pb-pip')).toHaveCount(3);
   await expect(viewPips.locator('.pb-pip.filled')).toHaveCount(2);
 
-  // Editor mode keeps the <select>; changing it re-renders the squares.
+  // Editor mode: no <select> remains; a bounded [−] ▪▪▫ [+] stepper drives it,
+  // with the enum string kept as a lateral indicator.
   await page.locator('#pb-editor-toggle').click();
-  const select = page.locator('[data-skill-level="lockpicking"]');
-  await expect(select).toBeVisible();
+  await expect(page.locator('[data-skill-level="lockpicking"]')).toHaveCount(0);
+  await expect(page.locator('#pb-skills-list select')).toHaveCount(0);
+  await expect(page.locator('.pb-skill-level').first()).toHaveText('ESPERTO');
+  await expect(page.locator('#pb-skills-list .pb-pips').first().locator('.pb-pip.filled')).toHaveCount(2);
 
-  const editPips = page.locator('#pb-skills-list .pb-pips').first();
-  await expect(editPips.locator('.pb-pip.filled')).toHaveCount(2);
-
-  await select.selectOption('master');
+  // + raises to MAESTRO (3 filled) and disables at the ceiling.
+  await page.locator('[data-skill-inc="lockpicking"]').click();
   await expect(page.locator('#pb-skills-list .pb-pips').first().locator('.pb-pip.filled')).toHaveCount(3);
+  await expect(page.locator('.pb-skill-level').first()).toHaveText('MAESTRO');
+  await expect(page.locator('[data-skill-inc="lockpicking"]')).toBeDisabled();
 
-  await page.locator('[data-skill-level="lockpicking"]').selectOption('competent');
+  // − steps back down to COMPETENTE (1 filled) and disables at the floor.
+  await page.locator('[data-skill-dec="lockpicking"]').click();
+  await expect(page.locator('#pb-skills-list .pb-pips').first().locator('.pb-pip.filled')).toHaveCount(2);
+  await page.locator('[data-skill-dec="lockpicking"]').click();
   await expect(page.locator('#pb-skills-list .pb-pips').first().locator('.pb-pip.filled')).toHaveCount(1);
+  await expect(page.locator('.pb-skill-level').first()).toHaveText('COMPETENTE');
+  await expect(page.locator('[data-skill-dec="lockpicking"]')).toBeDisabled();
 });

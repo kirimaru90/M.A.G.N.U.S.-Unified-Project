@@ -7,7 +7,11 @@ const screenEl = () => document.getElementById('pb-screen');
 const navEl = () => document.getElementById('pb-statusbar-nav');
 const ringEl = () => document.getElementById('pb-critical-ring');
 const editorRingEl = () => document.getElementById('pb-editor-ring');
+// The `✎` toggle and its green LED now live in the bottom-right of the bezel;
+// both are still resolved by id, so their move out of the status bar needs no
+// change here beyond driving the LED alongside the toggle.
 const editorToggleEl = () => document.getElementById('pb-editor-toggle');
+const editorLedEl = () => document.getElementById('pb-editor-led');
 
 let boundBack = null;
 let boundLogout = null;
@@ -39,13 +43,19 @@ export function showSheetNav({ onBack, onLogout, onToggleEdit, canEdit }) {
     backBtn.addEventListener('click', boundBack);
     logoutBtn.addEventListener('click', boundLogout);
 
-    // The toggle is hidden entirely for a viewer who may not write the character,
-    // and its active state is reset each mount (editor mode never persists).
+    // The toggle (and its LED) are hidden entirely for a viewer who may not write
+    // the character, and the toggle's active state is reset each mount (editor
+    // mode never persists). The LED starts unlit; setEditorChrome lights it.
     if (toggleBtn) {
         toggleBtn.hidden = !canEdit;
         toggleBtn.classList.remove('active');
         boundToggleEdit = canEdit ? onToggleEdit : null;
         if (boundToggleEdit) toggleBtn.addEventListener('click', boundToggleEdit);
+    }
+    const led = editorLedEl();
+    if (led) {
+        led.hidden = !canEdit;
+        led.classList.remove('on');
     }
 
     nav.hidden = false;
@@ -58,6 +68,11 @@ export function hideSheetNav() {
     if (toggleBtn) {
         toggleBtn.hidden = true;
         toggleBtn.classList.remove('active');
+    }
+    const led = editorLedEl();
+    if (led) {
+        led.hidden = true;
+        led.classList.remove('on');
     }
 }
 
@@ -82,9 +97,13 @@ function syncEditorRing() {
     if (ring) ring.hidden = !(editorActive && !criticalActive);
 }
 
-/** Reflect editor mode: the green ring and the active toggle state. */
+/** Reflect editor mode: the green ring, the active toggle state, and the LED. */
 export function setEditorChrome(on) {
     editorActive = !!on;
     editorToggleEl()?.classList.toggle('active', !!on);
+    // The green case LED mirrors editor mode 1:1 (unlike the ring, it is not
+    // suppressed while critical — green never collides with the amber critical
+    // treatment, so both may show at once).
+    editorLedEl()?.classList.toggle('on', !!on);
     syncEditorRing();
 }

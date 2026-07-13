@@ -174,15 +174,6 @@ body {
 .pb-statusbar-btn:hover { background: var(--green-fill); }
 .pb-statusbar-btn[hidden] { display: none; }
 
-/* The `✎` editor toggle carries a glyph and, while active, a pressed/tinted look. */
-.pb-statusbar-btn--toggle { font-size: 11px; }
-.pb-statusbar-btn--toggle.active {
-    background: var(--green-fill);
-    border-color: var(--green-border-strong);
-    color: var(--phosphor-bright);
-    text-shadow: 0 0 6px var(--phosphor-bright);
-}
-
 /* Critical state swaps the status dot and label to amber. */
 .pb-statusbar.critical .dot {
     background: var(--amber);
@@ -324,6 +315,55 @@ body {
     border-radius: 6px;
     background: linear-gradient(#3a4030, #14170f);
     border: 1px solid #444a37;
+}
+
+/* Sheet-only editor toggle + LED, seated in the bottom-right of the bezel. The
+   controls sit within the existing bezel band (short, no extra row) so the
+   bezel's rendered height is unchanged. Both are hidden off-sheet / for viewers
+   who may not write the character. */
+.pb-bezel-editor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    flex: none;
+}
+.pb-bezel-toggle {
+    background: transparent;
+    border: 1px solid var(--green-border);
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1;
+    width: 26px; height: 22px;
+    padding: 0;
+    cursor: pointer;
+}
+.pb-bezel-toggle[hidden] { display: none; }
+.pb-bezel-toggle:hover { background: var(--green-fill); }
+/* Active/pressed look while editor mode is on. */
+.pb-bezel-toggle.active {
+    background: var(--green-fill);
+    border-color: var(--green-border-strong);
+    color: var(--phosphor-bright);
+    text-shadow: 0 0 6px var(--phosphor-bright);
+}
+/* Small round case LED. Green only — amber stays critical-only, so the editor
+   LED and the amber critical dot/ring never share a color. Dark/unlit by
+   default; a phosphor-green glow when editor mode is on. A round indicator, so
+   it joins the border-radius exception set. */
+.pb-editor-led {
+    width: 9px; height: 9px;
+    flex: none;
+    border-radius: 50%;
+    background: rgba(51, 255, 102, 0.12);
+    border: 1px solid var(--green-border-soft);
+}
+.pb-editor-led[hidden] { display: none; }
+.pb-editor-led.on {
+    background: var(--phosphor);
+    border-color: var(--phosphor);
+    box-shadow: 0 0 6px var(--phosphor), 0 0 10px rgba(51, 255, 102, 0.6);
 }
 
 /* ── Typography ─────────────────────────────────────────────────── */
@@ -625,6 +665,9 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    /* A 2px gap sets the PA control apart from the tab bar rendered directly
+       below it, without touching the control's internal layout. */
+    margin-bottom: 2px;
 }
 /* Squares only: the − and + flank the pip row; there is no numeric readout. */
 .pb-pa-track {
@@ -701,6 +744,13 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-split-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .pb-add-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
 
+/* Skill maestria editor row: name on the left as a lateral label, the enum
+   indicator + bounded [−] ▪▪▫ [+] stepper grouped to the right, then the ✕
+   remover. Reuses the shared `.pb-stepper`/`.pb-pips` vocabulary. */
+.pb-skill-name { flex: 1; min-width: 0; }
+.pb-skill-level { flex: none; }
+.pb-skill-stepper { flex: none; gap: 6px; }
+
 .pb-select--inline { width: auto; }
 .pb-btn--icon { padding: 4px 8px; font-size: 12px; }
 .pb-btn--tiny { padding: 2px 6px; font-size: 9px; }
@@ -773,8 +823,21 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 /* Pinned at the bottom of every INV subtab. Sized to fit ~360px: three boxes
    share the width with a min-width of 0 so the numeric input can shrink rather
-   than overflow the case. */
-.pb-resource-row { display: flex; gap: 6px; margin-top: 12px; }
+   than overflow the case. `position: sticky; bottom: 0` keeps it in view while
+   the item list scrolls; the opaque screen-bg backing (plus a hairline) hides
+   items sliding under it, and `.pb-inv-list`'s bottom padding lets the last item
+   clear the pinned band. */
+.pb-resource-row {
+    display: flex;
+    gap: 6px;
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding-top: 12px;
+    background: var(--screen-bg);
+    border-top: 1px solid var(--green-hairline-faint);
+}
+.pb-inv-list { padding-bottom: 12px; }
 .pb-resource-box {
     flex: 1 1 0;
     min-width: 0;
@@ -830,12 +893,30 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 .pb-consumable-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     border-bottom: 1px dashed var(--green-hairline-faint);
     padding: 8px 2px;
 }
-.pb-consumable-name { flex: 1; font-size: 12px; }
+/* Name on the left; a view-mode name is an activatable control (a bare button
+   on the phosphor theme) opening the read-only detail popup. */
+.pb-consumable-name { flex: 1; min-width: 0; font-size: 12px; text-align: left; }
+button.pb-consumable-name {
+    background: transparent;
+    border: none;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    letter-spacing: 1px;
+    padding: 0;
+    cursor: pointer;
+}
+button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
+/* The `×qty` readout and the stepper cluster hard-right (name takes the slack). */
+.pb-consumable-qty { margin-left: auto; }
+.pb-consumable-stepper { flex: none; }
+/* The editor description input wraps to its own full-width line below the row. */
+.pb-consumable-desc { flex: 1 0 100%; }
 
 /* ── DADI tab ───────────────────────────────────────────────────── */
 
@@ -1100,6 +1181,33 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-popup-pane { display: flex; flex-direction: column; gap: 8px; }
 .pb-popup-tags { min-height: 4px; }
 .pb-popup-actions { display: flex; justify-content: flex-end; }
+
+/* Read-only item detail popup: a fixed box occupying ~80% of the screen surface
+   (≈89% × 89% ≈ 0.8 area), square-cornered and on the phosphor theme. Its body
+   scrolls internally so a long description never grows the popup. */
+.pb-info-popup {
+    position: relative;
+    width: 89%;
+    height: 89%;
+    border: 1px solid var(--green-border);
+    background: var(--screen-bg);
+    box-shadow: var(--screen-inner-glow);
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.pb-info-popup .pb-popup-title { flex: none; }
+/* The only scroll region: the popup itself never scrolls, its body does. */
+.pb-info-popup-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 
 /* --- full-screen catalog picker sheet -------------------------------------
    The mobile-readable replacement for the native <datalist>. It opens above the

@@ -63,4 +63,19 @@ describe('TerminalDetailPage', () => {
     ) as HTMLInputElement | null;
     expect(passwordInput?.value).toBe('robco123');
   });
+
+  it('exposes Esporta, Annulla modifiche and Salva in the page-head actions', () => {
+    const labels = Array.from(
+      fixture.nativeElement.querySelectorAll('.bo-page-head-actions button') as NodeListOf<HTMLElement>,
+    ).map((b) => b.textContent?.trim());
+    expect(labels).toEqual(
+      expect.arrayContaining(['Esporta', 'Annulla modifiche', 'Salva']),
+    );
+  });
+
+  it('does not render the old read-only summary card', () => {
+    // "Visibilità" was the summary card's label; the flag now lives only in the
+    // editor's metadata section (labelled "Pubblico").
+    expect(fixture.nativeElement.textContent).not.toContain('Visibilità');
+  });
 });

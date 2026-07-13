@@ -1,11 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, EMPTY } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { Toast } from 'primeng/toast';
-import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import { TerminalsApiService } from '../../core/terminal/terminals-api.service';
 import { exportTerminal } from './export-terminal';
 import { TerminalEditorComponent } from './editor/terminal-editor';
@@ -32,41 +31,30 @@ import { TerminalStatePanelComponent } from './terminal-state-panel';
       } @else if (terminal(); as t) {
         <div class="bo-page-head">
           <div>
-            @if (backLink()) {
-              <a [routerLink]="backLink()" style="font-size: 12px; color: var(--bo-text-faint); text-decoration: none;">
-                ← Torna ai terminali
-              </a>
-            }
+            <a routerLink="/terminals" style="font-size: 12px; color: var(--bo-text-faint); text-decoration: none;">
+              ← Torna ai terminali
+            </a>
             <h1>{{ t.meta.title }}</h1>
           </div>
-          <button type="button" class="bo-btn ghost" (click)="onExport()">
-            Esporta
-          </button>
-        </div>
-
-        <div class="bo-card" style="margin-bottom: 16px;">
-          <table style="border-collapse: collapse; width: 100%;">
-            <tr>
-              <td style="padding: 9px 12px; color: var(--bo-text-faint); white-space: nowrap; width: 1%;">Visibilità</td>
-              <td style="padding: 9px 12px 9px 0;">
-                <span class="bo-pill" [class.active]="t.meta.public">
-                  {{ t.meta.public ? 'Pubblico' : 'Privato' }}
-                </span>
-              </td>
-            </tr>
-            @if (campaignName()) {
-              <tr>
-                <td style="padding: 9px 12px; color: var(--bo-text-faint); white-space: nowrap; width: 1%;">Campagna</td>
-                <td style="padding: 9px 12px 9px 0;">{{ campaignName() }}</td>
-              </tr>
+          <div class="bo-page-head-actions">
+            @if (editor()?.dirty()) {
+              <span class="bo-pill warn">Modifiche non salvate</span>
             }
-            @if (t.meta.hiddenId) {
-              <tr>
-                <td style="padding: 9px 12px; color: var(--bo-text-faint); white-space: nowrap; width: 1%;">ID nascosto</td>
-                <td style="padding: 9px 12px 9px 0; font-family: monospace;">{{ t.meta.hiddenId }}</td>
-              </tr>
-            }
-          </table>
+            <button type="button" class="bo-btn ghost" (click)="onExport()">
+              Esporta
+            </button>
+            <button
+              type="button"
+              class="bo-btn ghost"
+              [disabled]="!editor()?.dirty()"
+              (click)="editor()?.discard()"
+            >
+              Annulla modifiche
+            </button>
+            <button type="button" class="bo-btn primary" (click)="editor()?.save()">
+              Salva
+            </button>
+          </div>
         </div>
 
         <app-terminal-editor
@@ -87,11 +75,12 @@ import { TerminalStatePanelComponent } from './terminal-state-panel';
 })
 export class TerminalDetailPage {
   private readonly terminalsApi = inject(TerminalsApiService);
-  protected readonly currentCampaign = inject(CurrentCampaignService);
   private readonly messageService = inject(MessageService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly terminalId = this.route.snapshot.params['id'] as string;
+
+  protected readonly editor = viewChild(TerminalEditorComponent);
 
   protected readonly notFound = signal(false);
   protected readonly saveVersion = signal(0);
@@ -109,13 +98,6 @@ export class TerminalDetailPage {
 
   protected readonly terminal = computed(() => this.envelope()?.content ?? null);
   protected readonly fictionalUsers = computed(() => this.envelope()?.fictionalUsers ?? []);
-
-  protected readonly campaignName = computed(() => this.currentCampaign.currentCampaign()?.name ?? null);
-
-  protected readonly backLink = (() => {
-    const campaign = this.currentCampaign.currentCampaign();
-    return signal(campaign ? `/campaigns/${campaign.id}/terminals` : null);
-  })();
 
   protected onExport(): void {
     exportTerminal(this.terminalsApi, this.messageService, this.terminalId);

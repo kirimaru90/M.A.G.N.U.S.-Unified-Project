@@ -11,6 +11,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { MultiSelect } from 'primeng/multiselect';
 import { TableModule } from 'primeng/table';
 import { Toast } from 'primeng/toast';
 import { EquipmentCatalogApiService } from '../../core/equipment-catalog/equipment-catalog-api.service';
@@ -48,7 +49,7 @@ export const isTagged = (kind: EquipmentKind): boolean =>
   kind === 'weapon' || kind === 'armor';
 
 /** The four catalog kinds, with the Italian label the UI shows for each. */
-export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }> = [
+export const KIND_OPTIONS: readonly { value: EquipmentKind; label: string }[] = [
   { value: 'weapon', label: 'weapon' },
   { value: 'armor', label: 'armor' },
   { value: 'consumable', label: 'consumable' },
@@ -58,7 +59,7 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
 @Component({
   selector: 'app-equipment-catalog-page',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, ConfirmDialog, Toast, InputTextModule],
+  imports: [FormsModule, TableModule, ButtonModule, ConfirmDialog, Toast, InputTextModule, MultiSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-toast />
@@ -67,6 +68,13 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Catalogo equipaggiamento</h1>
+        @if (!addRowVisible()) {
+          <div class="bo-page-head-actions">
+            <button type="button" class="bo-btn primary" (click)="showAddRow()">
+              + Aggiungi
+            </button>
+          </div>
+        }
       </div>
 
       <div class="bo-card">
@@ -81,12 +89,16 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
             (ngModelChange)="nameFilter.set($event)"
             placeholder="Filtra per nome"
           />
-          <input
-            pInputText
-            data-testid="filter-slug"
-            [ngModel]="slugFilter()"
-            (ngModelChange)="slugFilter.set($event)"
-            placeholder="Filtra per slug"
+          <p-multiselect
+            data-testid="filter-kind"
+            [options]="kindOptions"
+            optionLabel="label"
+            optionValue="value"
+            [ngModel]="kindFilter()"
+            (ngModelChange)="kindFilter.set($event)"
+            placeholder="Tutti i tipi"
+            [showToggleAll]="false"
+            [style]="{ 'min-width': '200px' }"
           />
           <label style="display: inline-flex; gap: 4px; align-items: center;">
             <input
@@ -97,19 +109,6 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
             />
             Solo iniziali
           </label>
-          <div style="display: inline-flex; gap: 10px; align-items: center;">
-            @for (opt of kindOptions; track opt.value) {
-              <label style="display: inline-flex; gap: 4px; align-items: center;">
-                <input
-                  type="checkbox"
-                  [attr.data-testid]="'filter-kind-' + opt.value"
-                  [checked]="isKindFiltered(opt.value)"
-                  (change)="toggleKindFilter(opt.value, $any($event.target).checked)"
-                />
-                {{ opt.label }}
-              </label>
-            }
-          </div>
         </div>
 
         <p-table
@@ -244,13 +243,13 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
                 </td>
                 <td>
                   @if (entry.kind !== 'misc') {
-                    <input
-                      type="checkbox"
+                    <span
+                      class="bo-pill"
+                      [class.active]="entry.isStarter"
                       [attr.data-testid]="'starter-' + entry.slug"
-                      [checked]="entry.isStarter"
-                      aria-label="Iniziale"
-                      (change)="toggleStarter(entry)"
-                    />
+                    >
+                      {{ entry.isStarter ? 'Sì' : 'No' }}
+                    </span>
                   }
                 </td>
                 <td>
@@ -426,17 +425,6 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
             </tr>
           </ng-template>
         </p-table>
-
-        @if (!addRowVisible()) {
-          <button
-            type="button"
-            class="bo-btn ghost"
-            style="margin-top: 8px; font-size: 13px;"
-            (click)="showAddRow()"
-          >
-            + Aggiungi
-          </button>
-        }
       </div>
     </div>
   `,
@@ -452,11 +440,12 @@ export class EquipmentCatalogPage implements OnInit {
   protected readonly rowError = signal<string | null>(null);
   protected draft: DraftRow = emptyDraft();
 
-  protected readonly kindOptions = KIND_OPTIONS;
+  // A mutable copy: PrimeNG's p-multiselect [options] input is typed as a
+  // mutable array, so the readonly KIND_OPTIONS cannot be bound directly.
+  protected readonly kindOptions = [...KIND_OPTIONS];
 
-  // --- Client-side filter bar (Task 4.5) — all filters AND together. ---
+  // --- Client-side filter bar — all filters AND together. ---
   protected readonly nameFilter = signal('');
-  protected readonly slugFilter = signal('');
   protected readonly starterFilter = signal(false);
   protected readonly kindFilter = signal<EquipmentKind[]>([]);
 
@@ -469,28 +458,15 @@ export class EquipmentCatalogPage implements OnInit {
     const all = this.entries();
     if (!all) return all;
     const name = this.nameFilter().trim().toLowerCase();
-    const slug = this.slugFilter().trim().toLowerCase();
     const starterOnly = this.starterFilter();
     const kinds = this.kindFilter();
     return all.filter((e) => {
       if (name && !e.name.toLowerCase().includes(name)) return false;
-      if (slug && !e.slug.toLowerCase().includes(slug)) return false;
       if (starterOnly && !e.isStarter) return false;
       if (kinds.length > 0 && !kinds.includes(e.kind)) return false;
       return true;
     });
   });
-
-  protected isKindFiltered(kind: EquipmentKind): boolean {
-    return this.kindFilter().includes(kind);
-  }
-
-  protected toggleKindFilter(kind: EquipmentKind, checked: boolean): void {
-    const current = this.kindFilter();
-    this.kindFilter.set(
-      checked ? [...current, kind] : current.filter((k) => k !== kind),
-    );
-  }
 
   ngOnInit(): void {
     this.load();
@@ -612,24 +588,6 @@ export class EquipmentCatalogPage implements OnInit {
       },
       error: (err) => this.rowError.set(this.errorMessage(err)),
     });
-  }
-
-  /**
-   * `isStarter` alone decides what the wizard offers, so it toggles in place —
-   * no edit mode. Only the flag is sent: the API merges it into the stored
-   * entry, and `slug` belongs on the op, not inside `entry`.
-   */
-  protected toggleStarter(entry: EquipmentCatalogEntryDto): void {
-    this.api
-      .patchSchema([{ action: 'update', slug: entry.slug, entry: { isStarter: !entry.isStarter } }])
-      .subscribe({
-        next: () => this.load(),
-        error: () =>
-          this.messageService.add({
-            severity: 'error',
-            summary: "Errore durante l'aggiornamento",
-          }),
-      });
   }
 
   protected confirmDelete(entry: EquipmentCatalogEntryDto): void {

@@ -32,9 +32,11 @@ import { ResetPasswordDialogComponent } from './reset-password-dialog';
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Utenti</h1>
-        <button type="button" class="bo-btn primary" (click)="showCreate.set(true)">
-          Nuovo utente
-        </button>
+        <div class="bo-page-head-actions">
+          <button type="button" class="bo-btn primary" (click)="showCreate.set(true)">
+            Nuovo utente
+          </button>
+        </div>
       </div>
 
       <div class="bo-card">
@@ -43,11 +45,13 @@ import { ResetPasswordDialogComponent } from './reset-password-dialog';
           [loading]="users() === undefined"
           [tableStyle]="{ 'min-width': '600px' }"
           styleClass="bo-table"
+          sortField="username"
+          [sortOrder]="1"
         >
           <ng-template pTemplate="header">
             <tr>
-              <th>Nome utente</th>
-              <th>Ruolo</th>
+              <th pSortableColumn="username">Nome utente <p-sortIcon field="username" /></th>
+              <th pSortableColumn="role">Ruolo <p-sortIcon field="role" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>

@@ -27,7 +27,6 @@
             <span class="pb-statusbar-nav" id="pb-statusbar-nav" hidden>
                 <button class="pb-statusbar-btn" id="pb-nav-dossier" type="button">&#9668; DOSSIER</button>
                 <button class="pb-statusbar-btn" id="pb-nav-logout" type="button">ESCI</button>
-                <button class="pb-statusbar-btn pb-statusbar-btn--toggle" id="pb-editor-toggle" type="button" title="Modalità editor" hidden>&#9998;</button>
             </span>
             <span class="pb-status-os">PIP-BOY OS</span>
         </div>
@@ -46,13 +45,21 @@
             <div class="pb-critical-ring" id="pb-critical-ring" aria-hidden="true" hidden></div>
         </div>
 
-        <div class="pb-bezel" aria-hidden="true">
-            <span class="pb-knobs">
+        <div class="pb-bezel">
+            <span class="pb-knobs" aria-hidden="true">
                 <span class="pb-knob"></span>
                 <span class="pb-knob"></span>
             </span>
-            <span class="pb-grille"></span>
-            <span class="pb-nub"></span>
+            <span class="pb-grille" aria-hidden="true"></span>
+            <span class="pb-nub" aria-hidden="true"></span>
+            <!-- The sheet-only `✎` editor toggle and its green case LED. Both are
+                 hidden off-sheet and for viewers who may not write the character
+                 (driven by chrome.js). They occupy the existing bezel band so the
+                 bezel height is unchanged. -->
+            <span class="pb-bezel-editor">
+                <span class="pb-editor-led" id="pb-editor-led" aria-hidden="true" hidden></span>
+                <button class="pb-bezel-toggle" id="pb-editor-toggle" type="button" title="Modalità editor" hidden>&#9998;</button>
+            </span>
         </div>
     </div>
 

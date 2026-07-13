@@ -292,6 +292,26 @@
   padding: 18px 24px;
 }
 
+/* Per-page frame used inside .bo-content. .bo-page-head lays the title and the
+   page's primary actions on one row, actions pushed to the right edge. */
+.bo-page { display: flex; flex-direction: column; }
+.bo-page-head {
+  display: flex; align-items: center; gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.bo-page-head > h1 {
+  margin: 0;
+  font: 600 16px/1.2 var(--bo-font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bo-text);
+}
+.bo-page-head .bo-page-head-actions {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 8px;
+}
+
 /* ===== Buttons ===== */
 .bo-btn {
   display: inline-flex; align-items: center; gap: 6px;
@@ -618,3 +638,73 @@
 
 /* SVG icon helper */
 .bo-frame svg { display: inline-block; vertical-align: middle; }
+
+/* ===== Filter multiselect (PrimeNG) — unified, theme-aware =====
+   PrimeNG overlays are appended to <body>, OUTSIDE .bo-frame, so the --bo-*
+   tokens (scoped to .bo-frame) don't resolve there. Mirror the few surface
+   tokens the overlay needs onto the <html> data-theme scope — the theme toggle
+   sets data-theme on <html>, which is also PrimeNG Aura's darkModeSelector. */
+:root[data-theme="light"] {
+  --bo-ol-bg:           #ffffff;
+  --bo-ol-bg-2:         #faf8f2;
+  --bo-ol-border:       #cfccc1;
+  --bo-ol-text:         #1a1a16;
+  --bo-ol-hover:        rgba(0,0,0,0.04);
+  --bo-ol-accent:       hsl(132 52% 24%);
+  --bo-ol-accent-soft:  hsl(132 52% 32% / 0.10);
+}
+:root[data-theme="dark"] {
+  --bo-ol-bg:           #1b1b18;
+  --bo-ol-bg-2:         #232320;
+  --bo-ol-border:       #3b3b36;
+  --bo-ol-text:         #ebe9df;
+  --bo-ol-hover:        rgba(255,255,255,0.04);
+  --bo-ol-accent:       hsl(128 70% 66%);
+  --bo-ol-accent-soft:  hsl(128 70% 60% / 0.14);
+}
+
+/* Trigger — lives inside .bo-frame, so it can use the --bo-* tokens directly.
+   Matches the .bo-select control. */
+.bo-frame .p-multiselect {
+  background: var(--bo-panel);
+  border: 1px solid var(--bo-border-strong);
+  border-radius: var(--bo-radius-sm);
+  min-height: 28px;
+  color: var(--bo-text);
+}
+.bo-frame .p-multiselect .p-multiselect-label {
+  padding: 4px 9px;
+  font: 12.5px var(--bo-font-ui);
+  color: var(--bo-text);
+}
+.bo-frame .p-multiselect .p-multiselect-label.p-multiselect-label-empty {
+  color: var(--bo-text-faint);
+}
+.bo-frame .p-multiselect .p-multiselect-dropdown { color: var(--bo-text-muted); }
+.bo-frame .p-multiselect.p-focus,
+.bo-frame .p-multiselect:not(.p-disabled):hover {
+  border-color: var(--bo-accent);
+}
+
+/* Overlay — appended to <body>; uses the mirrored --bo-ol-* tokens. */
+.p-multiselect-overlay {
+  background: var(--bo-ol-bg);
+  border: 1px solid var(--bo-ol-border);
+  border-radius: var(--bo-radius-sm, 4px);
+  color: var(--bo-ol-text);
+}
+.p-multiselect-overlay .p-multiselect-header {
+  background: var(--bo-ol-bg-2);
+  border-bottom: 1px solid var(--bo-ol-border);
+}
+.p-multiselect-overlay .p-multiselect-option {
+  color: var(--bo-ol-text);
+}
+.p-multiselect-overlay .p-multiselect-option:not(.p-multiselect-option-selected):hover,
+.p-multiselect-overlay .p-multiselect-option.p-focus {
+  background: var(--bo-ol-hover);
+}
+.p-multiselect-overlay .p-multiselect-option.p-multiselect-option-selected {
+  background: var(--bo-ol-accent-soft);
+  color: var(--bo-ol-accent);
+}

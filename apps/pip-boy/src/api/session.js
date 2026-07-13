@@ -90,3 +90,28 @@ export async function refreshUser() {
     _currentUser = await apiGet('/auth/me');
     return _currentUser;
 }
+
+// Re-verify the stored session on resume/reopen. Reuses the exact 401-vs-transport
+// discrimination as rehydrate(), but reports the outcome so the caller can decide
+// what to do with the currently rendered screen:
+//   - { status: 'anonymous' } — no token stored; no request is issued.
+//   - { status: 'ok', user }  — the token is still valid; the in-memory user is refreshed.
+//   - { status: 'expired' }   — a 401; the local session is cleared.
+//   - { status: 'error' }     — a transport/HTTP failure that is not a 401 (a
+//                               transient offline blip); the session is left intact.
+export async function reverify() {
+    if (!getToken()) return { status: 'anonymous' };
+    try {
+        _currentUser = await apiGet('/auth/me');
+        return { status: 'ok', user: _currentUser };
+    } catch (err) {
+        if (err && err.status === 401) {
+            _setToken(null);
+            _currentUser = null;
+            return { status: 'expired' };
+        }
+        // No 401 (transport error, or a non-401 HTTP status): a transient failure
+        // is not an expired session, so keep the local session and stay put.
+        return { status: 'error' };
+    }
+}

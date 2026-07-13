@@ -4,14 +4,13 @@ import { AuthService } from '../core/auth/auth.service';
 import { ThemeService } from '../core/theme/theme.service';
 import { MoonIcon } from '../icons/moon-icon';
 import { SunIcon } from '../icons/sun-icon';
-import { CampaignWorkspaceSwitcherComponent } from './campaign-workspace-switcher';
 
 const APP_VERSION = 'v0.1.0';
 
 @Component({
   selector: 'app-topbar',
   standalone: true,
-  imports: [SunIcon, MoonIcon, CampaignWorkspaceSwitcherComponent],
+  imports: [SunIcon, MoonIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="bo-topbar">
@@ -23,8 +22,6 @@ const APP_VERSION = 'v0.1.0';
       <span class="bo-crumbs">
         <span class="c-current">Backoffice</span>
       </span>
-
-      <app-campaign-workspace-switcher />
 
       <div class="bo-topbar-right">
         <span>{{ version }}</span>

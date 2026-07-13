@@ -41,6 +41,14 @@ describe('SidebarComponent — Catalogo visibility', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Catalogo');
   });
 
+  it('always exposes an enabled Terminali link to /terminals, even with no campaign', () => {
+    const fixture = render({ id: '2', username: 'player', role: 'player' });
+    const link = fixture.nativeElement.querySelector('a[href="/terminals"]');
+    expect(link).toBeTruthy();
+    // It is a real anchor, never a disabled button.
+    expect(fixture.nativeElement.querySelector('button[disabled]')).toBeNull();
+  });
+
   it('shows the Catalogo section with its links for an admin', () => {
     const fixture = render({ id: '1', username: 'admin', role: 'admin' });
     const text = fixture.nativeElement.textContent as string;

@@ -29,6 +29,13 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Catalogo abilità</h1>
+        @if (!addRowVisible()) {
+          <div class="bo-page-head-actions">
+            <button type="button" class="bo-btn primary" (click)="showAddRow()">
+              + Aggiungi
+            </button>
+          </div>
+        }
       </div>
 
       <div class="bo-card">
@@ -132,12 +139,6 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
             </tr>
           </ng-template>
         </p-table>
-
-        @if (!addRowVisible()) {
-          <button type="button" class="bo-btn ghost" style="margin-top: 8px; font-size: 13px;" (click)="showAddRow()">
-            + Aggiungi
-          </button>
-        }
       </div>
     </div>
   `,

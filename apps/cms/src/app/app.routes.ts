@@ -32,7 +32,7 @@ export const routes: Routes = [
           import('./features/users/user-detail-page').then((m) => m.UserDetailPage),
       },
       {
-        path: 'campaigns/:campaignId/terminals',
+        path: 'terminals',
         loadComponent: () =>
           import('./features/terminals/terminals-list').then((m) => m.TerminalsListPage),
       },

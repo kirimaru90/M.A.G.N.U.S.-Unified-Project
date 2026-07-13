@@ -1,6 +1,7 @@
 import { esc } from '../engine/render.js';
 import { patchInventory, patchResources } from '../api/characters.js';
 import { openAddItemPopup } from './add-item-popup.js';
+import { openInfoPopup } from './info-popup.js';
 import { openCatalogPicker } from './catalog-picker.js';
 
 const RESOURCES = [
@@ -9,8 +10,9 @@ const RESOURCES = [
     { key: 'bobbleheads', label: 'BOBBLEHEAD' },
 ];
 
-// Weapons/armor render tag chips; consumables/misc render quantity rows (with
-// an optional description on Vari).
+// Weapons/armor render tag chips; consumables/misc render quantity rows. A
+// consumable/misc description is no longer shown inline — the name is an
+// activatable control opening the read-only detail popup.
 const TAG_SECTIONS = new Set(['weapons', 'equip']);
 
 // Tags arrive from the API already in canonical order (`core` first, then
@@ -61,24 +63,27 @@ function tagItemRow(item, section, editMode) {
     `;
 }
 
-/** Compact quantity row for consumables and Vari (`misc`). Vari also shows a description. */
-function qtyItemRow(item, section, editMode, withDesc) {
+/**
+ * Compact quantity row for consumables and Vari (`misc`). The `[−][+]` stepper
+ * is right-aligned and no description renders inline. In view mode the name is
+ * an activatable control that opens the read-only detail popup; in editor mode
+ * it is an inline text input (and the description is editable there).
+ */
+function qtyItemRow(item, section, editMode) {
     return `
         <div class="pb-consumable-row" data-item="${esc(item.id)}">
-            <div class="pb-split-row">
-                ${editMode
-                    ? `<input class="pb-input pb-consumable-name" data-item-name="${esc(item.id)}" data-section="${section}" value="${esc(item.name)}">`
-                    : `<span class="pb-consumable-name">${esc(item.name)}</span>`}
-                <span class="pb-label">×${item.quantity ?? 0}</span>
-                <div class="pb-stepper pb-stepper--tiny" data-qty="${esc(item.id)}" data-section="${section}">
-                    <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
-                    <button data-dir="1">+</button>
-                </div>
-                ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
+            ${editMode
+                ? `<input class="pb-input pb-consumable-name" data-item-name="${esc(item.id)}" data-section="${section}" value="${esc(item.name)}">`
+                : `<button class="pb-consumable-name" data-info-name="${esc(item.id)}" data-section="${section}">${esc(item.name)}</button>`}
+            <span class="pb-label pb-consumable-qty">×${item.quantity ?? 0}</span>
+            <div class="pb-stepper pb-stepper--tiny pb-consumable-stepper" data-qty="${esc(item.id)}" data-section="${section}">
+                <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
+                <button data-dir="1">+</button>
             </div>
-            ${withDesc ? (editMode
-                ? `<input class="pb-input" data-item-desc="${esc(item.id)}" data-section="${section}" value="${esc(item.description ?? '')}" placeholder="descrizione">`
-                : (item.description ? `<div class="pb-label">${esc(item.description)}</div>` : '')) : ''}
+            ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
+            ${editMode
+                ? `<input class="pb-input pb-consumable-desc" data-item-desc="${esc(item.id)}" data-section="${section}" value="${esc(item.description ?? '')}" placeholder="descrizione">`
+                : ''}
         </div>
     `;
 }
@@ -93,7 +98,6 @@ export function renderInvSubtab(container, ctx, node) {
     const { character, canEdit, editMode, campaignId } = ctx;
     const section = node.invKey;
     const isTagSection = TAG_SECTIONS.has(section);
-    const withDesc = section === 'misc';
     const inv = character.inventory ?? {};
     const resources = character.resources ?? {};
     const items = inv[section] ?? [];
@@ -103,14 +107,14 @@ export function renderInvSubtab(container, ctx, node) {
         ? '<div class="pb-empty">Vuoto</div>'
         : items.map((i) => isTagSection
             ? tagItemRow(i, section, inEditor)
-            : qtyItemRow(i, section, inEditor, withDesc)).join('');
+            : qtyItemRow(i, section, inEditor)).join('');
 
     container.innerHTML = `
         <div class="pb-section-head pb-inv-head">
             <span>${esc(node.label.toUpperCase())}</span>
             ${canEdit ? '<button class="pb-btn pb-btn--icon pb-inv-add" data-add-open aria-label="Aggiungi">+</button>' : ''}
         </div>
-        <div data-section-list="${section}">${listHtml}</div>
+        <div class="pb-inv-list" data-section-list="${section}">${listHtml}</div>
 
         <div class="pb-resource-row">
             ${RESOURCES.map(({ key, label }) => `
@@ -127,9 +131,20 @@ export function renderInvSubtab(container, ctx, node) {
         </div>
     `;
 
-    if (!canEdit) return;
-
     const findItem = (sec, id) => (inv[sec] ?? []).find((i) => i.id === id);
+
+    // --- view mode: tapping a consumable/misc name opens its read-only detail
+    // popup. Available to every viewer (it writes nothing), so wired before the
+    // editor-only guards below.
+    container.querySelectorAll('[data-info-name]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const item = findItem(btn.dataset.section, btn.dataset.infoName);
+            if (!item) return;
+            openInfoPopup({ title: item.name, body: item.description ?? '' });
+        });
+    });
+
+    if (!canEdit) return;
 
     async function patchInv(sec, body) {
         const res = await patchInventory(campaignId, character.id, { [sec]: body });

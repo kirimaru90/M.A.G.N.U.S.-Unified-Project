@@ -256,24 +256,30 @@ describe('ConditionsCatalogPage', () => {
       expect(slugs(c)).toEqual(['fatigued', 'poisoned', 'rested', 'well-fed']);
     });
 
-    it('filters by polarity, restoring all when set back to all', async () => {
+    it('filters by polarity, restoring all when the selection is cleared', async () => {
       const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
-      c['polarityFilter'].set('negative');
+      c['polarityFilter'].set(['negative']);
       expect(slugs(c)).toEqual(['fatigued', 'poisoned']);
-      c['polarityFilter'].set('all');
+      c['polarityFilter'].set([]);
       expect(slugs(c)).toEqual(['fatigued', 'poisoned', 'rested', 'well-fed']);
     });
 
     it('filters by severity', async () => {
       const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
-      c['severityFilter'].set('major');
+      c['severityFilter'].set(['major']);
       expect(slugs(c)).toEqual(['poisoned', 'rested']);
+    });
+
+    it('ORs multiple values within one filter', async () => {
+      const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
+      c['severityFilter'].set(['minor', 'major']);
+      expect(slugs(c)).toEqual(['fatigued', 'poisoned', 'rested', 'well-fed']);
     });
 
     it('ANDs polarity and severity together', async () => {
       const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
-      c['polarityFilter'].set('negative');
-      c['severityFilter'].set('minor');
+      c['polarityFilter'].set(['negative']);
+      c['severityFilter'].set(['minor']);
       expect(slugs(c)).toEqual(['fatigued']);
     });
   });

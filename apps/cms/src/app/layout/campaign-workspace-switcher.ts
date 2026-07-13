@@ -1,10 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
 import { Select } from 'primeng/select';
 import type { CampaignDto } from '../core/campaign/campaign.types';
 import { CurrentCampaignService } from '../core/campaign/current-campaign.service';
 
+/**
+ * In-page campaign selector, hosted at the top of campaign-dependent pages
+ * (e.g. the terminals list). Selecting a campaign only updates the shared
+ * workspace context — no navigation, because campaign-dependent routes no
+ * longer carry the campaign id in the URL.
+ */
 @Component({
   selector: 'app-campaign-workspace-switcher',
   standalone: true,
@@ -22,21 +27,9 @@ import { CurrentCampaignService } from '../core/campaign/current-campaign.servic
   `,
 })
 export class CampaignWorkspaceSwitcherComponent {
-  private readonly router = inject(Router);
   protected readonly currentCampaign = inject(CurrentCampaignService);
 
   onSelect(campaign: CampaignDto): void {
-    const prev = this.currentCampaign.currentCampaign();
     this.currentCampaign.setCurrent(campaign);
-    if (!prev || prev.id === campaign.id) return;
-
-    const url = this.router.url;
-    if (/^\/campaigns\/[^/]+\/terminals/.test(url)) {
-      void this.router.navigate(['/campaigns', campaign.id, 'terminals']);
-    } else if (/^\/campaigns\/[^/]+$/.test(url)) {
-      void this.router.navigate(['/campaigns', campaign.id]);
-    } else if (/^\/terminals\//.test(url)) {
-      void this.router.navigate(['/campaigns', campaign.id, 'terminals']);
-    }
   }
 }

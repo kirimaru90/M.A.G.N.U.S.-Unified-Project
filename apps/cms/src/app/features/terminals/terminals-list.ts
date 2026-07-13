@@ -1,14 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   signal,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { BehaviorSubject, switchMap } from 'rxjs';
+import { toSignal, toObservable } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { BehaviorSubject, combineLatest, of, switchMap } from 'rxjs';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
@@ -17,6 +16,7 @@ import { Toast } from 'primeng/toast';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import { TerminalsApiService } from '../../core/terminal/terminals-api.service';
 import type { TerminalDto } from '../../core/terminal/terminal.types';
+import { CampaignWorkspaceSwitcherComponent } from '../../layout/campaign-workspace-switcher';
 import { exportTerminal } from './export-terminal';
 import { CreateTerminalDialogComponent } from './create-terminal-dialog';
 import { ImportTerminalDialogComponent } from './import-terminal-dialog';
@@ -31,6 +31,7 @@ import { ImportTerminalDialogComponent } from './import-terminal-dialog';
     Toast,
     RouterLink,
     DatePipe,
+    CampaignWorkspaceSwitcherComponent,
     CreateTerminalDialogComponent,
     ImportTerminalDialogComponent,
   ],
@@ -42,22 +43,30 @@ import { ImportTerminalDialogComponent } from './import-terminal-dialog';
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Terminali</h1>
-        <div style="display: flex; gap: 8px;">
-          <button type="button" class="bo-btn ghost" (click)="showImport.set(true)">
+        <div class="bo-page-head-actions">
+          <app-campaign-workspace-switcher />
+          <button
+            type="button"
+            class="bo-btn ghost"
+            [disabled]="!campaign()"
+            (click)="showImport.set(true)"
+          >
             Importa terminale
           </button>
-          <button type="button" class="bo-btn primary" (click)="showCreate.set(true)">
+          <button
+            type="button"
+            class="bo-btn primary"
+            [disabled]="!campaign()"
+            (click)="showCreate.set(true)"
+          >
             Nuovo terminale
           </button>
         </div>
       </div>
 
-      @if (campaignNotFound()) {
+      @if (!campaign()) {
         <div class="bo-card" style="text-align: center; color: var(--bo-text-faint); padding: 32px;">
-          <p>Campagna non trovata.</p>
-          <a routerLink="/campaigns" class="bo-btn ghost" style="margin-top: 12px; display: inline-block;">
-            Torna alle campagne
-          </a>
+          <p>Seleziona una campagna per continuare.</p>
         </div>
       } @else {
         <div class="bo-card">
@@ -149,14 +158,14 @@ import { ImportTerminalDialogComponent } from './import-terminal-dialog';
 
     <app-create-terminal-dialog
       [visible]="showCreate()"
-      [campaignId]="campaignId"
+      [campaignId]="campaign()?.id ?? ''"
       (closed)="showCreate.set(false)"
       (created)="onCreated()"
     />
 
     <app-import-terminal-dialog
       [visible]="showImport()"
-      [campaignId]="campaignId"
+      [campaignId]="campaign()?.id ?? ''"
       (closed)="showImport.set(false)"
       (imported)="onImported()"
     />
@@ -167,21 +176,27 @@ export class TerminalsListPage {
   private readonly currentCampaign = inject(CurrentCampaignService);
   private readonly confirmationService = inject(ConfirmationService);
   private readonly messageService = inject(MessageService);
-  private readonly route = inject(ActivatedRoute);
 
-  protected readonly campaignId = this.route.snapshot.params['campaignId'] as string;
-
-  protected readonly campaignNotFound = computed(() => {
-    const list = this.currentCampaign.campaigns();
-    return list.length > 0 && !list.some((c) => c.id === this.campaignId);
-  });
+  /** The active workspace campaign; terminals are scoped to it. */
+  protected readonly campaign = this.currentCampaign.currentCampaign;
 
   protected readonly showCreate = signal(false);
   protected readonly showImport = signal(false);
 
   private readonly reload$ = new BehaviorSubject<void>(undefined);
+
+  /**
+   * Terminals for the current campaign. Re-fetches whenever the selected
+   * campaign changes or a reload is triggered; emits an empty list when no
+   * campaign is selected (the template shows the select-a-campaign state, so
+   * the value is never surfaced then).
+   */
   protected readonly terminals = toSignal(
-    this.reload$.pipe(switchMap(() => this.terminalsApi.listByCampaign(this.campaignId))),
+    combineLatest([toObservable(this.campaign), this.reload$]).pipe(
+      switchMap(([campaign]) =>
+        campaign ? this.terminalsApi.listByCampaign(campaign.id) : of<TerminalDto[]>([]),
+      ),
+    ),
   );
 
   protected onCreated(): void {

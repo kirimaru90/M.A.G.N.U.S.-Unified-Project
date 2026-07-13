@@ -4,6 +4,7 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { MultiSelect } from 'primeng/multiselect';
 import { TableModule } from 'primeng/table';
 import { Toast } from 'primeng/toast';
 import { ConditionsCatalogApiService } from '../../core/conditions-catalog/conditions-catalog-api.service';
@@ -32,7 +33,7 @@ const emptyDraft = (): DraftRow => ({
 @Component({
   selector: 'app-conditions-catalog-page',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, ConfirmDialog, Toast, InputTextModule],
+  imports: [FormsModule, TableModule, ButtonModule, ConfirmDialog, Toast, InputTextModule, MultiSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-toast />
@@ -41,6 +42,13 @@ const emptyDraft = (): DraftRow => ({
     <div class="bo-page">
       <div class="bo-page-head">
         <h1>Catalogo condizioni</h1>
+        @if (!addRowVisible()) {
+          <div class="bo-page-head-actions">
+            <button type="button" class="bo-btn primary" (click)="showAddRow()">
+              + Aggiungi
+            </button>
+          </div>
+        }
       </div>
 
       <div class="bo-card">
@@ -50,33 +58,31 @@ const emptyDraft = (): DraftRow => ({
         >
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span style="opacity: 0.7;">Polarità:</span>
-            @for (opt of polarityOptions; track opt.value) {
-              <button
-                type="button"
-                class="bo-btn ghost"
-                [class.primary]="polarityFilter() === opt.value"
-                [attr.data-testid]="'filter-polarity-' + opt.value"
-                style="font-size: 12px; padding: 4px 10px; height: auto;"
-                (click)="polarityFilter.set(opt.value)"
-              >
-                {{ opt.label }}
-              </button>
-            }
+            <p-multiselect
+              data-testid="filter-polarity"
+              [options]="polarityOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="polarityFilter()"
+              (ngModelChange)="polarityFilter.set($event)"
+              placeholder="Tutte"
+              [showToggleAll]="false"
+              [style]="{ 'min-width': '180px' }"
+            />
           </div>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span style="opacity: 0.7;">Gravità:</span>
-            @for (opt of severityOptions; track opt.value) {
-              <button
-                type="button"
-                class="bo-btn ghost"
-                [class.primary]="severityFilter() === opt.value"
-                [attr.data-testid]="'filter-severity-' + opt.value"
-                style="font-size: 12px; padding: 4px 10px; height: auto;"
-                (click)="severityFilter.set(opt.value)"
-              >
-                {{ opt.label }}
-              </button>
-            }
+            <p-multiselect
+              data-testid="filter-severity"
+              [options]="severityOptions"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="severityFilter()"
+              (ngModelChange)="severityFilter.set($event)"
+              placeholder="Tutte"
+              [showToggleAll]="false"
+              [style]="{ 'min-width': '180px' }"
+            />
           </div>
         </div>
 
@@ -216,12 +222,6 @@ const emptyDraft = (): DraftRow => ({
             </tr>
           </ng-template>
         </p-table>
-
-        @if (!addRowVisible()) {
-          <button type="button" class="bo-btn ghost" style="margin-top: 8px; font-size: 13px;" (click)="showAddRow()">
-            + Aggiungi
-          </button>
-        }
       </div>
     </div>
   `,
@@ -237,24 +237,25 @@ export class ConditionsCatalogPage implements OnInit {
   protected readonly rowError = signal<string | null>(null);
   protected draft: DraftRow = emptyDraft();
 
-  // --- Client-side polarity + severity filters (default "all"), AND-combined. ---
+  // --- Client-side polarity + severity multiselect filters. Empty selection
+  //     means "all"; within one filter values OR, across filters they AND. ---
   protected readonly polarityOptions = [
-    { value: 'all' as const, label: 'Tutte' },
     { value: 'positive' as const, label: 'Positive' },
     { value: 'negative' as const, label: 'Negative' },
   ];
   protected readonly severityOptions = [
-    { value: 'all' as const, label: 'Tutte' },
     { value: 'minor' as const, label: 'Minor' },
     { value: 'major' as const, label: 'Major' },
   ];
-  protected readonly polarityFilter = signal<'all' | ConditionPolarity>('all');
-  protected readonly severityFilter = signal<'all' | ConditionSeverity>('all');
+  protected readonly polarityFilter = signal<ConditionPolarity[]>([]);
+  protected readonly severityFilter = signal<ConditionSeverity[]>([]);
 
   /**
-   * The loaded catalog narrowed by the polarity and severity filters (combined
-   * with AND). Returns `undefined` while loading so the table keeps its loading
-   * state, and re-derives whenever `entries()` reloads.
+   * The loaded catalog narrowed by the polarity and severity multiselect filters.
+   * An empty selection for a filter matches every entry; a non-empty selection
+   * matches any of its values (OR); the two filters combine with AND. Returns
+   * `undefined` while loading so the table keeps its loading state, and
+   * re-derives whenever `entries()` reloads.
    */
   protected readonly filteredEntries = computed(() => {
     const all = this.entries();
@@ -262,8 +263,8 @@ export class ConditionsCatalogPage implements OnInit {
     const polarity = this.polarityFilter();
     const severity = this.severityFilter();
     return all.filter((e) => {
-      if (polarity !== 'all' && e.polarity !== polarity) return false;
-      if (severity !== 'all' && e.defaultSeverity !== severity) return false;
+      if (polarity.length > 0 && !polarity.includes(e.polarity)) return false;
+      if (severity.length > 0 && !severity.includes(e.defaultSeverity)) return false;
       return true;
     });
   });
