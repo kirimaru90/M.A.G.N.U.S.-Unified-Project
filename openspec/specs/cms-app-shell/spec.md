@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Authenticated bo-* topbar/sidebar/content shell with breadcrumbs, workspace switcher, theme toggle, user chip, logout, guarded /campaigns and /users routes, root redirect, and a login screen excluded from the shell.
+Authenticated bo-* topbar/sidebar/content shell with breadcrumbs, theme toggle, user chip, logout, guarded /campaigns and /users routes, root redirect, and a login screen excluded from the shell. Campaign selection is an in-page control, not a topbar switcher.
 
 ## Requirements
 
@@ -17,8 +17,8 @@ For authenticated users, the application SHALL render an app shell composed of `
 - **WHEN** any user is on `/login`
 - **THEN** only the login form (inside `.bo-frame`) is shown — no `.bo-topbar` and no `.bo-sidebar`
 
-### Requirement: Topbar shows logo, breadcrumbs, campaign workspace switcher, version, theme toggle, user chip, and logout
-The topbar SHALL be 44 px tall and follow the `.bo-topbar` chrome. It SHALL render, left-to-right: the `.bo-logo` mark + wordmark, `.bo-crumbs` (static crumb "Backoffice"), a `<app-campaign-workspace-switcher>` PrimeNG Select dropdown (see `campaign-workspace-switcher` spec), and a `.bo-topbar-right` group containing the application version string, a sun/moon theme-toggle button, a `.bo-user-chip` displaying the current user's identifier, and a logout control. Activating the logout control SHALL invoke `AuthService.logout()` and navigate to `/login`.
+### Requirement: Topbar shows logo, breadcrumbs, version, theme toggle, user chip, and logout
+The topbar SHALL be 44 px tall and follow the `.bo-topbar` chrome. It SHALL render, left-to-right: the `.bo-logo` mark + wordmark, `.bo-crumbs` (static crumb "Backoffice"), and a `.bo-topbar-right` group containing the application version string, a sun/moon theme-toggle button, a `.bo-user-chip` displaying the current user's identifier, and a logout control. The topbar SHALL NOT contain the campaign workspace switcher — campaign selection is now an in-page control on campaign-dependent pages (see `cms-campaign-workspace-switcher`). Activating the logout control SHALL invoke `AuthService.logout()` and navigate to `/login`.
 
 #### Scenario: Topbar shows the current user
 - **WHEN** an authenticated user is on any shell-rendering route
@@ -32,9 +32,9 @@ The topbar SHALL be 44 px tall and follow the `.bo-topbar` chrome. It SHALL rend
 - **WHEN** the user activates the logout control in the topbar
 - **THEN** `AuthService.logout()` is invoked, auth state is cleared, and the router navigates to `/login`
 
-#### Scenario: Campaign workspace switcher is present in the topbar
+#### Scenario: Topbar does not contain the campaign switcher
 - **WHEN** an authenticated user is on any shell-rendering route
-- **THEN** the topbar renders the `<app-campaign-workspace-switcher>` component between `.bo-crumbs` and `.bo-topbar-right`
+- **THEN** the topbar renders no campaign workspace switcher between `.bo-crumbs` and `.bo-topbar-right`
 
 ### Requirement: Sidebar exposes section-labelled nav for Campaigns and Users (no campaign-switch stub)
 The sidebar SHALL be 200 px wide (`flex: 0 0 200px`) and follow the `.bo-sidebar` chrome. It SHALL contain, top-to-bottom: a `CAMPAGNA` section label followed by a `.bo-nav` link to `/campaigns`, and a `SISTEMA` section label followed by a `.bo-nav` link to `/users`. The `.bo-campaign-switch` placeholder card from Slice 1 SHALL be removed — the campaign workspace switcher is now in the topbar. The active nav entry SHALL render with the `.bo-nav a.active` styling.

@@ -6,7 +6,7 @@ import {
 import { ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { MongooseExceptionFilter } from '../src/common/filters/mongoose-exception.filter';
+import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 
 let mongod: MongoMemoryServer;
 
@@ -23,7 +23,7 @@ export async function createTestApp(
       transform: true,
     }),
   );
-  app.useGlobalFilters(new MongooseExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
   await app.init();
   await app.getHttpAdapter().getInstance().ready();
   return app;

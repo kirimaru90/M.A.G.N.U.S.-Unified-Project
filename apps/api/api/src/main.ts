@@ -7,7 +7,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { MongooseExceptionFilter } from './common/filters/mongoose-exception.filter';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { buildCorsOptions } from './config/cors';
 import helmet from '@fastify/helmet';
 import * as fs from 'fs';
@@ -37,7 +37,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  app.useGlobalFilters(new MongooseExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Swagger
   const document = SwaggerModule.createDocument(

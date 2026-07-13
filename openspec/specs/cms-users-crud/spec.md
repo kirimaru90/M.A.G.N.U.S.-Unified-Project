@@ -7,11 +7,15 @@ Users list table with dialog create, rename/role edit, separate password-reset a
 ## Requirements
 
 ### Requirement: Users list page displays all users in a PrimeNG table
-The `/users` route SHALL render a PrimeNG `<p-table>` listing all users returned by `GET /users`. The table SHALL include columns: **Nome utente** (`username`), **Ruolo** (`role` shown as an `admin` / `player` badge), and **Azioni** (row action buttons: edit, reset password, delete). Both admin and player users SHALL appear in the same list. The page SHALL display a loading state while the request is in flight and an empty-state message when the list is empty.
+The `/users` route SHALL render a PrimeNG `<p-table>` listing all users returned by `GET /users`. The table SHALL include columns: **Nome utente** (`username`), **Ruolo** (`role` shown as an `admin` / `player` badge), and **Azioni** (row action buttons: edit, reset password, delete). Both admin and player users SHALL appear in the same list. Every data column SHALL be sortable, and on load the table SHALL default to **ascending alphabetical order by `username`**. The page SHALL display a loading state while the request is in flight and an empty-state message when the list is empty. The "Nuovo utente" action SHALL appear in the page-head row aligned right (see `cms-backoffice-table-conventions`).
 
 #### Scenario: List loads and displays users
 - **WHEN** an authenticated admin navigates to `/users`
 - **THEN** the table renders one row per user returned by `GET /users`, showing username, role badge, and the three row action buttons
+
+#### Scenario: List defaults to alphabetical order by username
+- **WHEN** the users list first renders
+- **THEN** the rows are ordered ascending alphabetically by `username`
 
 #### Scenario: Empty state message
 - **WHEN** `GET /users` returns an empty array

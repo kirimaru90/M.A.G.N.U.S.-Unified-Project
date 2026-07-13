@@ -2,12 +2,14 @@
 
 ## Purpose
 
-Campaign-scoped terminals list with sortable columns, dialog create producing a valid schema stub, confirm-gated delete, a metadata-and-editor detail page, and a TerminalsApiService that maps/unwraps API shapes.
+Campaign-agnostic `/terminals` list (campaign resolved from the in-page selector / CurrentCampaignService) with sortable columns, dialog create producing a valid schema stub, confirm-gated delete, a title-header-and-editor detail page, and a TerminalsApiService that maps/unwraps API shapes.
 
 ## Requirements
 
-### Requirement: Terminals list page is scoped to a campaign
-The route `/campaigns/:campaignId/terminals` SHALL render a PrimeNG `<p-table>` listing every terminal returned by `GET /campaigns/:campaignId/terminals`. The table SHALL include the following columns, in this order:
+### Requirement: Terminals list page is campaign-agnostic in the route and reads the current campaign
+The route `/terminals` SHALL render the terminals list. It SHALL NOT carry the campaign id in the URL (the previous `/campaigns/:campaignId/terminals` route is superseded). The page SHALL host the in-page campaign selector (see `cms-campaign-workspace-switcher`) at the top and SHALL resolve the active campaign from `CurrentCampaignService.currentCampaign()`. When a campaign is selected, the page SHALL render a PrimeNG `<p-table>` listing every terminal returned by `GET /campaigns/:campaignId/terminals` for that campaign's id. When **no** campaign is selected, the page SHALL render an empty state prompting the admin to select a campaign first, and SHALL NOT render the table.
+
+The table SHALL include the following columns, in this order:
 
 1. **Titolo** — terminal title (links to the detail page)
 2. **Pubblico** — public flag badge
@@ -18,15 +20,19 @@ The route `/campaigns/:campaignId/terminals` SHALL render a PrimeNG `<p-table>` 
 
 The list SHALL NOT render a "Codename" (`hiddenId`) column, because the `GET /campaigns/:campaignId/terminals` response does not include `hiddenId`.
 
-Every data column (Titolo, Pubblico, Visualizzazioni, Creato il, Aggiornato il) SHALL be sortable by clicking its header; **Azioni** SHALL NOT be sortable. The page SHALL display a loading state while the request is in flight and an empty-state message ("Nessun terminale in questa campagna") when the list is empty.
+Every data column (Titolo, Pubblico, Visualizzazioni, Creato il, Aggiornato il) SHALL be sortable by clicking its header; **Azioni** SHALL NOT be sortable. The page SHALL display a loading state while the request is in flight and an empty-state message ("Nessun terminale in questa campagna") when a campaign is selected but its list is empty. The page's primary actions ("Nuovo terminale", "Importa terminale") SHALL appear in the page-head row aligned right (see `cms-backoffice-table-conventions`).
 
-#### Scenario: List loads terminals for the campaign
-- **WHEN** an authenticated admin navigates to `/campaigns/c1/terminals`
+#### Scenario: List loads terminals for the selected campaign
+- **WHEN** a campaign `c1` is selected and the admin is on `/terminals`
 - **THEN** the table renders one row per terminal returned by `GET /campaigns/c1/terminals`, showing the title, public badge, views, created/updated timestamps, and action buttons
 
-#### Scenario: List renders without crashing on the flat API response
-- **WHEN** `GET /campaigns/c1/terminals` returns flat terminal objects (`title`, `isPublic`, `viewCount`)
-- **THEN** the table renders the title and public badge for each row with no runtime error (no `Cannot read properties of undefined` on `meta`)
+#### Scenario: Empty state prompts to select a campaign
+- **WHEN** the admin is on `/terminals` and `CurrentCampaignService.currentCampaign()` is null
+- **THEN** the page shows an empty state prompting the admin to select a campaign first, and no terminals table is rendered
+
+#### Scenario: Selecting a campaign loads its terminals without navigation
+- **WHEN** the admin picks a campaign in the in-page selector while on `/terminals`
+- **THEN** the list loads that campaign's terminals in place, with no change to the `/terminals` URL
 
 #### Scenario: No Codename column is present
 - **WHEN** the table header is rendered
@@ -40,52 +46,56 @@ Every data column (Titolo, Pubblico, Visualizzazioni, Creato il, Aggiornato il) 
 - **WHEN** the admin clicks the header of any data column (e.g. Creato il)
 - **THEN** the rows reorder by that column's value, toggling ascending/descending on repeated clicks
 
-#### Scenario: Empty state when no terminals exist
-- **WHEN** `GET /campaigns/c1/terminals` returns an empty array
+#### Scenario: Empty state when the selected campaign has no terminals
+- **WHEN** `GET /campaigns/c1/terminals` returns an empty array for the selected campaign
 - **THEN** the table shows an empty-state message ("Nessun terminale in questa campagna") instead of rows
 
 #### Scenario: Loading state during fetch
 - **WHEN** the request to `GET /campaigns/c1/terminals` is in flight
 - **THEN** the table renders a loading indicator (PrimeNG table skeleton or spinner)
 
-### Requirement: Sidebar exposes Terminali entry when a campaign is selected
-The app sidebar SHALL include a "Terminali" navigation entry. The entry SHALL be enabled and linkable to `/campaigns/:campaignId/terminals` (using `CurrentCampaignService.currentCampaign()?.id`) when a campaign is selected. The entry SHALL be visibly disabled (or otherwise non-clickable) when no campaign is selected.
+### Requirement: Sidebar exposes an always-enabled Terminali entry
+The app sidebar SHALL include a "Terminali" navigation entry that is **always enabled** and links to the campaign-agnostic `/terminals` route. It SHALL NOT be disabled based on whether a campaign is selected, because campaign selection now happens inside the terminals page. When no campaign is selected, following the link lands on the terminals page's select-a-campaign empty state.
 
-#### Scenario: Sidebar link active with a current campaign
-- **WHEN** a campaign is selected in the workspace switcher
-- **THEN** the sidebar "Terminali" entry routes to `/campaigns/<current-id>/terminals` on click
+#### Scenario: Sidebar link is always enabled
+- **WHEN** the shell renders, whether or not a campaign is selected
+- **THEN** the sidebar "Terminali" entry is enabled and routes to `/terminals` on click
 
-#### Scenario: Sidebar link disabled without a current campaign
-- **WHEN** no campaign is selected
-- **THEN** the "Terminali" entry is rendered in a disabled state and does not navigate on click
+#### Scenario: Following the link with no campaign shows the empty state
+- **WHEN** no campaign is selected and the admin clicks "Terminali"
+- **THEN** the router navigates to `/terminals` and the page shows the select-a-campaign empty state
 
-### Requirement: Create terminal via dialog produces a minimal valid stub
-The terminals list page SHALL expose a "Nuovo terminale" button. Clicking it SHALL open a PrimeNG `<p-dialog>` containing a Reactive Form with **Titolo** (text input, required) and **Pubblico** (checkbox, default unchecked). On submit, the backoffice SHALL construct a minimal valid terminal stub conforming to `TerminalContentSchema` — `meta = { id, title, public }`, `state = { local: {}, global: {} }`, `login = { users: [] }`, `nodes = { start: { text: <placeholder>, choices: [] } }` — and call `POST /campaigns/:campaignId/terminals` with that body. On success the dialog closes and the list refreshes.
+### Requirement: Create/import terminal source the campaign from the current-campaign service
+The terminals list page SHALL expose "Nuovo terminale" and "Importa terminale" actions. Because the route no longer carries the campaign id, the create and import flows SHALL source the target `campaignId` from `CurrentCampaignService.currentCampaign()` rather than from a route parameter. On submit, the backoffice SHALL construct a minimal valid terminal stub conforming to `TerminalContentSchema` — `meta = { id, title, public }`, `state = { local: {}, global: {} }`, `login = { users: [] }`, `nodes = { start: { text: <placeholder>, choices: [] } }` — and call `POST /campaigns/:campaignId/terminals` with that body for the current campaign. On success the dialog closes and the list refreshes.
 
-#### Scenario: Form submits valid data
-- **WHEN** the admin enters a valid title and submits
-- **THEN** `POST /campaigns/:campaignId/terminals` is called with a body that satisfies `TerminalContentSchema` and the new terminal appears in the list after refresh
+#### Scenario: Create uses the current campaign id
+- **WHEN** a campaign `c1` is selected and the admin submits a valid title in the create dialog
+- **THEN** `POST /campaigns/c1/terminals` is called with a body that satisfies `TerminalContentSchema` and the new terminal appears in the list after refresh
 
 #### Scenario: Empty title is rejected by Zod
-- **WHEN** the admin submits the form with an empty title
+- **WHEN** the admin submits the create form with an empty title
 - **THEN** a `.bo-field-error` appears below the title field reading "Il titolo è obbligatorio" and no API call is made
 
 #### Scenario: Stub round-trips through the schema
 - **WHEN** the dialog constructs the stub for a given title and public flag
 - **THEN** `TerminalContentSchema.safeParse` succeeds against the generated stub before any network call
 
-### Requirement: Terminal detail page shows metadata and editor
-The route `/terminals/:id` SHALL fetch the terminal via a **single** `GET /terminals/:id` and render a metadata panel showing: title, public flag, the parent campaign name, and a last-updated label if the API includes one. The parent campaign name SHALL be resolved **synchronously** from `CurrentCampaignService.currentCampaign()` (mirroring the page's back-link); the page SHALL NOT issue a second `GET /terminals/:id` (or any extra request) solely to derive the campaign name. The page SHALL mount the full content editor (owned by the `cms-terminal-editor-shell` capability) in place of the terminal body; it SHALL NOT render a "Slice 5" placeholder. The page SHALL expose an "Esporta" action button (see `cms-terminals-import-export` capability).
+### Requirement: Terminal detail page shows the title header, actions, and editor
+The route `/terminals/:id` SHALL fetch the terminal via a **single** `GET /terminals/:id` and render a page head containing the terminal title, a back-link to the terminals list, and the page actions (Esporta, plus the editor's Annulla modifiche / Salva — see `cms-terminal-editor-shell`) aligned to the right of the title row. The page SHALL NOT render a separate non-editable summary panel duplicating the public flag, campaign name, and hidden id; those values are presented and edited within the editor's metadata section. The page SHALL mount the full content editor (owned by the `cms-terminal-editor-shell` capability) in place of the terminal body; it SHALL NOT render a "Slice 5" placeholder.
 
 The detail page SHALL obtain the terminal via `TerminalsApiService.getEnvelope` (the single `GET /terminals/:id`) so it has access to both the unwrapped `content` and the sibling `fictionalUsers` array, and SHALL pass both into the mounted editor. It SHALL read metadata as `content.meta.title`, `content.meta.public`, and `content.meta.hiddenId`. The page MUST NOT crash with `Cannot read properties of undefined` when handling the envelope, and MUST NOT source fictional-user passwords from `content.login.users` (which is password-free by API contract).
 
-#### Scenario: Detail page renders metadata
+#### Scenario: Detail page renders the title header and editor
 - **WHEN** the admin navigates to `/terminals/t1`
-- **THEN** the page renders the terminal's title, public flag badge, parent campaign label, and the mounted content editor
+- **THEN** the page head shows the terminal's title with the back-link and right-aligned actions, and the mounted content editor is rendered below
+
+#### Scenario: No non-editable summary panel
+- **WHEN** the detail page is rendered
+- **THEN** there is no separate read-only summary card listing Visibilità / Campagna / ID nascosto; those fields appear only in the editor's metadata section
 
 #### Scenario: Single terminal fetch
 - **WHEN** the detail page loads `/terminals/t1`
-- **THEN** exactly one `GET /terminals/t1` request is issued, and the campaign name is taken from `CurrentCampaignService.currentCampaign()` without an additional terminal or campaign fetch
+- **THEN** exactly one `GET /terminals/t1` request is issued, and no additional terminal or campaign fetch is made solely to render the header
 
 #### Scenario: Fictional passwords reach the editor
 - **WHEN** `GET /terminals/t1` returns an envelope with `fictionalUsers: [{ username: "tecnico", password: "robco123" }]` and `content.login.users: [{ username: "tecnico" }]`
@@ -93,7 +103,7 @@ The detail page SHALL obtain the terminal via `TerminalsApiService.getEnvelope` 
 
 #### Scenario: Detail page renders without crashing on the envelope response
 - **WHEN** `GET /terminals/t1` returns the wrapper envelope `{ id, campaignId, title, content: { meta: { title: "guida", public: true } }, fictionalUsers: [], ... }`
-- **THEN** the detail header renders the title and public badge with no runtime error (no `Cannot read properties of undefined` on `meta`)
+- **THEN** the detail header renders the title with no runtime error (no `Cannot read properties of undefined` on `meta`)
 
 #### Scenario: Editor is mounted, no placeholder
 - **WHEN** the detail page is rendered
@@ -102,17 +112,6 @@ The detail page SHALL obtain the terminal via `TerminalsApiService.getEnvelope` 
 #### Scenario: Not-found state
 - **WHEN** `GET /terminals/:id` returns 404
 - **THEN** the page renders an empty-state message and a back-link to `/campaigns`
-
-### Requirement: Terminals list campaign-existence check uses the cached campaign list
-The terminals list page (`/campaigns/:campaignId/terminals`) SHALL determine whether the route's `campaignId` exists by consulting `CurrentCampaignService` (its cached `campaigns()` list or `currentCampaign()`), NOT by issuing a dedicated `GET /campaigns/:campaignId` solely as an existence guard. When the id is not found among the known campaigns, the page SHALL render its not-found state. The terminals themselves SHALL continue to load via `GET /campaigns/:campaignId/terminals`.
-
-#### Scenario: No dedicated campaign fetch on list load
-- **WHEN** the admin opens `/campaigns/c1/terminals`
-- **THEN** the page issues `GET /campaigns/c1/terminals` for the list but does NOT issue a separate `GET /campaigns/c1` as an existence guard
-
-#### Scenario: Unknown campaign id shows not-found
-- **WHEN** the admin opens `/campaigns/:campaignId/terminals` for a `campaignId` not present in `CurrentCampaignService.campaigns()`
-- **THEN** the page renders the campaign not-found state
 
 ### Requirement: Delete terminal with ConfirmDialog warns about state loss
 Each terminals-list row SHALL expose a delete action (icon button). Clicking it SHALL open a PrimeNG `<p-confirmdialog>` with the message "Questa azione eliminerà il terminale e tutto lo stato locale associato. L'operazione non è reversibile." and severity `danger`. If the admin confirms, the backoffice SHALL call `DELETE /terminals/:id`. On success the row SHALL disappear from the list.

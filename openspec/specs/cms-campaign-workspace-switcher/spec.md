@@ -2,28 +2,32 @@
 
 ## Purpose
 
-Topbar PrimeNG dropdown listing cached campaigns that sets CurrentCampaignService (upgrading to the full state DTO), persists selection to localStorage, and restores it on reload.
+In-page PrimeNG dropdown (rendered inside campaign-dependent pages, not the topbar) listing cached campaigns that sets CurrentCampaignService (upgrading to the full state DTO), persists selection to localStorage, and restores it on reload.
 
 ## Requirements
 
-### Requirement: Topbar workspace switcher renders a PrimeNG dropdown listing all campaigns
-The topbar SHALL contain a `CampaignWorkspaceSwitcherComponent` rendered between the `.bo-crumbs` and the `.bo-topbar-right` group. The component SHALL display a PrimeNG `<p-select>` dropdown populated with all campaigns from `CurrentCampaignService.campaigns()` (the shared cached list), NOT from its own `GET /campaigns` request. The dropdown SHALL show campaign names as option labels. When `CurrentCampaignService.currentCampaign()` is non-null, the matching campaign SHALL be pre-selected. When null, the placeholder text "Seleziona campagna" SHALL be shown.
+### Requirement: In-page workspace selector renders a PrimeNG dropdown listing all campaigns
+Campaign selection SHALL be presented by a `CampaignWorkspaceSwitcherComponent` rendered **inside campaign-dependent pages** (at the top of the page content), NOT in the global topbar. Any main-menu page whose data is scoped to a campaign SHALL host this selector; today that is the terminals list. The component SHALL display a PrimeNG `<p-select>` dropdown populated with all campaigns from `CurrentCampaignService.campaigns()` (the shared cached list), NOT from its own `GET /campaigns` request. The dropdown SHALL show campaign names as option labels. On render the selector SHALL default to the previously-selected campaign: when `CurrentCampaignService.currentCampaign()` is non-null, the matching campaign SHALL be pre-selected; when null, the placeholder text "Seleziona campagna" SHALL be shown.
 
 #### Scenario: Dropdown lists all campaigns
-- **WHEN** an authenticated admin is on any shell route
-- **THEN** the topbar workspace switcher dropdown lists all campaigns from `CurrentCampaignService.campaigns()`
+- **WHEN** an authenticated admin is on a campaign-dependent page
+- **THEN** the in-page workspace selector dropdown lists all campaigns from `CurrentCampaignService.campaigns()`
 
 #### Scenario: Switcher does not issue its own list request
-- **WHEN** the switcher renders on a page where `CurrentCampaignService.campaigns()` is already hydrated
-- **THEN** the switcher consumes the cached list and does not trigger an additional `GET /campaigns`
+- **WHEN** the selector renders on a page where `CurrentCampaignService.campaigns()` is already hydrated
+- **THEN** the selector consumes the cached list and does not trigger an additional `GET /campaigns`
 
-#### Scenario: Currently selected campaign is pre-selected
-- **WHEN** `CurrentCampaignService.currentCampaign()` is non-null
+#### Scenario: Selector defaults to the previously-selected campaign
+- **WHEN** `CurrentCampaignService.currentCampaign()` is non-null (restored from a prior session)
 - **THEN** the dropdown shows the matching campaign's name as the selected value
 
 #### Scenario: Placeholder shown when no campaign is selected
 - **WHEN** `CurrentCampaignService.currentCampaign()` is null
 - **THEN** the dropdown shows the placeholder text "Seleziona campagna"
+
+#### Scenario: Selector is not in the topbar
+- **WHEN** the app shell renders
+- **THEN** the global topbar contains no campaign switcher; the selector appears only within campaign-dependent pages
 
 ### Requirement: Selecting a campaign in the switcher updates CurrentCampaignService
 When the admin selects a campaign from the dropdown, `CurrentCampaignService.setCurrent(campaign)` SHALL be called with the selected option. Because the dropdown options are lean (no `state`), the service SHALL upgrade the selection to the full campaign DTO (with `state`) via a single `GET /campaigns/:id`, so that downstream consumers (notably the terminal editor) read the global-variable schema from `currentCampaign().state` without their own fetch. The selection SHALL persist immediately to `localStorage` (delegated to `setCurrent`). No page navigation occurs — the switcher sets the workspace context for the current session.
@@ -37,8 +41,8 @@ When the admin selects a campaign from the dropdown, `CurrentCampaignService.set
 - **THEN** the service fetches `GET /campaigns/:id` once and `currentCampaign()?.state` is populated for downstream consumers
 
 ### Requirement: Page reload restores the previously selected campaign
-On app reload, the workspace switcher SHALL show the previously selected campaign (rehydrated via `CurrentCampaignService` startup logic) without requiring the admin to re-select it.
+On app reload, the in-page workspace selector SHALL show the previously selected campaign (rehydrated via `CurrentCampaignService` startup logic) without requiring the admin to re-select it.
 
 #### Scenario: Reload restores selection
 - **WHEN** the admin selects a campaign and then reloads the page
-- **THEN** the topbar switcher shows the same campaign as selected after reload
+- **THEN** the in-page selector shows the same campaign as selected after reload
