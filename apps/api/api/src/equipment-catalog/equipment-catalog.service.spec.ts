@@ -6,7 +6,6 @@ type Entry = {
   name: string;
   kind: string;
   tags?: Array<{ name: string; type: string }>;
-  defaultQuantity?: number;
   isStarter?: boolean;
   description?: string;
 };
@@ -55,7 +54,6 @@ describe('EquipmentCatalogService.patchSchema', () => {
           name: 'Pistola 10mm',
           kind: 'weapon',
           tags: [{ name: 'AFFIDABILE', type: 'core' }],
-          defaultQuantity: undefined,
           isStarter: true,
           description: undefined,
         },
@@ -82,7 +80,6 @@ describe('EquipmentCatalogService.patchSchema', () => {
           name: 'Coltello',
           kind: 'weapon',
           tags: [],
-          defaultQuantity: undefined,
           isStarter: false,
           description: undefined,
         },
@@ -110,7 +107,6 @@ describe('EquipmentCatalogService.patchSchema', () => {
           name: 'Coltello',
           kind: 'weapon',
           tags: [],
-          defaultQuantity: undefined,
           isStarter: true,
           description: undefined,
         },
@@ -139,7 +135,6 @@ describe('EquipmentCatalogService.patchSchema', () => {
           name: undefined,
           kind: undefined,
           tags: undefined,
-          defaultQuantity: undefined,
           isStarter: true,
           description: undefined,
         },
@@ -153,7 +148,6 @@ describe('EquipmentCatalogService.patchSchema', () => {
           name: 'Coltello',
           kind: 'weapon',
           tags: [{ name: 'PESANTE', type: 'core' }],
-          defaultQuantity: undefined,
           isStarter: true,
           description: undefined,
         },
@@ -275,17 +269,19 @@ describe('EquipmentCatalogService — entry validation', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('rejects a negative defaultQuantity', async () => {
-    const { service } = makeService([]);
-    await expect(
-      service.patchSchema([
-        {
-          action: 'add',
-          slug: 'stimpack',
-          entry: { name: 'Stimpack', kind: 'consumable', defaultQuantity: -1 },
-        } as never,
-      ]),
-    ).rejects.toThrow(BadRequestException);
+  // Task 2.1 — quantity is an inventory concern; a submitted defaultQuantity is
+  // ignored and never stored on the template.
+  it('drops a submitted defaultQuantity rather than storing it', async () => {
+    const { service, updateOne } = makeService([]);
+    await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'stimpack',
+        entry: { name: 'Stimpack', kind: 'consumable', defaultQuantity: 5 },
+      } as never,
+    ]);
+    const [, update] = updateOne.mock.calls[0];
+    expect(update.$set).not.toHaveProperty('defaultQuantity');
   });
 
   it.each(['name', 'kind'])(
@@ -303,7 +299,7 @@ describe('EquipmentCatalogService — entry validation', () => {
 
 // misc-items-catalog Tasks 1.x / 2.x — misc kind, starter exclusion, tag order.
 describe('EquipmentCatalogService — misc kind', () => {
-  it('accepts a misc template with a description and defaultQuantity, no tags', async () => {
+  it('accepts a misc template with a description and no tags, storing no quantity', async () => {
     const { service, updateOne } = makeService([]);
     const result = await service.patchSchema([
       {
@@ -313,7 +309,6 @@ describe('EquipmentCatalogService — misc kind', () => {
           name: 'Chiave inglese',
           kind: 'misc',
           description: 'Attrezzo',
-          defaultQuantity: 1,
         },
       } as never,
     ]);
@@ -326,7 +321,6 @@ describe('EquipmentCatalogService — misc kind', () => {
           name: 'Chiave inglese',
           kind: 'misc',
           tags: [],
-          defaultQuantity: 1,
           isStarter: false,
           description: 'Attrezzo',
         },
@@ -377,7 +371,6 @@ describe('EquipmentCatalogService — misc kind', () => {
         name: 'Stimpack',
         kind: 'consumable',
         isStarter: true,
-        defaultQuantity: 2,
       },
     ]);
     await service.patchSchema([

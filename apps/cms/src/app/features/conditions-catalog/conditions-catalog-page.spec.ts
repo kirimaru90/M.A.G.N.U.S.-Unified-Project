@@ -231,4 +231,70 @@ describe('ConditionsCatalogPage', () => {
     emptyFixture.detectChanges();
     expect(emptyFixture.nativeElement.textContent).toContain('Nessuna condizione nel catalogo');
   });
+
+  // --- 7.3 polarity + severity filters (default all, AND-combined) ---
+
+  describe('polarity + severity filters', () => {
+    const POISONED = { slug: 'poisoned', name: 'Avvelenato', defaultSeverity: 'major', polarity: 'negative' };
+    const FATIGUED = { slug: 'fatigued', name: 'Affaticato', defaultSeverity: 'minor', polarity: 'negative' };
+    const WELL_FED = { slug: 'well-fed', name: 'Ben Nutrito', defaultSeverity: 'minor', polarity: 'positive' };
+    const RESTED = { slug: 'rested', name: 'Riposato', defaultSeverity: 'major', polarity: 'positive' };
+
+    async function withEntries(entries: unknown[]) {
+      TestBed.resetTestingModule();
+      await setup(entries);
+      const f = TestBed.createComponent(ConditionsCatalogPage);
+      f.detectChanges();
+      return f.componentInstance as ConditionsCatalogPage;
+    }
+
+    const slugs = (c: ConditionsCatalogPage) =>
+      (c['filteredEntries']() ?? []).map((e) => e.slug).sort();
+
+    it('defaults to all entries', async () => {
+      const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
+      expect(slugs(c)).toEqual(['fatigued', 'poisoned', 'rested', 'well-fed']);
+    });
+
+    it('filters by polarity, restoring all when set back to all', async () => {
+      const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
+      c['polarityFilter'].set('negative');
+      expect(slugs(c)).toEqual(['fatigued', 'poisoned']);
+      c['polarityFilter'].set('all');
+      expect(slugs(c)).toEqual(['fatigued', 'poisoned', 'rested', 'well-fed']);
+    });
+
+    it('filters by severity', async () => {
+      const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
+      c['severityFilter'].set('major');
+      expect(slugs(c)).toEqual(['poisoned', 'rested']);
+    });
+
+    it('ANDs polarity and severity together', async () => {
+      const c = await withEntries([POISONED, FATIGUED, WELL_FED, RESTED]);
+      c['polarityFilter'].set('negative');
+      c['severityFilter'].set('minor');
+      expect(slugs(c)).toEqual(['fatigued']);
+    });
+  });
+
+  // --- 7.2 sortable table defaults to name ascending on load ---
+
+  it('renders rows ascending by name on load', async () => {
+    TestBed.resetTestingModule();
+    await setup([
+      { slug: 'poisoned', name: 'Avvelenato', defaultSeverity: 'major', polarity: 'negative' },
+      { slug: 'rested', name: 'Riposato', defaultSeverity: 'minor', polarity: 'positive' },
+      { slug: 'fatigued', name: 'Affaticato', defaultSeverity: 'minor', polarity: 'negative' },
+    ]);
+    const f = TestBed.createComponent(ConditionsCatalogPage);
+    f.detectChanges();
+    await f.whenStable();
+    f.detectChanges();
+
+    const names = Array.from(
+      f.nativeElement.querySelectorAll('tbody tr td:nth-child(2)') as NodeListOf<HTMLElement>,
+    ).map((td) => td.textContent?.trim());
+    expect(names).toEqual(['Affaticato', 'Avvelenato', 'Riposato']);
+  });
 });

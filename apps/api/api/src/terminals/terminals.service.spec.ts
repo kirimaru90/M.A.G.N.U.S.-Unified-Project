@@ -293,6 +293,123 @@ describe('TerminalsService.load lastCampaignId write', () => {
   });
 });
 
+describe('TerminalsService.contentWithoutUsers gateOnBoot rebuild', () => {
+  type RebuildFn = (dto: unknown) => Record<string, unknown>;
+  function rebuild(dto: unknown): Record<string, unknown> {
+    const svc = makeService({});
+    return (svc as unknown as { contentWithoutUsers: RebuildFn }).contentWithoutUsers(
+      dto,
+    );
+  }
+  const baseDto = {
+    meta: { title: 'T' },
+    nodes: { start: { text: 'hi' } },
+  };
+
+  it('keeps gateOnBoot:false alongside stripped users', () => {
+    const content = rebuild({
+      ...baseDto,
+      login: {
+        users: [{ username: 'u', password: 'p' }],
+        gateOnBoot: false,
+      },
+    });
+    expect(content.login).toEqual({ users: [{ username: 'u' }], gateOnBoot: false });
+  });
+
+  it('keeps gateOnBoot:true alongside stripped users', () => {
+    const content = rebuild({
+      ...baseDto,
+      login: { users: [{ username: 'u', password: 'p' }], gateOnBoot: true },
+    });
+    expect(content.login).toEqual({ users: [{ username: 'u' }], gateOnBoot: true });
+  });
+
+  it('omits gateOnBoot key when absent (no default materialised)', () => {
+    const content = rebuild({
+      ...baseDto,
+      login: { users: [{ username: 'u', password: 'p' }] },
+    });
+    expect(content.login).toEqual({ users: [{ username: 'u' }] });
+    expect(content.login).not.toHaveProperty('gateOnBoot');
+  });
+
+  it('emits gateOnBoot-only login when no users are present (stripped on read)', () => {
+    const content = rebuild({
+      ...baseDto,
+      login: { users: [], gateOnBoot: false },
+    });
+    // Per the api-terminals spec the rebuild EMITS the flag; the read-time
+    // stripContent (covered below) is what drops a credential-less login.
+    expect(content.login).toEqual({ gateOnBoot: false });
+  });
+
+  it('omits login entirely when there is no login block', () => {
+    const content = rebuild({ ...baseDto });
+    expect(content).not.toHaveProperty('login');
+  });
+
+  it('omits login entirely for empty users with no gateOnBoot', () => {
+    const content = rebuild({ ...baseDto, login: { users: [] } });
+    expect(content).not.toHaveProperty('login');
+  });
+});
+
+describe('TerminalsService.load strips credential-less login (gateOnBoot only)', () => {
+  const campaignId = new Types.ObjectId();
+  const terminalId = new Types.ObjectId();
+  const campaign = { _id: campaignId, state: {} };
+
+  function makeLoadService(storedContent: Record<string, unknown>) {
+    const terminal = {
+      _id: terminalId,
+      campaignId,
+      title: 'T',
+      content: storedContent,
+      state: {},
+      viewCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const terminalModel = {
+      findById: jest
+        .fn()
+        .mockReturnValue({ lean: () => Promise.resolve(terminal) }),
+      updateOne: jest.fn().mockResolvedValue({}),
+    };
+    const campaignModel = {
+      findById: jest
+        .fn()
+        .mockReturnValue({ lean: () => Promise.resolve(campaign) }),
+    };
+    const userModel = { updateOne: jest.fn().mockResolvedValue({}) };
+    return makeService({ terminalModel, campaignModel, userModel });
+  }
+
+  it('served content drops a login block that has gateOnBoot but no users', async () => {
+    const svc = makeLoadService({
+      meta: { title: 'T' },
+      nodes: { start: {} },
+      login: { gateOnBoot: false },
+    });
+    const result = await svc.load(String(terminalId), undefined);
+    expect(result.content).not.toHaveProperty('login');
+  });
+
+  it('served content keeps gateOnBoot when users are present', async () => {
+    const svc = makeLoadService({
+      meta: { title: 'T' },
+      nodes: { start: {} },
+      login: { users: [{ username: 'u' }], gateOnBoot: false },
+    });
+    const result = await svc.load(String(terminalId), undefined);
+    expect(result.content.login).toEqual({
+      users: [{ username: 'u' }],
+      gateOnBoot: false,
+    });
+  });
+});
+
 describe('TerminalsService.loadByHiddenId writes and self-heal', () => {
   const campaignId = new Types.ObjectId();
   const terminalId = new Types.ObjectId();

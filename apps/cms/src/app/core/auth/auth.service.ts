@@ -12,12 +12,15 @@ export class AuthService {
   readonly currentUser = signal<AuthUser | null>(null);
   readonly isAuthenticated = computed(() => this.token() !== null);
 
-  async login(creds: LoginDto): Promise<AuthUser> {
+  async login(creds: LoginDto): Promise<AuthUser | null> {
     const response = await firstValueFrom(this.api.login(creds));
     this.persistToken(response.accessToken);
     this.token.set(response.accessToken);
-    this.currentUser.set(response.user);
-    return response.user;
+    // The login response carries no user object, so hydrate `currentUser`
+    // (including `role`) from GET /auth/me before resolving. This makes
+    // role-gated UI render immediately, without waiting for a later restore().
+    await this.restore();
+    return this.currentUser();
   }
 
   async logout(): Promise<void> {

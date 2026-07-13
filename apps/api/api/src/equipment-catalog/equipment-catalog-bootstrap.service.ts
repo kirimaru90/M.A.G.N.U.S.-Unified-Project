@@ -11,7 +11,6 @@ type SeedEntry = {
   name: string;
   kind: 'weapon' | 'armor' | 'consumable' | 'misc';
   tags?: Array<{ name: string; type: 'core' | 'extra' }>;
-  defaultQuantity?: number;
   isStarter: boolean;
   description?: string;
 };
@@ -90,7 +89,6 @@ export const DEFAULT_EQUIPMENT_CATALOG: SeedEntry[] = [
     slug: 'stimpack',
     name: 'Stimpack',
     kind: 'consumable',
-    defaultQuantity: 2,
     isStarter: true,
   },
   // Vari (misc) samples — GM loot / quest items, never starters.
@@ -99,7 +97,6 @@ export const DEFAULT_EQUIPMENT_CATALOG: SeedEntry[] = [
     name: 'Chiave Inglese',
     kind: 'misc',
     description: 'Attrezzo da riparazione.',
-    defaultQuantity: 1,
     isStarter: false,
   },
   {
@@ -107,7 +104,6 @@ export const DEFAULT_EQUIPMENT_CATALOG: SeedEntry[] = [
     name: 'Corda',
     kind: 'misc',
     description: 'Dieci metri di corda robusta.',
-    defaultQuantity: 1,
     isStarter: false,
   },
 ];

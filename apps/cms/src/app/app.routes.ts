@@ -72,6 +72,12 @@ export const routes: Routes = [
             (m) => m.EquipmentCatalogPage,
           ),
       },
+      {
+        path: 'tag-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/tag-catalog/tag-catalog-page').then((m) => m.TagCatalogPage),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },

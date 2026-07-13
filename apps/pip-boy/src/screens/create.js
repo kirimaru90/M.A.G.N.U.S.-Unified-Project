@@ -237,7 +237,7 @@ export function renderCreate(root, opts) {
                 <input class="pb-input" id="pb-cr-keepsake" value="${esc(draft.keepsake)}" placeholder="un oggetto a cui tieni">
             </label>
 
-            <div class="pb-hint" style="margin-top:8px;">Dotazione fissa: 2 Stimpack inclusi.</div>
+            <div class="pb-hint" style="margin-top:8px;">Dotazione fissa: Stimpack incluso.</div>
         `;
     }
 
@@ -280,7 +280,7 @@ export function renderCreate(root, opts) {
                 ${weapon ? `<li>${esc(weapon.name)}</li>` : ''}
                 ${armor ? `<li>${esc(armor.name)}</li>` : ''}
                 <li>Rottami iniziali · ${draft.scraps}</li>
-                ${consumables.map((c) => `<li>${esc(c.name)} ×${c.defaultQuantity ?? 1}</li>`).join('')}
+                ${consumables.map((c) => `<li>${esc(c.name)} ×1</li>`).join('')}
                 ${draft.keepsake.trim() ? `<li>${esc(draft.keepsake.trim())}</li>` : ''}
             </ul>
         `;
@@ -480,9 +480,10 @@ export function renderCreate(root, opts) {
             if (armor) inventory.equip = { items: [copyTemplate(armor)] };
             if (consumables.length > 0) {
                 inventory.consumables = {
+                    // Templates carry no quantity; instantiating adds exactly one.
                     items: consumables.map((c) => ({
                         name: c.name,
-                        quantity: c.defaultQuantity ?? 1,
+                        quantity: 1,
                         ...(c.description ? { description: c.description } : {}),
                     })),
                 };

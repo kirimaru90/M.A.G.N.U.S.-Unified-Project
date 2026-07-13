@@ -7,3 +7,7 @@ export function getSkillsCatalog() {
 export function getConditionsCatalog() {
     return apiGet('/conditions-catalog');
 }
+
+export function getTagCatalog() {
+    return apiGet('/tag-catalog');
+}

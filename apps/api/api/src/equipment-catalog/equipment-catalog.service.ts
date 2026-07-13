@@ -26,7 +26,6 @@ interface CatalogEntry {
   name: string;
   kind: string;
   tags: CatalogTag[];
-  defaultQuantity?: number;
   isStarter: boolean;
   description?: string;
 }
@@ -54,13 +53,6 @@ function assertValidEntry(entry: CatalogEntry) {
     (entry.tags?.length ?? 0) > 0
   )
     throw new BadRequestException(`a ${entry.kind} may not carry tags`);
-
-  if (entry.defaultQuantity !== undefined) {
-    if (!Number.isInteger(entry.defaultQuantity) || entry.defaultQuantity < 0)
-      throw new BadRequestException(
-        'entry.defaultQuantity must be a non-negative integer',
-      );
-  }
 }
 
 /**
@@ -92,7 +84,6 @@ export class EquipmentCatalogService {
       name: e.name,
       kind: e.kind,
       tags: sortTags(e.tags ?? []),
-      defaultQuantity: e.defaultQuantity,
       isStarter: e.isStarter ?? false,
       description: e.description,
     }));
@@ -107,7 +98,6 @@ export class EquipmentCatalogService {
           name: d.name,
           kind: d.kind,
           tags: (d.tags ?? []).map((t) => ({ name: t.name, type: t.type })),
-          defaultQuantity: d.defaultQuantity,
           isStarter: d.isStarter ?? false,
           description: d.description,
         },
@@ -131,7 +121,6 @@ export class EquipmentCatalogService {
           name: e.name,
           kind: e.kind,
           tags: e.tags ?? [],
-          defaultQuantity: e.defaultQuantity,
           isStarter: e.isStarter ?? false,
           description: e.description,
         });

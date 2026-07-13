@@ -51,11 +51,15 @@ test('owner adds a custom condition round-trips via PATCH .../status', async ({ 
   await openSheetAsOwner(page);
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
+  // The add-path is the two-tab popup; the custom tab carries the name + sign +
+  // weight the inline builder used to.
+  await page.locator('#pb-cond-add').click();
+  await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('Ferito');
   await page.locator('[data-weight="major"]').click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
-  await page.locator('#pb-cond-add').click();
+  await page.locator('[data-ok]').click();
   const req = await patchReq;
 
   // criticalState rides along on the same PATCH: net wear 2 < 4, so false.

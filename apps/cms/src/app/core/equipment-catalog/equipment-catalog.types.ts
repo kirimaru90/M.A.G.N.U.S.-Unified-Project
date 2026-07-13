@@ -16,10 +16,9 @@ export interface EquipmentCatalogEntryDto {
   kind: EquipmentKind;
   /** Meaningful for weapon/armor; always empty for consumable/misc. */
   tags?: EquipmentTagDto[];
-  /** Quantity used when a consumable/misc is copied onto a character. */
-  defaultQuantity?: number;
   /** Marks the template as offered by the pip-boy creation wizard. */
   isStarter: boolean;
+  /** Sole descriptive field for consumable/misc; MAY be present on any kind. */
   description?: string;
 }
 
@@ -28,7 +27,6 @@ export interface EquipmentCatalogEntryShape {
   name: string;
   kind: EquipmentKind;
   tags?: EquipmentTagDto[];
-  defaultQuantity?: number;
   isStarter?: boolean;
   description?: string;
 }

@@ -21,7 +21,6 @@ const STIMPACK: EquipmentCatalogEntryDto = {
   name: 'Stimpack',
   kind: 'consumable',
   tags: [],
-  defaultQuantity: 2,
   isStarter: true,
 };
 
@@ -30,7 +29,7 @@ const CHIAVE: EquipmentCatalogEntryDto = {
   name: 'Chiave inglese',
   kind: 'misc',
   tags: [],
-  defaultQuantity: 1,
+  description: 'Attrezzo',
   isStarter: false,
 };
 
@@ -87,7 +86,6 @@ describe('EquipmentCatalogPage', () => {
         { name: 'PROIETTILI', type: 'core' },
         { name: 'LUNGA GITTATA', type: 'extra' },
       ],
-      defaultQuantity: 1,
       isStarter: true,
       description: '',
     };
@@ -112,17 +110,16 @@ describe('EquipmentCatalogPage', () => {
     ]);
   });
 
-  // 3.T.2 — a consumable sends defaultQuantity and no tags; the API 400s on tags.
-  it('sends defaultQuantity and no tags for a consumable', () => {
+  // 7.1 — a consumable sends a description and no quantity/tags.
+  it('sends a description and no defaultQuantity or tags for a consumable', () => {
     component['showAddRow']();
     component['draft'] = {
       slug: 'radaway',
       name: 'RadAway',
       kind: 'consumable',
       tags: [],
-      defaultQuantity: 3,
       isStarter: false,
-      description: '',
+      description: 'Rimuove radiazioni',
     };
     component['submitAdd']();
     fixture.detectChanges();
@@ -132,13 +129,13 @@ describe('EquipmentCatalogPage', () => {
       name: 'RadAway',
       kind: 'consumable',
       isStarter: false,
-      description: undefined,
-      defaultQuantity: 3,
+      description: 'Rimuove radiazioni',
     });
     expect(ops[0].entry).not.toHaveProperty('tags');
+    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
   });
 
-  it('presents the tag editor for weapon/armor and defaultQuantity for consumable', () => {
+  it('presents the tag editor for weapon/armor and the description editor for consumable/misc', () => {
     component['showAddRow']();
 
     component['draft'].kind = 'weapon';
@@ -149,12 +146,13 @@ describe('EquipmentCatalogPage', () => {
 
     component['draft'].kind = 'consumable';
     expect(component['draftIsTagged']()).toBe(false);
+
+    component['draft'].kind = 'misc';
+    expect(component['draftIsTagged']()).toBe(false);
   });
 
-  it('renders the tag editor for a weapon draft and the quantity field for a consumable', async () => {
-    // The `@if` lives inside PrimeNG's footer template, whose view is checked by
-    // the table, not by this component — so drive the real <select> rather than
-    // mutating `draft` and marking only this component dirty.
+  // 7.1 — the consumable/misc form shows a description field, not a quantity field.
+  it('renders the tag editor for a weapon draft and the description field for a consumable', async () => {
     const selectKind = async (kind: string) => {
       const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.bo-select');
       select.value = kind;
@@ -171,12 +169,14 @@ describe('EquipmentCatalogPage', () => {
     await selectKind('weapon');
     expect(component['draft'].kind).toBe('weapon');
     expect(fixture.nativeElement.querySelector('[data-testid="tag-editor"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="default-quantity"]')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[data-testid="description"]')).toBeNull();
 
     await selectKind('consumable');
     expect(component['draft'].kind).toBe('consumable');
     expect(fixture.nativeElement.querySelector('[data-testid="tag-editor"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-testid="default-quantity"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-testid="description"]')).toBeTruthy();
+    // No quantity field remains.
+    expect(fixture.nativeElement.querySelector('[data-testid="default-quantity"]')).toBeNull();
   });
 
   it('adds and removes draft tags', () => {
@@ -199,7 +199,6 @@ describe('EquipmentCatalogPage', () => {
       name: 'X',
       kind: 'weapon',
       tags: [{ name: '', type: 'core' }],
-      defaultQuantity: 0,
       isStarter: false,
       description: '',
     };
@@ -208,24 +207,6 @@ describe('EquipmentCatalogPage', () => {
 
     expect(patchSpy).not.toHaveBeenCalled();
     expect(component['rowError']()).toBe('Ogni tag deve avere un nome');
-  });
-
-  it('rejects a negative defaultQuantity', () => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'x',
-      name: 'X',
-      kind: 'consumable',
-      tags: [],
-      defaultQuantity: -1,
-      isStarter: false,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBe('La quantità deve essere un intero non negativo');
   });
 
   // 3.T.2 — the isStarter toggle round-trips through an update op.
@@ -254,10 +235,11 @@ describe('EquipmentCatalogPage', () => {
     ]);
   });
 
-  it('edits a consumable via an update op with defaultQuantity', () => {
+  // 7.1 — editing a consumable sends its description, never a quantity.
+  it('edits a consumable via an update op carrying its description', () => {
     component['startEdit'](STIMPACK);
     fixture.detectChanges();
-    component['draft'].defaultQuantity = 5;
+    component['draft'].description = 'Cura ferite';
     component['submitEdit'](STIMPACK);
     fixture.detectChanges();
 
@@ -269,11 +251,12 @@ describe('EquipmentCatalogPage', () => {
           name: 'Stimpack',
           kind: 'consumable',
           isStarter: true,
-          description: undefined,
-          defaultQuantity: 5,
+          description: 'Cura ferite',
         },
       },
     ]);
+    const [[ops]] = patchSpy.mock.calls as [[{ entry: Record<string, unknown> }[]]];
+    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
   });
 
   it('renames a template via a single rename op when only the slug changes', () => {
@@ -314,7 +297,6 @@ describe('EquipmentCatalogPage', () => {
       name: 'Pistola 10mm',
       kind: 'weapon',
       tags: [],
-      defaultQuantity: 0,
       isStarter: true,
       description: '',
     };
@@ -336,7 +318,7 @@ describe('EquipmentCatalogPage', () => {
 
   // --- misc-items-catalog: misc (Vari) kind ---
 
-  it('treats a misc draft as untagged so the quantity editor shows, not tags', () => {
+  it('treats a misc draft as untagged so the description editor shows, not tags', () => {
     component['showAddRow']();
     component['draft'].kind = 'misc';
     expect(component['draftIsTagged']()).toBe(false);
@@ -352,14 +334,13 @@ describe('EquipmentCatalogPage', () => {
     expect(variOption?.textContent?.trim()).toBe('Vari');
   });
 
-  it('adds a misc (Vari) template with a defaultQuantity and no tags', () => {
+  it('adds a misc (Vari) template with a description and no defaultQuantity or tags', () => {
     component['showAddRow']();
     component['draft'] = {
       slug: 'chiave-inglese',
       name: 'Chiave inglese',
       kind: 'misc',
       tags: [],
-      defaultQuantity: 1,
       isStarter: false,
       description: 'Attrezzo',
     };
@@ -373,9 +354,9 @@ describe('EquipmentCatalogPage', () => {
       kind: 'misc',
       isStarter: false,
       description: 'Attrezzo',
-      defaultQuantity: 1,
     });
     expect(ops[0].entry).not.toHaveProperty('tags');
+    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
   });
 
   it('does not render the starter toggle for a misc entry row', async () => {
@@ -390,6 +371,23 @@ describe('EquipmentCatalogPage', () => {
     const f2 = TestBed.createComponent(EquipmentCatalogPage);
     f2.detectChanges();
     expect(f2.nativeElement.querySelector('[data-testid="starter-pistola-10mm"]')).toBeTruthy();
+  });
+
+  // --- 7.2 sortable table defaults to name ascending on load ---
+
+  it('renders rows ascending by name on load', async () => {
+    TestBed.resetTestingModule();
+    // Deliberately unsorted input; the table defaults to name-ascending.
+    await setup([STIMPACK, CHIAVE, PISTOL]);
+    const f = TestBed.createComponent(EquipmentCatalogPage);
+    f.detectChanges();
+    await f.whenStable();
+    f.detectChanges();
+
+    const names = Array.from(
+      f.nativeElement.querySelectorAll('tbody tr td:nth-child(2)') as NodeListOf<HTMLElement>,
+    ).map((td) => td.textContent?.trim());
+    expect(names).toEqual(['Chiave inglese', 'Pistola 10mm', 'Stimpack']);
   });
 
   // --- misc-items-catalog: filter bar ---

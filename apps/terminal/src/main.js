@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             terminal.loadTapeData(nodes, terminalId, currentCampaign.id);
 
             setTimeout(() => {
-                if (globalLogin && globalLogin.users && globalLogin.users.length > 0) {
+                if (globalLogin && globalLogin.users && globalLogin.users.length > 0 && globalLogin.gateOnBoot !== false) {
                     const loggedUser = getLoggedInUser(globalLogin);
                     if (!loggedUser) {
                         loginEl.style.display = 'flex';

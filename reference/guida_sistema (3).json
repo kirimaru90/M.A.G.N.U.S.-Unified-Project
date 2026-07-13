@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "title": "Guida Operativa all'Interfaccia Unified OS",
+    "public": true,
+    "hiddenId": "guida-sistema"
+  },
+  "state": {
+    "local": {},
+    "global": {}
+  },
+  "login": {
+    "users": [
+      {
+        "username": "Tecnico_Addetto",
+        "password": "robco123"
+      }
+    ]
+  },
+  "nodes": {
+    "start": {
+      "text": "# ROBCO INDUSTRIES (TM) TERMLINK\n## GUIDA OPERATIVA ALL'INTERFACCIA UNIFIED OS\n---------------------------------------\nVERSIONE MANUALE: 1.0.4-B\nSTATO: DISTRIBUZIONE PRIORITARIA\n---------------------------------------\n\nBenvenuto, Operatore. Se stai leggendo questo olonastro, significa che sei stato selezionato per interfacciarti con la tecnologia di calcolo più avanzata del mondo post-moderno.\n\nQuesta guida ti istruirà sulle procedure standard di navigazione per massimizzare la tua efficienza ed evitare il surriscaldamento dei circuiti cerebrali (e del terminale).\n\nSelezionare un modulo di addestramento:",
+      "choices": [
+        {
+          "label": "[ 01. NAVIGAZIONE DI BASE ]",
+          "target": "navigazione"
+        },
+        {
+          "label": "[ 02. PROTOCOLLI DI SICUREZZA E LOGIN ]",
+          "target": "sicurezza"
+        },
+        {
+          "label": "[ 03. RICERCA ARCHIVI NASCOSTI ]",
+          "target": "ricerca"
+        },
+        {
+          "label": "[ 04. DIMOSTRAZIONE PRATICA ]",
+          "target": "demo"
+        }
+      ]
+    },
+    "navigazione": {
+      "text": "### MODULO 01: NAVIGAZIONE\n\nIl sistema Unified OS utilizza una rivoluzionaria interfaccia a **Scelta Multipla Dinamica**. Non sono necessari comandi testuali complessi per la consultazione standard.\n\n- **Pulsanti di Selezione:** Utilizzare il puntatore per attivare le etichette racchiuse tra parentesi quadre. Ogni selezione ti sposterà in un nuovo 'Nodo' informativo.\n- **Navigazione a Ritroso:** Ogni schermata è dotata di un protocollo di emergenza 'Torna Indietro'. Questo ti permetterà di risalire la gerarchia dei dati fino al menu principale senza perdere la sincronizzazione con il database.\n- **Controllo da Tastiera:** Per gli operatori che prediligono l'efficienza meccanica, l'intera interfaccia è navigabile anche senza l'ausilio del puntatore. Utilizzare i tasti **FRECCIA** (o **TAB**) per scorrere tra le opzioni disponibili e **INVIO** per confermare la selezione evidenziata.\n- **Uscita Rapida:** Il tasto **ESC** è sempre mappato sulla funzione 'Torna Indietro'. Una singola pressione ti riporterà al nodo precedente, indipendentemente dalla profondità in cui ti trovi nell'archivio. Funzionalità raccomandata in caso di consultazione di olonastri contenenti informazioni inaspettatamente classificate.\n- **Accelerazione Trascrizione Dati:** Per gli operatori il cui ritmo di lettura supera la velocità di trasmissione nominale del terminale (52 caratteri al secondo, valore ritenuto ampiamente soddisfacente dal nostro reparto marketing), è stata implementata una funzione di compromesso. Premendo **INVIO**, **CLICK SINISTRO** o 'TOCCANDO LO SCHERMO TOUCH' durante la stampa di un testo, il sistema rinuncerà all'effetto di scrittura progressiva e riverserà l'intero contenuto a schermo istantaneamente. La RobCo Industries declina ogni responsabilità per la perdita di atmosfera, immersione narrativa e rispetto verso i tecnici che hanno calibrato manualmente la velocità di output. Si raccomanda l'uso moderato.",
+      "choices": []
+    },
+    "sicurezza": {
+      "text": "### MODULO 02: PROTOCOLLI DI SICUREZZA\n\nLa RobCo Industries ha a cuore la riservatezza dei tuoi dati (e dei suoi segreti industriali). Alcuni olonastri o nodi specifici potrebbero presentare un **Blocco di Accesso**.\n\n1. **Selezione Utente:** Identificati tramite il menu a tendina.\n2. **Inserimento Credenziali:** Digita la password fornita dal tuo supervisore. \n\n*ATTENZIONE:* Le password sono sensibili alle maiuscole. Una volta autenticato, il sistema manterrà la tua sessione attiva finché non espellerai l'olonastro. Non lasciare il terminale incustodito se hai effettuato l'accesso a file classificati!",
+      "choices": []
+    },
+    "ricerca": {
+      "text": "### MODULO 03: ARCHIVI NON IN LISTA\n\nEsistono casi in cui un olonastro non appare nel menu di avvio principale. Questi sono definiti **'Archivi Ombra'** o file ad alta sicurezza.\n\nPer accedervi, l'operatore deve utilizzare il campo di input testuale situato nella schermata di caricamento iniziale del terminale.\n\n- **Procedura:** Digitare il nome esatto del file (es. 'Protocollo Omega') e premere il comando **[ CARICA ]**.\n- **Nota:** Se il nome digitato non corrisponde a nessun archivio presente nel database locale, il sistema restituirà un errore di puntamento. La precisione è fondamentale. La RobCo non tollera errori di battitura.",
+      "choices": []
+    },
+    "demo": {
+      "text": "### MODULO 04: DIMOSTRAZIONE PRATICA\n\nPer testare la tua comprensione, prova a interagire con queste opzioni di simulazione. Nota come il testo cambia dinamicamente in base alla tua scelta.",
+      "choices": [
+        {
+          "label": "[ ATTIVA VENTILAZIONE DI PROVA ]",
+          "target": "demo_ventola"
+        },
+        {
+          "label": "[ TEST: ACCESSO AREA PROTETTA - Password: 'robco123']",
+          "target": "demo_login_protetto"
+        },
+        {
+          "label": "[ CONSULTA LOG DI TEST ]",
+          "target": "demo_log"
+        }
+      ]
+    },
+    "demo_login_protetto": {
+      "login": {
+        "users": [
+          "Tecnico_Addetto"
+        ]
+      }
+    },
+    "demo_ventola": {
+      "text": "### SIMULAZIONE SISTEMI\n\n**STATO:** Ventilazione attivata.\n\n*Nota: Non senti aria fresca perché questa è una simulazione testuale. Non chiamare la manutenzione.*",
+      "choices": []
+    },
+    "demo_log": {
+      "text": "### LOG DI TEST #001\n\n'Il tecnico addetto ai test ha riferito che il caffè della mensa ha un sapore metallico. Il problema è stato risolto ricordando al tecnico che il suo contratto non prevede lamentele sulle bevande.'\n\nFine del log.",
+      "choices": []
+    }
+  }
+}

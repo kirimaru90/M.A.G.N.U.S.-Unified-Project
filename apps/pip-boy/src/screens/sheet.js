@@ -3,6 +3,7 @@ import { showSheetNav, setCriticalChrome, setEditorChrome } from '../engine/chro
 import { isAdmin, logout, getUser } from '../api/session.js';
 import { patchActionPoints } from '../api/characters.js';
 import { getEquipmentCatalog } from '../api/equipment.js';
+import { getTagCatalog } from '../api/catalogs.js';
 import { clamp, paSourceLabel } from '../sheet/model.js';
 import { renderSpecialTab } from '../tabs/special.js';
 import { renderAbilitaTab, renderTalentsTab } from '../tabs/skills.js';
@@ -76,6 +77,14 @@ export function renderSheet(root, opts) {
     getEquipmentCatalog()
         .then((c) => { equipmentCatalog = Array.isArray(c) ? c : (c?.items ?? null); })
         .catch(() => { equipmentCatalog = null; });
+
+    // The tag catalog backs tag-name autocomplete in the gear editor and the
+    // add-item popup's custom tab. Fetched once; a failure leaves free typing
+    // fully usable (the catalog is a convenience, never a constraint).
+    let tagCatalog = null;
+    getTagCatalog()
+        .then((c) => { tagCatalog = Array.isArray(c) ? c : (c?.items ?? null); })
+        .catch(() => { tagCatalog = null; });
 
     const admin = isAdmin();
     const isOwner = getUser()?.id === character.userId;
@@ -290,6 +299,7 @@ export function renderSheet(root, opts) {
             diceState,
             node: leaf,
             getEquipmentCatalog: () => equipmentCatalog,
+            getTagCatalog: () => tagCatalog,
         }, leaf);
     }
 

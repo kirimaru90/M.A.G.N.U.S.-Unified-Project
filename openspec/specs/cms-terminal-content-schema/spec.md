@@ -62,17 +62,31 @@ A single module SHALL export the canonical Terminal Content schema as paired Typ
 ### Requirement: Login block holds fictional users with cleartext passwords
 `TerminalContentSchema` SHALL include `login.users` as an array of `{ username: string, password: string }`. Both fields SHALL be required strings; `password` SHALL NOT be enforced to look hashed. A doc-comment in the schema module SHALL note that fictional passwords are cleartext at rest in terminal content and are stripped by the API on delivery to the Terminal player app.
 
+The `login` block SHALL additionally accept an **optional** `gateOnBoot: boolean`. When present it SHALL parse as a boolean; when omitted it SHALL default to unset (the API/emulator treat absence as `true`). A non-boolean `gateOnBoot` SHALL fail parsing with an issue at path `login.gateOnBoot`. `gateOnBoot` SHALL be independent of `users`: a login block MAY carry `gateOnBoot` alongside any (including empty) `users` array.
+
 #### Scenario: Login block with cleartext password validates
 - **WHEN** parsing `login.users = [{ username: "alice", password: "wonderland" }]`
 - **THEN** the parse succeeds
 
-#### Scenario: Empty users array validates
-- **WHEN** parsing `login.users = []`
+#### Scenario: Empty users list validates
+- **WHEN** parsing `login = { users: [] }`
 - **THEN** the parse succeeds
 
-#### Scenario: Missing password is rejected
+#### Scenario: Missing password fails
 - **WHEN** parsing `login.users = [{ username: "alice" }]`
 - **THEN** the parse fails with an issue at path `login.users.0.password`
+
+#### Scenario: gateOnBoot false validates alongside users
+- **WHEN** parsing `login = { gateOnBoot: false, users: [{ username: "alice", password: "wonderland" }] }`
+- **THEN** the parse succeeds and `gateOnBoot` is `false`
+
+#### Scenario: Omitted gateOnBoot validates
+- **WHEN** parsing `login = { users: [{ username: "alice", password: "wonderland" }] }`
+- **THEN** the parse succeeds and `gateOnBoot` is absent (undefined)
+
+#### Scenario: Non-boolean gateOnBoot fails
+- **WHEN** parsing `login = { gateOnBoot: "yes", users: [] }`
+- **THEN** the parse fails with an issue at path `login.gateOnBoot`
 
 ### Requirement: Nodes are a map keyed by node id with content fields
 `TerminalContentSchema` SHALL require at least one entry in `nodes`. Each node SHALL accept the optional fields: `text` (string), `on_enter` (array of mutations), `choices` (array of `NodeChoice`), `variants` (array of `NodeVariant`), `components` (array of `NodeComponent`). A node SHALL be valid with only `text` and `choices`, with only `variants`, or with only `components` — the schema SHALL NOT require all four to coexist.

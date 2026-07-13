@@ -199,6 +199,26 @@ import { AuthService } from '../core/auth/auth.service';
             </span>
             <span>Equipaggiamento</span>
           </a>
+          <a routerLink="/tag-catalog" [class.active]="isTagCatalogActive()">
+            <span class="ico">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                <line x1="7" y1="7" x2="7.01" y2="7" />
+              </svg>
+            </span>
+            <span>Tag</span>
+          </a>
         </nav>
       </div>
       }
@@ -261,5 +281,9 @@ export class SidebarComponent {
 
   protected readonly isEquipmentCatalogActive = computed(() => {
     return this.currentUrl().startsWith('/equipment-catalog');
+  });
+
+  protected readonly isTagCatalogActive = computed(() => {
+    return this.currentUrl().startsWith('/tag-catalog');
   });
 }

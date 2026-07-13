@@ -33,8 +33,8 @@ type CatalogEntry = {
   name: string;
   kind: string;
   tags: Array<{ name: string; type: string }>;
-  defaultQuantity?: number;
   isStarter: boolean;
+  description?: string;
 };
 
 describe('EquipmentCatalogModule (e2e)', () => {
@@ -138,11 +138,12 @@ describe('EquipmentCatalogModule (e2e)', () => {
     expect(entries).toHaveLength(DEFAULT_EQUIPMENT_CATALOG.length);
     expect(entries.filter((e) => e.kind === 'weapon')).toHaveLength(4);
     expect(entries.filter((e) => e.kind === 'armor')).toHaveLength(3);
-    expect(entries.find((e) => e.slug === 'stimpack')).toMatchObject({
+    const stimpack = entries.find((e) => e.slug === 'stimpack');
+    expect(stimpack).toMatchObject({
       kind: 'consumable',
-      defaultQuantity: 2,
       isStarter: true,
     });
+    expect(stimpack).not.toHaveProperty('defaultQuantity');
   });
 
   // --- 2.T.5 starter filter ---
@@ -265,12 +266,14 @@ describe('EquipmentCatalogModule (e2e)', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('negative defaultQuantity → 400', async () => {
+  // Task 2.1 — defaultQuantity is no longer part of the equipment template
+  // contract; the whitelist pipe rejects it as an unknown field.
+  it('defaultQuantity is rejected as an unknown field → 400', async () => {
     const res = await patchCatalog([
       {
         action: 'add',
         slug: 'radaway',
-        entry: { name: 'RadAway', kind: 'consumable', defaultQuantity: -1 },
+        entry: { name: 'RadAway', kind: 'consumable', defaultQuantity: 2 },
       },
     ]);
     expect(res.statusCode).toBe(400);
@@ -359,7 +362,7 @@ describe('EquipmentCatalogModule (e2e)', () => {
 
   // --- misc-items-catalog: misc kind, starter exclusion, tag order ---
 
-  it('accepts a misc template and forces isStarter false', async () => {
+  it('accepts a misc template with a description, forces isStarter false, stores no quantity', async () => {
     const res = await patchCatalog([
       {
         action: 'add',
@@ -368,7 +371,6 @@ describe('EquipmentCatalogModule (e2e)', () => {
           name: 'Chiave inglese',
           kind: 'misc',
           description: 'Attrezzo',
-          defaultQuantity: 1,
           isStarter: true,
         },
       },
@@ -380,9 +382,10 @@ describe('EquipmentCatalogModule (e2e)', () => {
     );
     expect(entry).toMatchObject({
       kind: 'misc',
-      defaultQuantity: 1,
+      description: 'Attrezzo',
       isStarter: false,
     });
+    expect(entry).not.toHaveProperty('defaultQuantity');
     expect(entry?.tags).toEqual([]);
 
     // The starter filter never surfaces a misc entry.

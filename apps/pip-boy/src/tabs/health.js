@@ -1,6 +1,7 @@
 import { esc } from '../engine/render.js';
 import { patchStatus } from '../api/characters.js';
 import { conditionWeight, netWear, isCritical } from '../sheet/model.js';
+import { openConditionPopup } from './condition-popup.js';
 
 /**
  * Used only when `GET /conditions-catalog` fails, so the quick-condition row
@@ -17,7 +18,6 @@ export const FALLBACK_PRESETS = [
 ];
 
 const weightTag = (cond) => (conditionWeight(cond) === 2 ? 'MODERATA ×2' : 'BASE');
-const collectionOf = (polarity) => (polarity === 'positive' ? 'positiveConditions' : 'negativeConditions');
 
 /** Negatives sort above positives; within a collection, insertion order stands. */
 function orderedConditions(status) {
@@ -62,25 +62,6 @@ export function renderHealthTab(container, ctx) {
         </div>
 
         ${canEdit ? `
-            <div class="pb-section-head">CONDIZIONI RAPIDE</div>
-            <div class="pb-preset-row" id="pb-cond-presets">
-                ${presets.map((p) => `
-                    <button class="pb-btn pb-preset" data-preset="${esc(p.slug)}">
-                        ${p.polarity === 'positive' ? '+' : '−'} ${esc(p.name)}${p.defaultSeverity === 'major' ? ' ×2' : ''}
-                    </button>
-                `).join('')}
-            </div>
-
-            <div class="pb-section-head">CONDIZIONE PERSONALIZZATA</div>
-            <input class="pb-input" id="pb-cond-name" placeholder="nome condizione">
-            <div class="pb-toggle-row">
-                <button class="pb-btn pb-toggle active" data-sign="negative">NEGATIVA</button>
-                <button class="pb-btn pb-toggle" data-sign="positive">POSITIVA</button>
-            </div>
-            <div class="pb-toggle-row">
-                <button class="pb-btn pb-toggle active" data-weight="minor">BASE ×1</button>
-                <button class="pb-btn pb-toggle" data-weight="major">MODERATA ×2</button>
-            </div>
             <button class="pb-btn pb-btn--block pb-btn--submit vt" id="pb-cond-add">+ AGGIUNGI CONDIZIONE</button>
         ` : ''}
     `;
@@ -118,35 +99,18 @@ export function renderHealthTab(container, ctx) {
         });
     });
 
-    container.querySelectorAll('[data-preset]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            const entry = presets.find((p) => p.slug === btn.dataset.preset);
-            if (!entry) return;
-            // A preset's polarity decides its collection; the routing is client-side.
-            const collection = collectionOf(entry.polarity);
-            const item = { name: entry.name, severity: entry.defaultSeverity, description: entry.description };
-            const projected = project(collection, (list) => [...list, item]);
-            return commit(collection, { items: [item] }, projected);
-        });
-    });
-
-    const pickOne = (attr) => (btn) => {
-        container.querySelectorAll(`[data-${attr}]`).forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-    };
-    container.querySelectorAll('[data-sign]').forEach((btn) =>
-        btn.addEventListener('click', () => pickOne('sign')(btn)));
-    container.querySelectorAll('[data-weight]').forEach((btn) =>
-        btn.addEventListener('click', () => pickOne('weight')(btn)));
-
+    // A single add-path: the `+ AGGIUNGI CONDIZIONE` trigger opens the two-tab
+    // add-condition popup. It owns no persistence; on OK it hands back the chosen
+    // collection + condition, which we commit exactly as the inline builder did.
+    // The catalog-fetch-failure fallback presets are surfaced inside the popup's
+    // "Scegli esistente" tab.
     container.querySelector('#pb-cond-add').addEventListener('click', () => {
-        const name = container.querySelector('#pb-cond-name').value.trim();
-        if (!name) return;
-        const polarity = container.querySelector('[data-sign].active').dataset.sign;
-        const severity = container.querySelector('[data-weight].active').dataset.weight;
-        const collection = collectionOf(polarity);
-        const item = { name, severity };
-        const projected = project(collection, (list) => [...list, item]);
-        return commit(collection, { items: [item] }, projected);
+        openConditionPopup({
+            presets,
+            onAdd: ({ collection, item }) => {
+                const projected = project(collection, (list) => [...list, item]);
+                return commit(collection, { items: [item] }, projected);
+            },
+        });
     });
 }

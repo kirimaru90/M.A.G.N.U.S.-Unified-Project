@@ -2073,6 +2073,66 @@
         ]
       }
     },
+    "/tag-catalog": {
+      "get": {
+        "operationId": "TagCatalogController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global tag catalog (authenticated)",
+        "tags": [
+          "tag-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "TagCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug on add or rename"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of tag catalog (admin)",
+        "tags": [
+          "tag-catalog"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -2389,7 +2449,12 @@
       },
       "LoginBlockDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "gateOnBoot": {
+            "type": "boolean",
+            "description": "Optional. When false, a non-empty root registry does NOT prompt for login at boot; omitted or true preserves the historical boot-gate behaviour (default true). Meaningful only on the root login block."
+          }
+        }
       },
       "TerminalContentDto": {
         "type": "object",
@@ -3085,10 +3150,6 @@
               "$ref": "#/components/schemas/EquipmentTagDto"
             }
           },
-          "defaultQuantity": {
-            "type": "number",
-            "minimum": 0
-          },
           "isStarter": {
             "type": "boolean"
           },
@@ -3132,6 +3193,56 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/EquipmentCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "TagCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "TagCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/TagCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "TagCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TagCatalogOpDto"
             }
           }
         },

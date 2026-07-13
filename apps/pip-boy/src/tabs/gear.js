@@ -1,6 +1,7 @@
 import { esc } from '../engine/render.js';
 import { patchInventory, patchResources } from '../api/characters.js';
 import { openAddItemPopup } from './add-item-popup.js';
+import { openCatalogPicker } from './catalog-picker.js';
 
 const RESOURCES = [
     { key: 'caps', label: 'TAPPI' },
@@ -147,6 +148,7 @@ export function renderInvSubtab(container, ctx, node) {
                 kind: node.invKind,
                 label: node.label,
                 catalog: ctx.getEquipmentCatalog?.() ?? null,
+                tagCatalog: ctx.getTagCatalog?.() ?? null,
                 onAdd: (item) => patchInv(section, { items: [item] }),
             });
         });
@@ -201,14 +203,25 @@ export function renderInvSubtab(container, ctx, node) {
     if (!inEditor) return;
 
     // --- editor mode: tag add/remove/rename, item name/description/remove
+    // Adding a tag opens the picker over the tag catalog; the chosen (or
+    // free-typed) name fills the new tag, whose `core`/`extra` type comes from
+    // which affordance was tapped. A non-catalog name stays valid (allowFreeText).
     container.querySelectorAll('[data-add-tag]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const { section: sec, type } = btn.dataset;
             const id = btn.dataset.addTag;
             const item = findItem(sec, id);
             if (!item) return;
-            const tags = [...(item.tags ?? []), { name: 'NUOVO', type, damaged: false }];
-            return patchInv(sec, { items: [{ id, tags }] });
+            openCatalogPicker({
+                title: 'Scegli tag',
+                entries: ctx.getTagCatalog?.() ?? [],
+                allowFreeText: true,
+                onPick: (entry) => {
+                    const name = (entry.name ?? '').trim() || 'NUOVO';
+                    const tags = [...(item.tags ?? []), { name, type, damaged: false }];
+                    return patchInv(sec, { items: [{ id, tags }] });
+                },
+            });
         });
     });
 

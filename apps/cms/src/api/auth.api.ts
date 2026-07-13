@@ -17,9 +17,12 @@ export interface AuthUser {
   role: 'admin' | 'player';
 }
 
+// The real wire shape of POST /auth/login: a bearer token and the role/expiry
+// scalars — there is NO `user` object. The full user is fetched from GET /auth/me.
 export interface LoginResponse {
   accessToken: string;
-  user: AuthUser;
+  role: AuthUser['role'];
+  expiresIn: number;
 }
 
 export type MeResponse = AuthUser;

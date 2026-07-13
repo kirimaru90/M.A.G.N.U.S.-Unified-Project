@@ -55,7 +55,7 @@ When `SVANTAGGIO` is active, the single highest-value die SHALL be dropped **bef
 
 Once a roll has **settled**, the dice SHALL render sorted from highest face value to lowest. This ordering is a display concern only: each die's identity for the purposes of reroll selection and the `SVANTAGGIO` drop SHALL remain tied to the die itself, independent of its rendered position — sorting the display SHALL NOT change which die is selected, dropped, or rerolled. While the tumble animation is playing, faces SHALL render in place and SHALL NOT be sorted.
 
-Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. Before the first roll the result box SHALL read `— TIRA I DADI —`.
+Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. **Before the first roll no result box SHALL be rendered at all** — there SHALL be no `— TIRA I DADI —` placeholder box and no outcome-label slot occupying space. The result box SHALL appear only once a roll has settled, at which point it shows the resolved outcome (`SUCCESSO PIENO` / `SUCCESSO CON COSTO` / `FALLIMENTO`).
 
 The roller's random source SHALL be injectable, so that automated tests can assert on seeded outcomes rather than on real randomness.
 
@@ -93,9 +93,14 @@ The roller's random source SHALL be injectable, so that automated tests can asse
 - **WHEN** the tumble animation is playing
 - **THEN** tapping a die does not select it for reroll
 
-#### Scenario: Pre-roll result placeholder
+#### Scenario: No result box before the first roll
 - **WHEN** the `DADI` tab opens before any roll
-- **THEN** the result box reads `— TIRA I DADI —`
+- **THEN** no result box element is rendered — there is neither a `— TIRA I DADI —` placeholder nor an empty outcome slot
+
+#### Scenario: Result box appears once a roll settles
+- **GIVEN** the `DADI` tab was opened with no result box shown
+- **WHEN** the player rolls and the tumble settles
+- **THEN** the result box now renders, showing the resolved outcome label
 
 ### Requirement: Action-point refunds from sixes
 
@@ -145,6 +150,8 @@ A reroll SHALL cost exactly `1` PA regardless of outcome, applied via `PATCH ...
 
 During a reroll's tumble animation, **only the rerolled (selected) dice** SHALL flicker; every die not being rerolled SHALL hold its settled face steady for the duration. During an initial roll, all dice in the pool SHALL animate.
 
+The reroll SHALL preserve display stability: the dice's **rendered order and positions from the just-settled roll SHALL be held for the entire duration of the reroll tumble** — every die, rerolled or kept, stays in the cell it already occupied, so kept dice do not move at all and rerolled dice flicker in place. Re-sorting the pool highest→lowest SHALL happen **only after** the reroll has settled, never mid-animation. (An initial roll has no prior settled order to preserve.)
+
 A hint SHALL read `Tocca i dadi da ritirare · N selezionati`, and a footnote `Il ritiro richiede la Tag Skill pertinente.`
 
 #### Scenario: Reroll is blocked without a selected skill
@@ -171,6 +178,11 @@ A hint SHALL read `Tocca i dadi da ritirare · N selezionati`, and a footnote `I
 - **GIVEN** a settled pool of four dice with exactly one die selected for reroll
 - **WHEN** the reroll is activated and the tumble animation plays
 - **THEN** only the selected die's face changes during the animation and the other three hold their settled faces
+
+#### Scenario: Kept dice do not move during the reroll, pool re-sorts only after settling
+- **GIVEN** a settled pool displayed highest→lowest and one die selected for reroll
+- **WHEN** the reroll tumble plays
+- **THEN** every die keeps its current displayed position for the whole tumble (the kept dice do not shift), and only after the reroll settles is the pool re-sorted highest→lowest
 
 #### Scenario: Reroll never refunds PA
 - **GIVEN** a reroll of two dice yields two `6`s

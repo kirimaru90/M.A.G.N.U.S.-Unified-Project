@@ -47,14 +47,16 @@ const emptyDraft = (): DraftRow => ({
           [loading]="entries() === undefined"
           [tableStyle]="{ 'min-width': '900px' }"
           styleClass="bo-table"
+          sortField="name"
+          [sortOrder]="1"
         >
           <ng-template pTemplate="header">
             <tr>
-              <th>Slug</th>
-              <th>Nome</th>
-              <th>Permesso</th>
-              <th>Svantaggio</th>
-              <th>Budget maestria</th>
+              <th pSortableColumn="slug">Slug <p-sortIcon field="slug" /></th>
+              <th pSortableColumn="name">Nome <p-sortIcon field="name" /></th>
+              <th pSortableColumn="permesso">Permesso <p-sortIcon field="permesso" /></th>
+              <th pSortableColumn="svantaggio">Svantaggio <p-sortIcon field="svantaggio" /></th>
+              <th pSortableColumn="tagSkillBudget">Budget maestria <p-sortIcon field="tagSkillBudget" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>

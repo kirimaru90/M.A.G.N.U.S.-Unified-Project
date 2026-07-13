@@ -1,6 +1,6 @@
 ---
-version: 1.2
-date: 2026-06-02
+version: 1.3
+date: 2026-07-12
 ---
 
 # How to Write a Terminal JSON File
@@ -17,10 +17,14 @@ date: 2026-06-02
 > And it is the shape produced by `POST /terminals/:id/export`.
 >
 > **Authoritative sources** (read these if something here is ambiguous):
-> [reference/robco-terminal-architecture.md](robco-terminal-architecture.md) (content schema +
-> condition syntax) and [reference/api_spec.md](api_spec.md) (playback + mutation behavior).
-> Validation code: [terminal-content.dto.ts](../api/src/terminals/dto/terminal-content.dto.ts)
-> and [mutation.dto.ts](../api/src/state/dto/mutation.dto.ts).
+> [AUTHORING-TERMINALS.md](../apps/terminal/docs/AUTHORING-TERMINALS.md) (content schema,
+> condition/variant syntax, playback timing) and
+> [openapi.json](../apps/packages/api-spec/openapi.json) (the API spec).
+> Validation code: [terminal-content.dto.ts](../apps/api/api/src/terminals/dto/terminal-content.dto.ts)
+> (create/import/update body), [mutation.dto.ts](../apps/api/api/src/state/dto/mutation.dto.ts)
+> (state-endpoint mutations), and
+> [terminals.service.ts](../apps/api/api/src/terminals/terminals.service.ts) (`validateNodeGraph`,
+> the one `nodes`-level check done at create/update — see §1).
 
 ---
 
@@ -44,11 +48,15 @@ A Terminal JSON file has exactly **four top-level keys**:
 | `login` | No        | Fictional (in-story) credentials that gate content.              |
 | `nodes` | **Yes**   | The screens of the terminal. Must contain a `start` node.        |
 
-> **What the API validates.** Only `meta`, `state`, and `login` are strictly validated on
-> create/import/update. The `nodes` object is stored as-is (free-form). That means
-> **mistakes inside `nodes` are NOT caught at create time** — they surface later at
-> playback, or when a mutation is sent to the state endpoints and rejected. Follow the
-> `nodes` rules below carefully; nobody will catch them for you up front.
+> **What the API validates.** `meta`, `state`, and `login` are strictly validated on
+> create/import/update. The `nodes` object is stored almost as-is, with **one** structural
+> check: `validateNodeGraph` scans every `choices[].target` (including inside `variants[]`)
+> and rejects the whole request with **HTTP 400** if any points at a node id that doesn't
+> exist ("dangling choice targets"). Everything else inside `nodes` is **not** caught at
+> create time — input-component `branches[].target`, the presence of a `start` node, and the
+> shape/type-correctness of `on_enter`/`set` mutations all surface later, at playback or when
+> a mutation is sent to the state endpoints and rejected. Follow the `nodes` rules below
+> carefully; apart from choice targets, nobody will catch them for you up front.
 
 ---
 
@@ -132,12 +140,49 @@ terminal.
 }
 ```
 
-- `users` is an array of `{ "username": string, "password": string }`.
-- These are stored **separately and stripped from every read**. On `GET /terminals/:id/load`
-  the client always receives `login.users: []`. Players authenticate by POSTing to
+- `users` is an array of `{ "username": string, "password": string }`. On **create**, each
+  user needs a password. On **update** the password is optional: a blank/omitted password
+  **keeps** the existing stored password for a known username, while a brand-new username with
+  no password is rejected (**HTTP 400**).
+- Passwords are stored **separately and stripped from every read**. On `GET /terminals/:id/load`
+  the client still receives the **usernames** (`login.users: [ { "username": "..." } ]`, no
+  `password` field) — it is not emptied to `[]`. Players authenticate by POSTing to
   `/terminals/:id/fictional-login`; the server checks. **Never** rely on the client seeing
   the password.
 - To gate a node, reference these usernames from a node's `login` block (see §5.5).
+
+**Two roles, one block: registry vs. boot gate.** The top-level `login` block plays two
+independent parts:
+
+1. **Credential registry** — the usernames/passwords the server validates. Per-node gates
+   (§5.5) and the login dropdown can only reference usernames declared here.
+2. **Boot gate** — historically, a non-empty root registry *also* forced a login prompt
+   before `start`, gating the whole terminal.
+
+`login.gateOnBoot` (optional boolean, default `true`) decouples the two:
+
+- `true` or **omitted** → a non-empty registry gates the terminal before `start` (the
+  historical behaviour; every existing terminal is unchanged).
+- `false` → the registry still exists (per-node gates and the dropdown keep working), but
+  the terminal does **not** prompt for login at boot.
+
+`gateOnBoot` is meaningful **only** on the root `login` block; on a node's `login` it is
+ignored (node gating always fires when the node is entered).
+
+**Credentials without a boot prompt** — declare users but gate only a sub-section:
+
+```json
+"login": {
+  "gateOnBoot": false,
+  "users": [ { "username": "Tecnico_Addetto", "password": "robco123" } ]
+}
+```
+
+Then reference `Tecnico_Addetto` from a per-node `login` block (§5.5). Readers reach `start`
+directly and only hit the login prompt when they enter the gated node.
+
+> A boot gate with **no** credentials is unsatisfiable, so a `login` that has `gateOnBoot`
+> but an empty/absent `users` list is dropped entirely on read (no login is served).
 
 ---
 
@@ -232,7 +277,7 @@ A choice is a button that navigates to another node, optionally after writing st
 | Field    | Type       | Required | Meaning                                                                  |
 | -------- | ---------- | -------- | ----------------------------------------------------------------------- |
 | `label`  | string     | **Yes**  | Button text.                                                            |
-| `target` | string     | **Yes**  | Id of the node to go to. **Must be a real node id.**                    |
+| `target` | string     | **Yes**  | Id of the node to go to. **Must be a real node id** — dangling choice targets are rejected with 400 at create/update (§1). |
 | `when`   | condition  | No       | If present and false, the choice is hidden (§6).                        |
 | `set`    | mutation[] | No       | Mutations applied **before** navigating; navigation waits for success (§5.6). |
 
@@ -276,7 +321,9 @@ An input component captures a typed value, stores it into a variable, then branc
 
 If a node has a `login` block listing usernames, the Terminal prompts for fictional login
 before rendering it. The usernames must correspond to entries in the top-level `login.users`
-(§4). The same can gate the whole terminal by putting a non-empty `login` block at the root.
+(§4). A non-empty root `login` block can also gate the whole terminal before `start` — unless
+you set `login.gateOnBoot: false` (§4), which keeps the registry but skips the boot prompt so
+only your per-node gates fire.
 
 ### 5.6 Mutations (the `op` rules) — used in `on_enter`, choice `set`
 
@@ -422,9 +469,10 @@ Right:
 - [ ] Every `enum` variable has a `values` array; its `default` is one of those values.
 - [ ] Every variable used in `nodes` is **declared** in `state` with the correct scope.
 - [ ] `nodes` contains a `start` node.
-- [ ] Every choice/branch `target` points to a node id that **exists**.
+- [ ] Every choice/branch `target` points to a node id that **exists**. (Choice targets are server-validated → 400; input `branch` targets are **not** — check them yourself.)
 - [ ] Every variant node ends with a `{ "default": true }` variant.
 - [ ] Every input component has `type: "input"`, a `set` target, and `branches` (with a default).
 - [ ] Every mutation has `key` (scope-prefixed) + `op`; `set` has `value` of the right type; `increment` is on a `number`; `toggle` is on a `boolean`.
 - [ ] `value` types match declared variable types (no string into a number, etc.).
+- [ ] If you only want a per-node / sub-section login (credentials but **no** boot prompt), set `login.gateOnBoot: false` on the root `login` block (§4).
 - [ ] The file is valid JSON (no trailing commas, all strings double-quoted).

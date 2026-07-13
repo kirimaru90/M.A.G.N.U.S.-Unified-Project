@@ -59,6 +59,32 @@ test('the header shows a species chip and the PA source line', async ({ page }) 
   await expect(page.locator('#pb-sheet-header')).toContainText('PUNTI AZIONE');
 });
 
+test('the + control hugs the pip row rather than the header edge', async ({ page }) => {
+  await openSheet(page, {
+    character: ownedCharacter({ actionPoints: { paMax: 5, paCurrent: 2, paTrackedBy: 'agility' } }),
+  });
+
+  const lastPip = page.locator('#pb-pa-pips .pb-pip').last();
+  const plus = page.locator('#pb-pa-stepper button[data-dir="1"]');
+  const track = page.locator('#pb-pa-stepper');
+
+  const pipBox = await lastPip.boundingBox();
+  const plusBox = await plus.boundingBox();
+  const trackBox = await track.boundingBox();
+  if (!pipBox || !plusBox || !trackBox) throw new Error('pa header not laid out');
+
+  // The + sits immediately after the last pip — a small, constant gap, not the
+  // pip row stretched across the header with + shoved to the far edge.
+  const gap = plusBox.x - (pipBox.x + pipBox.width);
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThan(20);
+
+  // …and there is meaningful empty track to the + control's right, proving it is
+  // not pinned to the header edge on this wide (Desktop Chrome) viewport.
+  const trailing = trackBox.x + trackBox.width - (plusBox.x + plusBox.width);
+  expect(trailing).toBeGreaterThan(40);
+});
+
 // ── 5.T.3 editor mode is view state ─────────────────────────────────
 
 test('editor mode is off again after leaving and reopening the sheet', async ({ page }) => {
@@ -155,12 +181,14 @@ test('crossing net wear to 4 persists criticalState and banners every tab', asyn
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
   await expect(page.locator('#pb-net-value')).toHaveText('2');
 
-  // Add a `major` negative: net wear 2 → 4, which is the critical threshold.
+  // Add a `major` negative via the custom tab: net wear 2 → 4, the critical threshold.
+  await page.locator('#pb-cond-add').click();
+  await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('IRRADIATO');
   await page.locator('[data-weight="major"]').click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
-  await page.locator('#pb-cond-add').click();
+  await page.locator('[data-ok]').click();
   const req = await patchReq;
 
   expect(req.postDataJSON()).toMatchObject({ criticalState: true });
@@ -204,10 +232,13 @@ test('a conditions-catalog fetch failure falls back to the hardcoded presets', a
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
-  const presets = page.locator('[data-preset]');
-  await expect(presets).toHaveCount(7);
-  await expect(page.locator('[data-preset="ferito"]')).toContainText('FERITO');
-  await expect(page.locator('[data-preset="in-down"]')).toBeVisible();
+  // The fallback presets are surfaced inside the popup's "Scegli esistente"
+  // picker rather than an inline row, so the picker is never empty.
+  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-existing').click();
+  await expect(page.locator('.pb-picker-row')).toHaveCount(7);
+  await expect(page.locator('.pb-picker-row', { hasText: 'FERITO' })).toBeVisible();
+  await expect(page.locator('.pb-picker-row', { hasText: 'IN DOWN' })).toBeVisible();
 });
 
 test('a catalog preset routes by polarity', async ({ page }) => {
@@ -215,14 +246,21 @@ test('a catalog preset routes by polarity', async ({ page }) => {
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
   // The stub catalog's `well-fed` entry is positive, `poisoned` is negative.
+  // Picking a preset in the popup fills the field; OK routes it by polarity.
+  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-existing').click();
+  await page.locator('.pb-picker-row', { hasText: 'Ben Nutrito' }).click();
   const positiveReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
-  await page.locator('[data-preset="well-fed"]').click();
+  await page.locator('[data-ok]').click();
   expect((await positiveReq).postDataJSON()).toMatchObject({
     positiveConditions: { items: [{ name: 'Ben Nutrito', severity: 'minor' }] },
   });
 
+  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-existing').click();
+  await page.locator('.pb-picker-row', { hasText: 'Avvelenato' }).click();
   const negativeReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
-  await page.locator('[data-preset="poisoned"]').click();
+  await page.locator('[data-ok]').click();
   expect((await negativeReq).postDataJSON()).toMatchObject({
     negativeConditions: { items: [{ name: 'Avvelenato', severity: 'major' }] },
   });

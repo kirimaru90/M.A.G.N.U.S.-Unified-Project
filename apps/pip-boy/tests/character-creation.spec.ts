@@ -252,7 +252,7 @@ test('step 5 lists starter templates from the catalog and offers no authoring', 
   // two weapons, one armor in the stub set; the consumable is not pickable
   await expect(page.locator('#pb-cr-weapons .pb-equip-row')).toHaveCount(2);
   await expect(page.locator('#pb-cr-armors .pb-equip-row')).toHaveCount(1);
-  await expect(page.getByText('Dotazione fissa: 2 Stimpack inclusi.')).toBeVisible();
+  await expect(page.getByText('Dotazione fissa: Stimpack incluso.')).toBeVisible();
 
   // no template-authoring controls
   await expect(page.locator('[data-add-item], [data-add-tag]')).toHaveCount(0);
@@ -350,7 +350,7 @@ test('a selected starter weapon is copied with its tags and no catalog slug', as
   expect(inv.equip.items[0]).not.toHaveProperty('slug');
 });
 
-test('the starter stimpack is instantiated at quantity 2 and a blank keepsake adds no item', async ({ page }) => {
+test('the starter stimpack is instantiated at quantity 1 and a blank keepsake adds no item', async ({ page }) => {
   await openWizard(page);
   const reqs = recordRequests(page);
 
@@ -358,8 +358,9 @@ test('the starter stimpack is instantiated at quantity 2 and a blank keepsake ad
   await page.locator('#pb-cr-create').click();
   await expect(page.locator('#pb-sheet-header')).toBeVisible();
 
+  // Templates carry no quantity; instantiating a consumable always adds one.
   const inv = reqs.patch('/inventory')!.postDataJSON();
-  expect(inv.consumables.items).toEqual([{ name: 'Stimpack', quantity: 2 }]);
+  expect(inv.consumables.items).toEqual([{ name: 'Stimpack', quantity: 1 }]);
   expect(inv).not.toHaveProperty('misc');
 });
 

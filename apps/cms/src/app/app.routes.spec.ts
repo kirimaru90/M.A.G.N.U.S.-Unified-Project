@@ -10,6 +10,7 @@ const CATALOG_ROUTES = [
   'conditions-catalog',
   'species-catalog',
   'equipment-catalog',
+  'tag-catalog',
 ];
 
 describe('app routes', () => {
@@ -19,7 +20,7 @@ describe('app routes', () => {
     expect(route?.canMatch).toContain(adminGuard);
   });
 
-  it.each(['species-catalog', 'equipment-catalog'])('lazily loads the %s page', (path) => {
+  it.each(['species-catalog', 'equipment-catalog', 'tag-catalog'])('lazily loads the %s page', (path) => {
     const route = shellChildren().find((r) => r.path === path);
     expect(route?.loadComponent).toBeTypeOf('function');
   });

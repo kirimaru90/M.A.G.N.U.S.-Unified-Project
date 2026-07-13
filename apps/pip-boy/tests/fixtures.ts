@@ -39,6 +39,12 @@ export const DEFAULT_CONDITIONS_CATALOG = [
   { slug: 'well-fed', name: 'Ben Nutrito', defaultSeverity: 'minor', polarity: 'positive' },
 ];
 
+export const DEFAULT_TAG_CATALOG = [
+  { slug: 'proiettili', name: 'PROIETTILI' },
+  { slug: 'affidabile', name: 'AFFIDABILE' },
+  { slug: 'pesante', name: 'PESANTE' },
+];
+
 export const DEFAULT_PLAYERS = [
   { id: 'user-player', username: 'player1', role: 'player' },
   { id: 'user-player-2', username: 'player2', role: 'player' },
@@ -61,14 +67,15 @@ export const DEFAULT_STARTER_EQUIPMENT = [
     slug: 'giubbotto-di-pelle', name: 'Giubbotto di Pelle', kind: 'armor', isStarter: true,
     tags: [{ name: 'CUOIO', type: 'core' }, { name: 'STEALTH', type: 'extra' }],
   },
-  { slug: 'stimpack', name: 'Stimpack', kind: 'consumable', isStarter: true, tags: [], defaultQuantity: 2 },
+  { slug: 'stimpack', name: 'Stimpack', kind: 'consumable', isStarter: true, tags: [] },
 ];
 
 // Misc (Vari) templates are never starters, so they live outside the starter set.
 // The full-catalog endpoint (`GET /equipment-catalog`) returns them; the wizard's
-// `?starter=true` query never does.
+// `?starter=true` query never does. Templates carry no quantity — instantiating
+// one always adds quantity 1.
 export const DEFAULT_MISC_CATALOG = [
-  { slug: 'chiave-inglese', name: 'Chiave inglese', kind: 'misc', isStarter: false, tags: [], defaultQuantity: 1, description: 'Attrezzo' },
+  { slug: 'chiave-inglese', name: 'Chiave inglese', kind: 'misc', isStarter: false, tags: [], description: 'Attrezzo' },
 ];
 
 export interface StubOptions {
@@ -82,6 +89,7 @@ export interface StubOptions {
   players?: typeof DEFAULT_PLAYERS;
   skillsCatalog?: typeof DEFAULT_SKILLS_CATALOG;
   conditionsCatalog?: typeof DEFAULT_CONDITIONS_CATALOG;
+  tagCatalog?: typeof DEFAULT_TAG_CATALOG;
   speciesCatalog?: typeof DEFAULT_SPECIES_CATALOG;
   starterEquipment?: typeof DEFAULT_STARTER_EQUIPMENT;
   miscCatalog?: typeof DEFAULT_MISC_CATALOG;
@@ -100,6 +108,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   const characters = opts.characters ?? [character];
   const skillsCatalog = opts.skillsCatalog ?? DEFAULT_SKILLS_CATALOG;
   const conditionsCatalog = opts.conditionsCatalog ?? DEFAULT_CONDITIONS_CATALOG;
+  const tagCatalog = opts.tagCatalog ?? DEFAULT_TAG_CATALOG;
   const speciesCatalog = opts.speciesCatalog ?? DEFAULT_SPECIES_CATALOG;
   const starterEquipment = opts.starterEquipment ?? DEFAULT_STARTER_EQUIPMENT;
   const miscCatalog = opts.miscCatalog ?? DEFAULT_MISC_CATALOG;
@@ -243,6 +252,9 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   await page.route('**/conditions-catalog', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(conditionsCatalog) }),
   );
+  await page.route('**/tag-catalog', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tagCatalog) }),
+  );
   await page.route('**/species-catalog', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(speciesCatalog) }),
   );
@@ -274,7 +286,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     await page.route('**/sw.js*', (route) => route.abort());
   }
 
-  return { character, characters, campaigns, players, skillsCatalog, conditionsCatalog };
+  return { character, characters, campaigns, players, skillsCatalog, conditionsCatalog, tagCatalog };
 }
 
 /**

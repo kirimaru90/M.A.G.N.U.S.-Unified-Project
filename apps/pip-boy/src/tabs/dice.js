@@ -20,7 +20,6 @@ import {
 } from '../engine/dice.js';
 
 const FORTUNA_NOTE = 'FORTUNA · il Rischio sale di un grado · nessun PA dai 6';
-const PRE_ROLL = '— TIRA I DADI —';
 
 function skillName(catalog, slug) {
     return catalog.find((s) => s.slug === slug)?.name ?? slug;
@@ -36,6 +35,7 @@ export function newDiceState() {
         modifier: 0,
         faces: null,   // null until the first roll
         result: null,  // summarizeRoll(...) once settled
+        order: null,   // settled highest→lowest display order (indices); null until first settle
         rolling: false,
         selected: new Set(),
         rerollSkill: '',
@@ -73,22 +73,36 @@ export function renderDiceTab(container, ctx) {
         return `<button class="${cls}" data-die="${index}" ${s.rolling ? 'disabled' : ''}>${die.value}</button>`;
     }
 
+    /**
+     * The settled highest→lowest display order, as a list of original indices.
+     * Re-sorting happens only here (on a settled result), so a reroll's tumble
+     * can reuse the *previous* order and keep every die in the cell it already
+     * occupied. Each die carries its original index as identity, so reroll
+     * selection and the SVANTAGGIO drop keep pointing at the right die.
+     */
+    function sortedOrder(classified) {
+        return classified
+            .map((die, i) => ({ die, i }))
+            .sort((a, b) => b.die.value - a.die.value)
+            .map(({ i }) => i);
+    }
+
     function diceGrid() {
         if (!s.faces) return '';
         if (s.result && !s.rolling) {
-            // Settled: sort a *copy* highest→lowest for display only. Each die
-            // carries its original index as identity, so reroll selection and the
-            // SVANTAGGIO drop keep pointing at the right die regardless of order.
-            return s.result.classified
-                .map((die, i) => ({ die, i }))
-                .sort((a, b) => b.die.value - a.die.value)
-                .map(({ die, i }) => dieCell(die, i))
+            // Settled: re-sort highest→lowest for display only, and remember the
+            // order so an ensuing reroll can hold every die in place.
+            s.order = sortedOrder(s.result.classified);
+            return s.order
+                .map((i) => dieCell(s.result.classified[i], i))
                 .join('');
         }
-        // Mid-tumble: faces flicker in place, unsorted.
-        return s.faces
-            .map((value) => ({ value, kind: 'fail', dropped: false }))
-            .map(dieCell)
+        // Mid-tumble: reuse the previously-settled order so kept dice never move
+        // (rerolled faces flicker in their existing cells). An initial roll has
+        // no prior order, so fall back to face order.
+        const order = s.order ?? s.faces.map((_, i) => i);
+        return order
+            .map((i) => dieCell({ value: s.faces[i], kind: 'fail', dropped: false }, i))
             .join('');
     }
 
@@ -130,9 +144,9 @@ export function renderDiceTab(container, ctx) {
 
             <div class="pb-dice-grid" id="pb-dice-grid">${diceGrid()}</div>
 
-            <div class="pb-result-box vt" id="pb-dice-result">
-                ${s.result && !s.rolling ? OUTCOME[s.result.outcome] : PRE_ROLL}
-            </div>
+            ${s.result && !s.rolling
+                ? `<div class="pb-result-box vt" id="pb-dice-result">${OUTCOME[s.result.outcome]}</div>`
+                : ''}
 
             <button class="pb-btn pb-btn--primary pb-btn--block" id="pb-dice-roll" ${s.rolling ? 'disabled' : ''}>TIRA</button>
 
@@ -266,6 +280,9 @@ export function renderDiceTab(container, ctx) {
 
     function roll() {
         if (s.rolling) return;
+        // A fresh roll has no prior order to preserve; the tumble flickers in
+        // face order and the pool is (re-)sorted only once this roll settles.
+        s.order = null;
         const finalFaces = rollPool(size());
 
         tumble(finalFaces, () => {

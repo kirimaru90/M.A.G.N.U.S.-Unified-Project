@@ -1,23 +1,26 @@
 import { esc } from '../engine/render.js';
+import { openCatalogPicker } from './catalog-picker.js';
 
 // A modal for adding one inventory item. Two inner tabs:
-//  - "Scegli esistente": an autocomplete over the equipment catalog filtered by
-//    `kind`; confirming copies the chosen template onto the character
-//    (copy-on-use). Present for every subtab, including Vari (kind `misc`).
+//  - "Scegli esistente": a selection over the equipment catalog filtered by
+//    `kind`, presented via the full-screen picker sheet (not a native
+//    <datalist>). Present for every subtab, including Vari (kind `misc`).
 //    Only hidden if `kind` is null (no subtab passes null anymore).
 //  - "Aggiungi custom": a kind-shaped form. Weapons/armor get name + core/extra
-//    tags; consumables and Vari get name + description + quantity.
+//    tags (whose names autocomplete from the tag catalog via the picker);
+//    consumables and Vari get name + description + quantity.
 // The popup owns no persistence: on OK it calls `onAdd(item)` with the item body
 // and the caller issues the PATCH. The red ✕ (and a backdrop click) cancel with
 // no write.
 
 const KIND_NOUN = { weapon: 'arma', armor: 'armatura', consumable: 'consumabile', misc: 'oggetto' };
 
-export function openAddItemPopup({ kind, label, catalog, onAdd }) {
+export function openAddItemPopup({ kind, label, catalog, tagCatalog, onAdd }) {
     const hasCatalog = kind !== null;
     const entries = hasCatalog && Array.isArray(catalog)
         ? catalog.filter((e) => e.kind === kind)
         : [];
+    const tags = Array.isArray(tagCatalog) ? tagCatalog : [];
     const tagShaped = kind === 'weapon' || kind === 'armor';
 
     const overlay = document.createElement('div');
@@ -33,11 +36,10 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
             <div class="pb-popup-body">
                 ${hasCatalog ? `
                     <div class="pb-popup-pane" data-pane="existing">
-                        <input class="pb-input" id="pb-popup-existing" list="pb-popup-datalist"
-                               placeholder="cerca ${esc(KIND_NOUN[kind] ?? 'oggetto')}…" autocomplete="off">
-                        <datalist id="pb-popup-datalist">
-                            ${entries.map((e) => `<option value="${esc(e.name)}"></option>`).join('')}
-                        </datalist>
+                        <button class="pb-input pb-popup-picker-field" id="pb-popup-existing" data-open-existing
+                                ${entries.length === 0 ? 'disabled' : ''}>
+                            <span class="pb-popup-picker-value" data-empty>cerca ${esc(KIND_NOUN[kind] ?? 'oggetto')}…</span>
+                        </button>
                         ${entries.length === 0 ? '<div class="pb-empty">Nessun elemento nel catalogo</div>' : ''}
                     </div>
                 ` : ''}
@@ -80,6 +82,25 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
     overlay.querySelector('[data-cancel]').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
+    // "Scegli esistente": tapping the field opens the full-screen picker; the
+    // chosen catalog entry is remembered and shown in the field.
+    let selectedEntry = null;
+    const existingField = overlay.querySelector('[data-open-existing]');
+    if (existingField) {
+        existingField.addEventListener('click', () => {
+            openCatalogPicker({
+                title: `Scegli ${KIND_NOUN[kind] ?? 'oggetto'}`,
+                entries,
+                onPick: (entry) => {
+                    selectedEntry = entry;
+                    const valueEl = existingField.querySelector('.pb-popup-picker-value');
+                    valueEl.textContent = entry.name;
+                    valueEl.removeAttribute('data-empty');
+                },
+            });
+        });
+    }
+
     // custom quantity stepper (consumables / Vari)
     let qty = 1;
     if (!tagShaped) {
@@ -91,22 +112,33 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
         }));
     }
 
-    // custom tag rows (weapons / armor)
+    // custom tag rows (weapons / armor). Adding a tag opens the picker over the
+    // tag catalog; the chosen (or free-typed) name fills a chip whose type is
+    // decided by the `+ core` / `+ extra` affordance used. The chip input stays
+    // editable so a name can still be typed or corrected freely.
     if (tagShaped) {
         const tagsEl = overlay.querySelector('#pb-popup-tags');
+        const addTagRow = (type, name) => {
+            const row = document.createElement('span');
+            row.className = `pb-chip pb-chip--${type === 'core' ? 'core' : 'extra'}`;
+            row.dataset.type = type;
+            row.innerHTML = `
+                <input class="pb-chip-input" data-custom-tag-name value="${esc(name)}">
+                <span class="kind">${type.toUpperCase()}</span>
+                <button class="pb-chip-remove" data-remove-custom-tag>✕</button>
+            `;
+            row.querySelector('[data-remove-custom-tag]').addEventListener('click', () => row.remove());
+            tagsEl.appendChild(row);
+        };
         overlay.querySelectorAll('[data-add-custom-tag]').forEach((b) =>
             b.addEventListener('click', () => {
                 const type = b.dataset.addCustomTag;
-                const row = document.createElement('span');
-                row.className = `pb-chip pb-chip--${type === 'core' ? 'core' : 'extra'}`;
-                row.dataset.type = type;
-                row.innerHTML = `
-                    <input class="pb-chip-input" data-custom-tag-name value="NUOVO">
-                    <span class="kind">${type.toUpperCase()}</span>
-                    <button class="pb-chip-remove" data-remove-custom-tag>✕</button>
-                `;
-                row.querySelector('[data-remove-custom-tag]').addEventListener('click', () => row.remove());
-                tagsEl.appendChild(row);
+                openCatalogPicker({
+                    title: 'Scegli tag',
+                    entries: tags,
+                    allowFreeText: true,
+                    onPick: (entry) => addTagRow(type, entry.name),
+                });
             }));
     }
 
@@ -116,11 +148,11 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
     overlay.querySelector('[data-ok]').addEventListener('click', () => {
         let item = null;
         if (activePane() === 'existing') {
-            const name = overlay.querySelector('#pb-popup-existing').value.trim();
-            const entry = entries.find((e) => e.name === name);
+            const entry = selectedEntry;
             if (!entry) return; // nothing selected — keep the popup open
             if (entry.kind === 'consumable' || entry.kind === 'misc') {
-                item = { name: entry.name, quantity: entry.defaultQuantity ?? 1 };
+                // Templates carry no default quantity; instantiating always adds one.
+                item = { name: entry.name, quantity: 1 };
                 if (entry.description) item.description = entry.description;
             } else {
                 item = { name: entry.name };
@@ -132,11 +164,11 @@ export function openAddItemPopup({ kind, label, catalog, onAdd }) {
             const name = overlay.querySelector('#pb-popup-name').value.trim();
             if (!name) return;
             if (tagShaped) {
-                const tags = [...overlay.querySelectorAll('#pb-popup-tags .pb-chip')].map((row) => ({
+                const tagRows = [...overlay.querySelectorAll('#pb-popup-tags .pb-chip')].map((row) => ({
                     name: row.querySelector('[data-custom-tag-name]').value.trim() || 'NUOVO',
                     type: row.dataset.type,
                 }));
-                item = tags.length ? { name, tags } : { name };
+                item = tagRows.length ? { name, tags: tagRows } : { name };
             } else {
                 const description = overlay.querySelector('#pb-popup-desc').value.trim();
                 item = { name, quantity: qty };

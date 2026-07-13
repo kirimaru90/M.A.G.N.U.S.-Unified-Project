@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -44,19 +44,57 @@ const emptyDraft = (): DraftRow => ({
       </div>
 
       <div class="bo-card">
+        <div
+          class="bo-filter-bar"
+          style="display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 12px;"
+        >
+          <div style="display: inline-flex; gap: 6px; align-items: center;">
+            <span style="opacity: 0.7;">Polarità:</span>
+            @for (opt of polarityOptions; track opt.value) {
+              <button
+                type="button"
+                class="bo-btn ghost"
+                [class.primary]="polarityFilter() === opt.value"
+                [attr.data-testid]="'filter-polarity-' + opt.value"
+                style="font-size: 12px; padding: 4px 10px; height: auto;"
+                (click)="polarityFilter.set(opt.value)"
+              >
+                {{ opt.label }}
+              </button>
+            }
+          </div>
+          <div style="display: inline-flex; gap: 6px; align-items: center;">
+            <span style="opacity: 0.7;">Gravità:</span>
+            @for (opt of severityOptions; track opt.value) {
+              <button
+                type="button"
+                class="bo-btn ghost"
+                [class.primary]="severityFilter() === opt.value"
+                [attr.data-testid]="'filter-severity-' + opt.value"
+                style="font-size: 12px; padding: 4px 10px; height: auto;"
+                (click)="severityFilter.set(opt.value)"
+              >
+                {{ opt.label }}
+              </button>
+            }
+          </div>
+        </div>
+
         <p-table
-          [value]="entries() ?? []"
+          [value]="filteredEntries() ?? []"
           [loading]="entries() === undefined"
           [tableStyle]="{ 'min-width': '650px' }"
           styleClass="bo-table"
+          sortField="name"
+          [sortOrder]="1"
         >
           <ng-template pTemplate="header">
             <tr>
-              <th>Slug</th>
-              <th>Nome</th>
-              <th>Gravità di default</th>
-              <th>Polarità</th>
-              <th>Descrizione</th>
+              <th pSortableColumn="slug">Slug <p-sortIcon field="slug" /></th>
+              <th pSortableColumn="name">Nome <p-sortIcon field="name" /></th>
+              <th pSortableColumn="defaultSeverity">Gravità di default <p-sortIcon field="defaultSeverity" /></th>
+              <th pSortableColumn="polarity">Polarità <p-sortIcon field="polarity" /></th>
+              <th pSortableColumn="description">Descrizione <p-sortIcon field="description" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>
@@ -198,6 +236,37 @@ export class ConditionsCatalogPage implements OnInit {
   protected readonly addRowVisible = signal(false);
   protected readonly rowError = signal<string | null>(null);
   protected draft: DraftRow = emptyDraft();
+
+  // --- Client-side polarity + severity filters (default "all"), AND-combined. ---
+  protected readonly polarityOptions = [
+    { value: 'all' as const, label: 'Tutte' },
+    { value: 'positive' as const, label: 'Positive' },
+    { value: 'negative' as const, label: 'Negative' },
+  ];
+  protected readonly severityOptions = [
+    { value: 'all' as const, label: 'Tutte' },
+    { value: 'minor' as const, label: 'Minor' },
+    { value: 'major' as const, label: 'Major' },
+  ];
+  protected readonly polarityFilter = signal<'all' | ConditionPolarity>('all');
+  protected readonly severityFilter = signal<'all' | ConditionSeverity>('all');
+
+  /**
+   * The loaded catalog narrowed by the polarity and severity filters (combined
+   * with AND). Returns `undefined` while loading so the table keeps its loading
+   * state, and re-derives whenever `entries()` reloads.
+   */
+  protected readonly filteredEntries = computed(() => {
+    const all = this.entries();
+    if (!all) return all;
+    const polarity = this.polarityFilter();
+    const severity = this.severityFilter();
+    return all.filter((e) => {
+      if (polarity !== 'all' && e.polarity !== polarity) return false;
+      if (severity !== 'all' && e.defaultSeverity !== severity) return false;
+      return true;
+    });
+  });
 
   ngOnInit(): void {
     this.load();

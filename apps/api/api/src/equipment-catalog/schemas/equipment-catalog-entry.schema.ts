@@ -38,10 +38,6 @@ export class EquipmentCatalogEntry {
   @Prop({ type: [EquipmentTagSchema], default: [] })
   tags: EquipmentTag[];
 
-  /** Quantity used when instantiating a `consumable`/`misc`; ignored otherwise. */
-  @Prop({ type: Number, min: 0 })
-  defaultQuantity?: number;
-
   /** Marks the template as offered by the character-creation wizard. */
   @Prop({ default: false })
   isStarter: boolean;

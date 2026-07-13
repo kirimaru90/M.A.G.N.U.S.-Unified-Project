@@ -1122,6 +1122,182 @@ describe('TerminalsModule (e2e)', () => {
       expect(importRes.statusCode).toBe(201);
     });
   });
+
+  describe('login.gateOnBoot round-trip through persistence', () => {
+    it('6.1 create with gateOnBoot:false + users → persisted & served flag, password stripped', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Gate Off', public: true },
+          login: {
+            gateOnBoot: false,
+            users: [{ username: 'tec', password: 'robco123' }],
+          },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      expect(cr.statusCode).toBe(201);
+      const { id } = JSON.parse(cr.body);
+
+      // Fictional password kept out-of-band
+      const fictUsers = await fictionalUserModel
+        .find({ terminalId: new Types.ObjectId(id) })
+        .lean();
+      expect(fictUsers).toEqual([
+        expect.objectContaining({ username: 'tec', password: 'robco123' }),
+      ]);
+
+      // Detail carries gateOnBoot, no password
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const dBody = JSON.parse(detail.body);
+      expect(dBody.content.login.gateOnBoot).toBe(false);
+      expect(dBody.content.login.users).toEqual([{ username: 'tec' }]);
+
+      // load carries gateOnBoot, no password
+      const load = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}/load`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const lBody = JSON.parse(load.body);
+      expect(lBody.content.login.gateOnBoot).toBe(false);
+      expect(
+        (lBody.content.login.users as { password?: unknown }[]).every(
+          (u) => u.password === undefined,
+        ),
+      ).toBe(true);
+    });
+
+    it('6.2 create with gateOnBoot:true persists true', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Gate On', public: true },
+          login: {
+            gateOnBoot: true,
+            users: [{ username: 'tec', password: 'robco123' }],
+          },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      const { id } = JSON.parse(cr.body);
+      const load = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}/load`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      expect(JSON.parse(load.body).content.login.gateOnBoot).toBe(true);
+    });
+
+    it('6.3 omitted gateOnBoot is not materialised in served content', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'No Gate Key', public: true },
+          login: { users: [{ username: 'tec', password: 'robco123' }] },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      const { id } = JSON.parse(cr.body);
+      const load = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}/load`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      const login = JSON.parse(load.body).content.login;
+      expect(login).toHaveProperty('users');
+      expect(login).not.toHaveProperty('gateOnBoot');
+    });
+
+    it('6.4 gateOnBoot without users → no login key served, no 500', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Gate No Users', public: true },
+          login: { gateOnBoot: false, users: [] },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      expect(cr.statusCode).toBe(201);
+      const { id } = JSON.parse(cr.body);
+      const load = await app.inject({
+        method: 'GET',
+        url: `/terminals/${id}/load`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      expect(load.statusCode).toBe(200);
+      expect(JSON.parse(load.body).content).not.toHaveProperty('login');
+    });
+
+    it('6.5 non-boolean gateOnBoot → 400', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Bad Gate', public: true },
+          login: {
+            gateOnBoot: 'yes',
+            users: [{ username: 'tec', password: 'robco123' }],
+          },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      expect(cr.statusCode).toBe(400);
+    });
+
+    it('6.6 update flips gateOnBoot to false while preserving stored passwords', async () => {
+      const cr = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/terminals`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Flip Gate', public: true },
+          login: { users: [{ username: 'tec', password: 'robco123' }] },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      const { id } = JSON.parse(cr.body);
+
+      const upd = await app.inject({
+        method: 'PUT',
+        url: `/terminals/${id}`,
+        headers: { Authorization: `Bearer ${adminToken}` },
+        payload: {
+          meta: { title: 'Flip Gate', public: true },
+          // blank password → password-preserving reconcile keeps stored one
+          login: { gateOnBoot: false, users: [{ username: 'tec' }] },
+          nodes: { start: { text: 'ok', choices: [] } },
+        },
+      });
+      expect(upd.statusCode).toBe(200);
+      const uBody = JSON.parse(upd.body);
+      expect(uBody.content.login.gateOnBoot).toBe(false);
+      expect(uBody.fictionalUsers).toEqual([
+        { username: 'tec', password: 'robco123' },
+      ]);
+
+      // fictional-login still works with the preserved password
+      const login = await app.inject({
+        method: 'POST',
+        url: `/terminals/${id}/fictional-login`,
+        payload: { username: 'tec', password: 'robco123' },
+      });
+      expect(login.statusCode).toBe(200);
+    });
+  });
 });
 
 describe('Terminal viewCount (e2e)', () => {

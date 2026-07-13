@@ -27,7 +27,6 @@ interface DraftRow {
   name: string;
   kind: EquipmentKind;
   tags: EquipmentTagDto[];
-  defaultQuantity: number;
   isStarter: boolean;
   description: string;
 }
@@ -37,7 +36,6 @@ const emptyDraft = (): DraftRow => ({
   name: '',
   kind: 'weapon',
   tags: [],
-  defaultQuantity: 1,
   isStarter: false,
   description: '',
 });
@@ -119,14 +117,16 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
           [loading]="entries() === undefined"
           [tableStyle]="{ 'min-width': '900px' }"
           styleClass="bo-table"
+          sortField="name"
+          [sortOrder]="1"
         >
           <ng-template pTemplate="header">
             <tr>
-              <th>Slug</th>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Tag / Quantità</th>
-              <th>Iniziale</th>
+              <th pSortableColumn="slug">Slug <p-sortIcon field="slug" /></th>
+              <th pSortableColumn="name">Nome <p-sortIcon field="name" /></th>
+              <th pSortableColumn="kind">Tipo <p-sortIcon field="kind" /></th>
+              <th>Tag / Descrizione</th>
+              <th pSortableColumn="isStarter">Iniziale <p-sortIcon field="isStarter" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>
@@ -183,11 +183,10 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
                     </div>
                   } @else {
                     <input
-                      data-testid="default-quantity"
+                      data-testid="description"
                       pInputText
-                      type="number"
-                      min="0"
-                      [(ngModel)]="draft.defaultQuantity"
+                      [(ngModel)]="draft.description"
+                      placeholder="descrizione"
                       style="width: 100%;"
                     />
                   }
@@ -234,7 +233,7 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
                 </td>
                 <td>
                   @if (entry.kind === 'consumable' || entry.kind === 'misc') {
-                    ×{{ entry.defaultQuantity ?? 0 }}
+                    {{ entry.description }}
                   } @else {
                     @for (tag of entry.tags ?? []; track tag.name) {
                       <span class="bo-pill" [class.active]="tag.type === 'core'">{{
@@ -375,11 +374,10 @@ export const KIND_OPTIONS: ReadonlyArray<{ value: EquipmentKind; label: string }
                     </div>
                   } @else {
                     <input
-                      data-testid="default-quantity"
+                      data-testid="description"
                       pInputText
-                      type="number"
-                      min="0"
-                      [(ngModel)]="draft.defaultQuantity"
+                      [(ngModel)]="draft.description"
+                      placeholder="descrizione"
                       style="width: 100%;"
                     />
                   }
@@ -529,8 +527,9 @@ export class EquipmentCatalogPage implements OnInit {
 
   /**
    * Build the `entry` payload for the current draft, sending only the fields
-   * the API accepts for that kind: tags for weapon/armor, defaultQuantity for
-   * consumable. Sending both would be a 400.
+   * the API accepts for that kind: tags for weapon/armor, a description for
+   * consumable/misc (quantity is a per-character inventory concern, never a
+   * template field). Sending tags on a consumable would be a 400.
    */
   private draftEntry(): EquipmentCatalogEntryShape {
     const base: EquipmentCatalogEntryShape = {
@@ -541,16 +540,13 @@ export class EquipmentCatalogPage implements OnInit {
     };
     return isTagged(this.draft.kind)
       ? { ...base, tags: this.draft.tags.map((t) => ({ name: t.name.trim(), type: t.type })) }
-      : { ...base, defaultQuantity: Number(this.draft.defaultQuantity) };
+      : base;
   }
 
   private validateDraft(): string | null {
     if (!this.draft.slug.trim() || !this.draft.name.trim()) return 'Slug e nome sono obbligatori';
     if (isTagged(this.draft.kind)) {
       if (this.draft.tags.some((t) => !t.name.trim())) return 'Ogni tag deve avere un nome';
-    } else {
-      const q = Number(this.draft.defaultQuantity);
-      if (!Number.isInteger(q) || q < 0) return 'La quantità deve essere un intero non negativo';
     }
     return null;
   }
@@ -582,7 +578,6 @@ export class EquipmentCatalogPage implements OnInit {
       name: entry.name,
       kind: entry.kind,
       tags: (entry.tags ?? []).map((t) => ({ ...t })),
-      defaultQuantity: entry.defaultQuantity ?? 0,
       isStarter: entry.isStarter,
       description: entry.description ?? '',
     };

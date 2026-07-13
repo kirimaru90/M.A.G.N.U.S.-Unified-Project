@@ -82,10 +82,18 @@ test('the modifier stepper is bounded −6..+6', async ({ page }) => {
   await expect(page.locator('#pb-dice-mod button[data-dir="-1"]')).toBeDisabled();
 });
 
-test('the result box reads — TIRA I DADI — before any roll', async ({ page }) => {
-  await openDice(page, { faces: [1] });
-  await expect(page.locator('#pb-dice-result')).toHaveText('— TIRA I DADI —');
+test('no result box is rendered before the first roll; a seeded roll then shows the outcome', async ({ page }) => {
+  await openDice(page, { faces: [2, 6, 3] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+
+  // Before any roll there is no result box element at all — no placeholder slot.
+  await expect(page.locator('#pb-dice-result')).toHaveCount(0);
   await expect(page.locator('.pb-die')).toHaveCount(0);
+
+  await rollAndSettle(page);
+
+  // Once the tumble settles the result box appears with the resolved outcome.
+  await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });
 
 // ── 7.T.2 outcome resolution ────────────────────────────────────────
@@ -402,5 +410,49 @@ test('a reroll animates only the selected die; the kept dice hold steady and the
 
   await page.waitForTimeout(SETTLE_MS);
   // the rerolled die lands a 6 → the full pool [1, 6, 3, 4] resolves as a full success
+  await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
+});
+
+test('a reroll holds every die in its settled cell during the tumble and re-sorts only after settling', async ({ page }) => {
+  // initial four dice, then the fifth draw feeds the reroll a 6
+  await openDice(page, { faces: [1, 2, 3, 4, 6] });
+  await page.locator('[data-approach="strength"]').click();
+  await page.locator('#pb-dice-mod button[data-dir="1"]').click(); // +1 → 4d6
+  await rollAndSettle(page);
+
+  // Settled display is sorted highest→lowest; each cell keeps its die identity
+  // (data-die), so we track *positions* by the identity sequence, not by value.
+  const dice = page.locator('.pb-dice-grid .pb-die');
+  const cellOrder = () => dice.evaluateAll((els) => els.map((e) => e.getAttribute('data-die')));
+  await expect(dice).toHaveText(['4', '3', '2', '1']);
+  const settledOrder = await cellOrder();
+  expect(settledOrder).toEqual(['3', '2', '1', '0']); // faces 4,3,2,1 by identity
+
+  // Select the die showing 1 (identity index 0, in the last cell) and reroll it.
+  await page.locator('button[data-die="0"]').click();
+  await expect(page.locator('#pb-dice-hint')).toContainText('1 selezionati');
+  await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  await page.locator('#pb-dice-reroll').click();
+
+  // Sample the cell order synchronously for the whole tumble (auto-waiting
+  // matchers would race past the ~540ms animation). Every mid-tumble sample must
+  // equal the pre-reroll order: no die shifts cell, and the incoming 6 has NOT
+  // jumped to the front, so the pool is not re-sorted mid-animation.
+  const samples: (string | null)[][] = [];
+  for (let i = 0; i < 120; i++) {
+    if (await page.locator('#pb-dice-roll').isDisabled()) {
+      samples.push(await cellOrder());
+    } else if (samples.length > 0) {
+      break; // settled, after we captured the tumble
+    }
+    await page.waitForTimeout(8);
+  }
+  expect(samples.length).toBeGreaterThan(0);
+  for (const order of samples) expect(order).toEqual(settledOrder);
+
+  await page.waitForTimeout(SETTLE_MS);
+  // Only after settling is the pool re-sorted: the rerolled 6 moves to the front.
+  await expect(dice).toHaveText(['6', '4', '3', '2']);
+  expect(await cellOrder()).toEqual(['0', '3', '2', '1']);
   await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });

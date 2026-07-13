@@ -84,6 +84,15 @@ export class LoginBlockDto {
   @ValidateNested({ each: true })
   @Type(() => FictionalUserDto)
   users: FictionalUserDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'When false, a non-empty root registry does NOT prompt for login at boot. ' +
+      'Omitted or true preserves the historical boot-gate behaviour. Meaningful only on the root login block.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  gateOnBoot?: boolean;
 }
 
 export class TerminalContentDto {

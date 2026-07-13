@@ -8,7 +8,7 @@ Character sheet screens for `apps/pip-boy`: a two-level tab layout with an owner
 
 ### Requirement: Action points stepper
 
-The sheet header SHALL present the character's action points per the reference layout: the label `PUNTI AZIONE` and a row of `paMax` pip squares (filled and glowing when "on") **flanked by a `−` control on the left and a `+` control on the right**. The header SHALL NOT render a numeric `paCurrent` readout — the filled square count is the sole indication of the current value. Activating the `−`/`+` controls SHALL write `paCurrent` via the existing `PATCH .../action-points` endpoint.
+The sheet header SHALL present the character's action points per the reference layout: the label `PUNTI AZIONE` and a row of `paMax` pip squares (filled and glowing when "on") **flanked by a `−` control on the left and a `+` control on the right**. The `−` and `+` controls SHALL sit **immediately adjacent to the pip row** — the `−` directly preceding the first pip and the `+` directly following the last pip — and SHALL NOT be pushed to opposite edges of the header. The pip row SHALL size to its content (`paMax` squares) rather than stretching to fill the header width, so that the gap between the last pip and the `+` control stays small and constant regardless of `paMax`. The header SHALL NOT render a numeric `paCurrent` readout — the filled square count is the sole indication of the current value. Activating the `−`/`+` controls SHALL write `paCurrent` via the existing `PATCH .../action-points` endpoint.
 
 `paMax` and `paTrackedBy` SHALL NOT be editable from the header. They are edited by the owner (or an admin) in the S.P.E.C.I.A.L. subtab's editor mode, via a `FONTE PA` selector and a `MAX PA` stepper, consistent with `api-character-stats` making both owner-writable. When `paMax` is lowered below `paCurrent`, the app SHALL clamp `paCurrent` to the new maximum and persist the clamped value.
 
@@ -18,6 +18,11 @@ The header SHALL also show the character's name, a bordered species chip, and a 
 - **GIVEN** a character with `paMax: 5` and `paCurrent: 2`
 - **WHEN** the sheet header renders
 - **THEN** a `−` control, five pip squares (two filled), and a `+` control are shown in that order, and no numeric `paCurrent` value is displayed
+
+#### Scenario: Plus control sits next to the squares, not at the header edge
+- **GIVEN** a character with `paMax: 5` on a wide viewport
+- **WHEN** the sheet header renders
+- **THEN** the `+` control is positioned immediately after the last pip (a small, constant gap), rather than pushed to the right edge of the header with the pip row stretched across the intervening space
 
 #### Scenario: Owner spends action points
 - **WHEN** the owning player activates the `−` control
@@ -39,8 +44,9 @@ The SALUTE tab SHALL present the character's `status` as owner- and admin-editab
 - A `VALORE NETTO` readout showing **net wear** = (sum of negative-condition weights) − (sum of positive-condition weights), where a `minor` condition weighs `1` and a `major` condition weighs `2`. The number renders green normally and amber+glowing when greater than `0`.
 - The active-condition list, **negatives sorted before positives**, each a full-width button carrying a `−`/`+` sign glyph, the condition name, a `BASE` / `MODERATA ×2` weight tag, and a `✕`. Activating a row removes that condition (representing rest / stimpack / RadAway).
 - A dashed empty state (`nessuna condizione attiva`) when both collections are empty.
-- `▸ CONDIZIONI RAPIDE`: preset buttons sourced from the conditions catalog (`GET /conditions-catalog`), each showing its sign glyph, name, and an optional `×2`. A preset's `polarity` determines which collection it is added to; this routing is client-side only. When the catalog fetch fails, the app SHALL fall back to a small hardcoded preset list rather than rendering nothing.
-- `▸ CONDIZIONE PERSONALIZZATA`: a freeform name input, a `NEGATIVA`/`POSITIVA` sign toggle, a `BASE ×1`/`MODERATA ×2` weight toggle, and a full-width `+ AGGIUNGI CONDIZIONE` submit.
+- A single add-path: a `+ AGGIUNGI CONDIZIONE` trigger that opens a **two-tab add-condition popup** mirroring the inventory add-item popup (an `OK` action and a small red `✕` that cancels without any write; the popup owns no persistence and hands the assembled condition to its caller, which issues the `PATCH .../status`). The popup SHALL present:
+  - **Scegli esistente** — a selection over the conditions catalog (`GET /conditions-catalog`), presented via the full-screen catalog picker sheet; choosing a preset copies its `name`/`defaultSeverity` and routes it to the collection its `polarity` implies (client-side). When the catalog fetch fails, the picker SHALL fall back to a small hardcoded preset list rather than being empty.
+  - **Aggiungi custom** — a freeform `nome condizione` input, a `NEGATIVA`/`POSITIVA` sign toggle, and a `BASE ×1`/`MODERATA ×2` weight toggle. `OK` adds exactly one condition (no multiselect).
 
 **Critical state** SHALL be derived by the client as `net wear ≥ 4` and persisted through `PATCH .../status { criticalState }` whenever the condition collections change. When critical, the sheet SHALL show the amber `⚠ STATO CRITICO — NON PUOI AGIRE` banner beneath the tab bar on **every tab**, flip the status-bar dot and label to amber `⚠ CRITICO`, and apply the amber inset ring specified by `pipboy-terminal-chrome`.
 
@@ -54,8 +60,8 @@ The SALUTE tab SHALL present the character's `status` as owner- and admin-editab
 - **WHEN** the active-condition list renders
 - **THEN** the negative condition appears above the positive one
 
-#### Scenario: Owner adds a condition from a catalog suggestion
-- **WHEN** the owning player activates a quick-condition preset
+#### Scenario: Owner adds a condition from a catalog suggestion via the popup
+- **WHEN** the owning player opens the add-condition popup's **Scegli esistente** tab and selects a catalog entry in the picker
 - **THEN** the app issues `PATCH .../status` adding a condition whose `name`/`severity` match the catalog entry's `name`/`defaultSeverity`
 
 #### Scenario: Catalog suggestion routes by polarity
@@ -63,12 +69,12 @@ The SALUTE tab SHALL present the character's `status` as owner- and admin-editab
 - **WHEN** the owning player adds it
 - **THEN** the app issues `PATCH .../status` targeting `negativeConditions` (not `positiveConditions`)
 
-#### Scenario: Catalog fetch failure falls back to presets
-- **WHEN** `GET /conditions-catalog` fails
-- **THEN** the `▸ CONDIZIONI RAPIDE` row renders a hardcoded fallback preset list
+#### Scenario: Catalog fetch failure falls back to presets in the popup
+- **WHEN** `GET /conditions-catalog` fails and the owning player opens the add-condition popup's **Scegli esistente** tab
+- **THEN** the picker lists a hardcoded fallback preset list rather than being empty
 
-#### Scenario: Owner adds a freeform condition
-- **WHEN** the owning player types a condition name, chooses a sign and a weight, and submits
+#### Scenario: Owner adds a freeform condition via the custom tab
+- **WHEN** the owning player opens the add-condition popup's **Aggiungi custom** tab, types a condition name, chooses a sign and a weight, and confirms
 - **THEN** the app issues `PATCH .../status` adding that condition to the chosen collection as entered
 
 #### Scenario: Tapping a condition removes it
@@ -91,7 +97,7 @@ The `INV` first-level tab SHALL present the character's `inventory` across four 
 
 - `Armi` and `Armature`: one row-card per item, each showing the item name, an amber `DANNEGGIATA` tag when any of its tags is marked damaged, and its tags as chips. `CORE` chips render with a tinted fill and solid border; `EXTRA` chips render outline-only with a dashed border. Each chip carries a small `CORE`/`EXTRA` kind-label.
 - Item tags SHALL render all `core` tags first, then all `extra` tags, alphabetical by name within each group. This order is now **guaranteed by the server** (`api-character-inventory` persists tags canonically), so the client MAY render the stored array directly and per-tag edit actions (toggle damaged, rename, remove) target tags by their stored index.
-- Tapping a tag chip in **view** mode SHALL toggle that tag's `damaged` flag (struck-through, dimmed). In **editor** mode a chip's label becomes an inline text input with a `✕` remover, and `+ core` / `+ extra` dashed buttons appear to add tags.
+- Tapping a tag chip in **view** mode SHALL toggle that tag's `damaged` flag (struck-through, dimmed). In **editor** mode a chip's label becomes editable and carries a `✕` remover, and `+ core` / `+ extra` dashed buttons appear to add tags. Adding a tag or editing a tag's name SHALL autocomplete against the tag catalog (`api-tag-catalog`, read via `GET /tag-catalog`) through the full-screen picker sheet: selecting a catalog entry fills the tag's **name** with the entry's `name`. The `core`/`extra` **type** is decided by which affordance was used (`+ core` vs `+ extra`), not by the catalog, which carries no type. Typing a tag name that is not in the catalog SHALL remain valid.
 - `Consumabili` and `Vari`: compact dashed-divider rows showing name, `×qty`, a `[−][+]` stepper, and — in editor mode only — a `✕`. In **editor** mode the name SHALL be an inline text input; in view mode it renders as static text. `Vari` rows MAY also carry a `description`.
 - Each subtab SHALL offer a single add-path per the `Inventory add-item popup` requirement, available in both view and editor mode. Editor mode SHALL NOT render a separate inline `+ AGGIUNGI …` add row for inventory lists.
 
@@ -104,6 +110,15 @@ All item edits — including renaming a consumable and adjusting its quantity �
 #### Scenario: Owner adds a custom Vari item
 - **WHEN** the owning player adds a custom item under `Vari` with a name, description, and quantity
 - **THEN** the app issues `PATCH .../inventory { misc: { items: [{ name, description, quantity }] } }` and the item appears under `Vari`
+
+#### Scenario: Tag name autocompletes from the tag catalog
+- **GIVEN** the tag catalog contains an entry `{ name: "Automatica" }`
+- **WHEN** the owning player, in editor mode, activates `+ core` (or edits an existing tag's name) and selects `Automatica` in the picker
+- **THEN** the tag's name is filled with `Automatica` and its type is `core` (from the affordance used), and the change is persisted via `PATCH .../inventory`
+
+#### Scenario: A non-catalog tag name is still accepted
+- **WHEN** the owning player types a tag name that is not present in the tag catalog
+- **THEN** the tag is accepted as typed and persisted normally
 
 #### Scenario: Tags render core-first then extra, alphabetical
 - **GIVEN** a weapon whose stored tags are `[{name:"Beta",type:"core"},{name:"Zeta",type:"core"},{name:"Alfa",type:"extra"}]`
@@ -265,21 +280,46 @@ The `NOTES` first-level tab SHALL render a static placeholder. In this change it
 Each `INV` subtab SHALL offer a single add-path: a `+` trigger (available in both view and editor mode) that opens a modal popup with an `OK` action and a small red `✕` that cancels without any write. The popup owns no persistence — on `OK` it hands the assembled item body to its caller, which issues the `PATCH .../inventory`.
 
 The popup SHALL present two inner tabs:
-- **Scegli esistente** — an autocomplete over `GET /equipment-catalog` filtered to the subtab's `kind`; confirming a selection copies the chosen template onto the character (copy-on-use). This tab SHALL be present for **all four** subtabs, including `Vari`, whose kind is `misc`.
-- **Aggiungi custom** — a kind-shaped custom entry form: name + `core`/`extra` tags for `Armi`/`Armature`; name + description + quantity for `Consumabili` and `Vari`.
+- **Scegli esistente** — a selection over `GET /equipment-catalog` filtered to the subtab's `kind`, presented via the **full-screen catalog picker sheet** (not a native `<datalist>`): activating the field opens the picker, and choosing an entry copies the chosen template onto the character (copy-on-use). Instantiating a `consumable`/`misc` template SHALL always add `quantity: 1` (templates carry no default quantity); `description` is copied when present. This tab SHALL be present for **all four** subtabs, including `Vari`, whose kind is `misc`.
+- **Aggiungi custom** — a kind-shaped custom entry form: name + `core`/`extra` tags for `Armi`/`Armature`; name + description + quantity for `Consumabili` and `Vari`. In the tag portion, adding or renaming a tag SHALL autocomplete from the tag catalog via the picker sheet (per the gear editor requirement).
 
 Because every subtab now has a catalog kind (`weapon`, `armor`, `consumable`, `misc`), the popup SHALL default to the **Scegli esistente** tab for all four subtabs.
 
-#### Scenario: Vari popup offers Scegli esistente from the misc catalog
+#### Scenario: Vari popup offers Scegli esistente from the misc catalog via the picker
 - **GIVEN** the equipment catalog holds one or more `misc` entries
-- **WHEN** the owning player opens the add-item popup on the `Vari` subtab
-- **THEN** the `Scegli esistente` tab is present and its autocomplete lists the `misc` catalog entries
+- **WHEN** the owning player opens the add-item popup on the `Vari` subtab and activates the Scegli esistente field
+- **THEN** the full-screen catalog picker opens listing the `misc` catalog entries
 
-#### Scenario: Selecting a misc template copies it onto inventory.misc
-- **GIVEN** a `misc` catalog entry `{ name: "Chiave inglese", defaultQuantity: 1 }`
-- **WHEN** the owning player selects it in the `Vari` popup and confirms
-- **THEN** the app issues `PATCH .../inventory { misc: { items: [{ name: "Chiave inglese", quantity: 1 }] } }`
+#### Scenario: Selecting a misc template copies it onto inventory.misc with quantity one
+- **GIVEN** a `misc` catalog entry `{ name: "Chiave inglese", description: "Attrezzo" }`
+- **WHEN** the owning player selects it in the `Vari` popup's picker and confirms
+- **THEN** the app issues `PATCH .../inventory { misc: { items: [{ name: "Chiave inglese", description: "Attrezzo", quantity: 1 }] } }`
 
 #### Scenario: Cancel writes nothing
 - **WHEN** the owning player opens the popup and taps the red `✕`
 - **THEN** the popup closes and no `PATCH` is issued
+
+### Requirement: Full-screen catalog picker sheet
+
+The sheet SHALL provide a reusable **full-screen catalog picker** used wherever an entry is selected from a catalog. It replaces the native `<datalist>` autocomplete (which is cramped and unreadable on mobile). The picker SHALL:
+
+- open as a full-height overlay when a "choose existing" field is activated;
+- present a search input at the top that filters the supplied entries by case-insensitive substring on their display name, updating as the user types;
+- render the matching entries as a scrollable list of large-tap-target rows, with scrolling confined to the sheet;
+- on tapping a row, return the chosen entry to the caller and close;
+- offer a `✕` (and a backdrop tap) that closes the sheet without selecting anything.
+
+The picker owns no persistence and imposes no catalog-specific behaviour — it only changes **how** an entry is chosen. It SHALL be theme-consistent with the rest of the Pip-Boy shell and safe-area aware.
+
+#### Scenario: Picker opens full-screen and filters as you type
+- **GIVEN** a catalog with several entries
+- **WHEN** the user activates a "choose existing" field and types into the picker's search input
+- **THEN** a full-height sheet is shown and its list narrows to entries whose name contains the typed text, case-insensitively
+
+#### Scenario: Selecting a row returns the entry and closes
+- **WHEN** the user taps a row in the picker
+- **THEN** the sheet closes and the chosen entry is handed back to the caller
+
+#### Scenario: Dismissing the picker selects nothing
+- **WHEN** the user taps the picker's `✕` or the backdrop
+- **THEN** the sheet closes and no selection is made

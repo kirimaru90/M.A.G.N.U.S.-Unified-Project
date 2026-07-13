@@ -2,7 +2,7 @@
 
 ## Purpose
 
-CMS admin screens and API-client services for authoring the global skills, conditions, species, and equipment catalogs via single batched `PATCH` calls, admin-only route guarding consistent with the rest of the CMS.
+CMS admin screens and API-client services for authoring the global skills, conditions, species, equipment, and tag catalogs via single batched `PATCH` calls, admin-only route guarding consistent with the rest of the CMS.
 
 ## Requirements
 
@@ -78,7 +78,7 @@ The CMS SHALL provide an admin-only screen for authoring the global equipment ca
 
 The CMS is the **only** place equipment templates may be authored; `apps/pip-boy` reads them but never writes them.
 
-The screen SHALL make `isStarter` directly togglable per entry, since that flag alone determines which templates `pipboy-character-creation` offers during character creation. The tag editor SHALL only be presented for `weapon` and `armor` kinds; a `defaultQuantity` field (with an optional `description`) SHALL be presented for `consumable` and `misc`, matching the API's validation.
+The screen SHALL make `isStarter` directly togglable per entry, since that flag alone determines which templates `pipboy-character-creation` offers during character creation. The tag editor SHALL only be presented for `weapon` and `armor` kinds; a **`description`** field SHALL be presented for `consumable` and `misc` — in place of any quantity field — matching the API's validation. The screen SHALL NOT present a `defaultQuantity` field for any kind (quantity is a per-character inventory concern, not a catalog concern).
 
 The `kind` selector SHALL offer four kinds — `weapon`, `armor`, `consumable`, and `misc` — with `misc` labelled **"Vari"** in the UI. Because `misc` templates are never starters (`api-equipment-catalog`), the screen SHALL NOT present the `isStarter` toggle for a `misc` entry.
 
@@ -93,17 +93,17 @@ All active filters combine with AND. Filtering is performed client-side over the
 - **WHEN** an admin adds an entry with `kind: weapon`, `isStarter: true`, and two tags — one `core`, one `extra` — and saves
 - **THEN** the CMS issues one `PATCH /equipment-catalog` with an `add` op carrying `kind`, `isStarter`, and both tags with their `type` values
 
-#### Scenario: Admin adds a misc (Vari) template
-- **WHEN** an admin selects `kind` "Vari", enters a name, an optional description, and a quantity, and saves
-- **THEN** the CMS issues an `add` op with `kind: misc` and a `defaultQuantity`, and no `isStarter` toggle was shown for the entry
+#### Scenario: Admin adds a misc (Vari) template with a description
+- **WHEN** an admin selects `kind` "Vari", enters a name and an optional description, and saves
+- **THEN** the CMS issues an `add` op with `kind: misc` and the `description`, carrying no `defaultQuantity`, and no `isStarter` toggle was shown for the entry
 
 #### Scenario: Admin promotes an existing item to a starter
 - **WHEN** an admin toggles `isStarter` on for an existing template and saves
 - **THEN** the CMS issues an `update` op carrying `isStarter: true`, and the entry becomes available in the pip-boy creation wizard's starter picker
 
-#### Scenario: Tag editor hidden for consumables
+#### Scenario: Tag editor hidden for consumables, description shown instead
 - **WHEN** an admin sets an entry's `kind` to `consumable`
-- **THEN** the tag editor is not presented, and a `defaultQuantity` field is presented instead
+- **THEN** the tag editor is not presented, and a `description` field is presented instead (no quantity field)
 
 #### Scenario: Starter toggle hidden for misc
 - **WHEN** an admin sets an entry's `kind` to `misc`
@@ -130,9 +130,27 @@ All active filters combine with AND. Filtering is performed client-side over the
 - **WHEN** an admin deletes an equipment template
 - **THEN** the CMS deletes it without any in-use warning, because characters hold independent copies rather than references
 
+### Requirement: CMS authors the tag catalog
+
+The CMS SHALL provide an admin-only screen for authoring the global tag catalog (`api-tag-catalog`), listing every entry's `slug` and `name`, and supporting add / update / rename / delete. Changes SHALL be submitted as a single batched `PATCH /tag-catalog { ops }` request.
+
+The CMS is the **only** place tag entries may be authored; `apps/pip-boy` reads them but never writes them. The screen SHALL present the tag catalog with a **Tag** entry in the sidebar's admin-only Catalogo section.
+
+#### Scenario: Admin adds a tag entry
+- **WHEN** an admin enters a name (and slug) and saves
+- **THEN** the CMS issues one `PATCH /tag-catalog` with an `add` op carrying the entry's `name`
+
+#### Scenario: Admin renames a tag entry
+- **WHEN** an admin changes an entry's slug and saves
+- **THEN** the CMS issues a `rename` op preserving the entry's `name`
+
+#### Scenario: Duplicate slug surfaces inline
+- **WHEN** an admin adds an entry whose slug already exists and the API responds HTTP 409
+- **THEN** the CMS shows an inline error naming the conflicting slug and retains the pending edits
+
 ### Requirement: Non-admin cannot reach the catalog screens
 
-The CMS SHALL restrict every game-data catalog screen — skills, conditions, species, and equipment — to admin users. A non-admin who navigates to any catalog route SHALL be redirected away (or shown an access-denied view) and SHALL NOT be able to issue catalog `PATCH` requests from the UI.
+The CMS SHALL restrict every game-data catalog screen — skills, conditions, species, equipment, and tags — to admin users. A non-admin who navigates to any catalog route SHALL be redirected away (or shown an access-denied view) and SHALL NOT be able to issue catalog `PATCH` requests from the UI.
 
 The sidebar **Catalogo** navigation section SHALL be rendered only for admin users. A non-admin session SHALL NOT see the Catalogo section or any of its links, so it never presents a link whose route the user cannot follow. This nav-visibility rule is layered on top of the route guard, which remains in force as the security boundary.
 
@@ -152,10 +170,45 @@ The sidebar **Catalogo** navigation section SHALL be rendered only for admin use
 - **WHEN** a non-admin user navigates to the equipment catalog route
 - **THEN** they are redirected away or shown an access-denied view
 
+#### Scenario: Non-admin redirected from the tag catalog screen
+- **WHEN** a non-admin user navigates to the tag catalog route
+- **THEN** they are redirected away or shown an access-denied view
+
 #### Scenario: Catalogo nav section hidden for non-admins
 - **WHEN** a non-admin session renders the CMS shell
-- **THEN** the sidebar does NOT contain the Catalogo section or any catalog links
+- **THEN** the sidebar does NOT contain the Catalogo section or any catalog links (including the Tag link)
 
 #### Scenario: Catalogo nav section shown for admins
 - **WHEN** an admin session renders the CMS shell
-- **THEN** the sidebar shows the Catalogo section with its catalog links
+- **THEN** the sidebar contains the Catalogo section with the skills, conditions, species, equipment, and tag links
+
+### Requirement: Catalog tables are sortable, defaulting to name; conditions filter by polarity and severity
+
+Every game-data catalog table in the CMS — skills, conditions, species, and equipment — SHALL be **column-sortable**: the admin can sort by any listed column, and on load each table SHALL default to **ascending order by `name`**. Sorting is performed client-side over the loaded catalog and issues no new request.
+
+The conditions catalog screen SHALL additionally present two filters over the loaded list:
+- a **polarity** filter offering **positive / negative / all** (default all);
+- a **severity** filter offering **minor / major / all** (default all).
+
+Both filters combine with AND (with each other and with any existing text filter) and are applied client-side.
+
+#### Scenario: Catalog table defaults to name ascending
+- **WHEN** an admin opens any catalog screen (skills, conditions, species, or equipment)
+- **THEN** the table is sorted ascending by `name` on first render
+
+#### Scenario: Admin sorts by another column
+- **WHEN** an admin activates a sortable column header (e.g. `slug` or `kind`)
+- **THEN** the table re-sorts by that column, toggling ascending/descending on repeated activation, without issuing a new request
+
+#### Scenario: Conditions filter by polarity
+- **GIVEN** the conditions catalog holds both positive and negative entries
+- **WHEN** an admin sets the polarity filter to `negative`
+- **THEN** the table shows only negative-polarity conditions; setting it back to `all` restores every entry
+
+#### Scenario: Conditions filter by severity
+- **WHEN** an admin sets the severity filter to `major`
+- **THEN** the table shows only `major` conditions; `all` restores every entry
+
+#### Scenario: Polarity and severity filters combine
+- **WHEN** an admin sets polarity to `negative` and severity to `minor`
+- **THEN** the table shows only conditions that are both negative and minor

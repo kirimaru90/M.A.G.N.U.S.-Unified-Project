@@ -189,8 +189,12 @@ test('a custom weapon in the popup carries its tags; the Vari popup offers Scegl
   await page.locator('[data-add-open]').click();
   await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-popup-name').fill('Coltello');
+  // Adding a tag opens the picker over the tag catalog; a name not in the
+  // catalog is committed via the free-text row.
   await page.locator('[data-add-custom-tag="core"]').click();
-  await page.locator('[data-custom-tag-name]').fill('AFFILATO');
+  await page.locator('.pb-picker-search').fill('AFFILATO');
+  await page.locator('[data-freetext]').click();
+  await expect(page.locator('.pb-picker-overlay')).toHaveCount(0);
 
   const weaponReq = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
   await page.locator('[data-ok]').click();
@@ -199,12 +203,14 @@ test('a custom weapon in the popup carries its tags; the Vari popup offers Scegl
   });
 
   // Vari now has a catalog kind (`misc`): the popup presents the "Scegli
-  // esistente" tab populated from the misc catalog, and the custom form still
-  // carries name/description/quantity with no tag buttons.
+  // esistente" tab; activating its field opens the full-screen picker over the
+  // misc catalog. The custom form still carries name/description/quantity.
   await page.locator('.pb-subtab', { hasText: 'Vari' }).click();
   await page.locator('[data-add-open]').click();
   await expect(page.locator('[data-ptab="existing"]')).toHaveCount(1);
-  await expect(page.locator('#pb-popup-datalist option')).toHaveAttribute('value', 'Chiave inglese');
+  await page.locator('#pb-popup-existing').click();
+  await expect(page.locator('.pb-picker-row', { hasText: 'Chiave inglese' })).toBeVisible();
+  await page.locator('.pb-picker-close').click();
   await page.locator('[data-ptab="custom"]').click();
   await expect(page.locator('#pb-popup-desc')).toBeVisible();
   await expect(page.locator('[data-add-custom-tag]')).toHaveCount(0);
@@ -216,7 +222,8 @@ test('selecting a misc template in the Vari popup copies it onto inventory.misc'
   await page.locator('.pb-subtab', { hasText: 'Vari' }).click();
 
   await page.locator('[data-add-open]').click();
-  await page.locator('#pb-popup-existing').fill('Chiave inglese');
+  await page.locator('#pb-popup-existing').click();
+  await page.locator('.pb-picker-row', { hasText: 'Chiave inglese' }).click();
 
   const req = page.waitForRequest((r) => r.url().includes('/inventory') && r.method() === 'PATCH');
   await page.locator('[data-ok]').click();

@@ -3,11 +3,9 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -46,12 +44,6 @@ export class EquipmentCatalogEntryDto {
   @ValidateNested({ each: true })
   @Type(() => EquipmentTagDto)
   tags?: EquipmentTagDto[];
-
-  @ApiPropertyOptional({ minimum: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  defaultQuantity?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

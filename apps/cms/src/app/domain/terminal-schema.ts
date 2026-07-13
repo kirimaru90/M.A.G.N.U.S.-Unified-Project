@@ -56,6 +56,10 @@ export const LoginUserSchema = z.object({
 
 export const LoginBlockSchema = z.object({
   users: z.array(LoginUserSchema),
+  // Optional. Meaningful only on the root login block: when false, a non-empty
+  // registry does NOT prompt for login at boot. Omitted or true preserves the
+  // historical boot-gate behaviour (default true).
+  gateOnBoot: z.boolean().optional(),
 });
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

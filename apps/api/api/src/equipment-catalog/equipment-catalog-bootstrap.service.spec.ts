@@ -33,15 +33,15 @@ describe('EquipmentCatalogBootstrapService', () => {
     expect(byKind('armor')).toHaveLength(3);
   });
 
-  it('seeds a stimpack consumable with defaultQuantity 2', () => {
+  it('seeds a stimpack consumable with no quantity', () => {
     const stimpack = DEFAULT_EQUIPMENT_CATALOG.find(
       (e) => e.slug === 'stimpack',
     );
     expect(stimpack).toMatchObject({
       kind: 'consumable',
-      defaultQuantity: 2,
       isStarter: true,
     });
+    expect(stimpack).not.toHaveProperty('defaultQuantity');
     expect(stimpack?.tags).toBeUndefined();
   });
 

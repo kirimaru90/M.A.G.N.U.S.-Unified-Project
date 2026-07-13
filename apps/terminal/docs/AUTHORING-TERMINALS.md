@@ -192,7 +192,8 @@ terminal has no login. Two independent gates, both otherwise optional:
 
 ### Terminal-wide login (top-level `login`)
 Declared once. Holds the credential registry (cleartext — this is a fiction, not real
-security) and, when it has ≥1 user, forces a login **before `start`**.
+security) and, when it has ≥1 user **and `gateOnBoot` is not `false`**, forces a login
+**before `start`**.
 
 ```jsonc
 "login": {
@@ -202,6 +203,30 @@ security) and, when it has ≥1 user, forces a login **before `start`**.
   ]
 }
 ```
+
+**Registry vs. boot gate — `gateOnBoot`.** The root `login` block does two jobs: it is the
+credential *registry* (the only place per-node gates can draw usernames from) and, by
+default, the *boot gate* that prompts before `start`. `login.gateOnBoot` (optional boolean,
+default `true`) separates them:
+
+- `true` / omitted → non-empty registry gates before `start` (historical default).
+- `false` → the registry stays available to per-node gates and the login dropdown, but the
+  terminal does **not** prompt at boot.
+
+`gateOnBoot` matters only on the **root** `login`; on a node's `login` it is ignored.
+
+**Credentials without a boot prompt** — hold users but gate only a sub-section:
+
+```jsonc
+"login": {
+  "gateOnBoot": false,
+  "users": [ { "username": "Tecnico_Addetto", "password": "robco123" } ]
+}
+```
+
+Players reach `start` directly and only meet the prompt when they enter a node whose own
+`login.users` names `Tecnico_Addetto`. (A `gateOnBoot` with an empty/absent `users` list is
+dropped on read — a boot gate with no credentials is unsatisfiable.)
 
 ### Per-node login (`node.login`)
 Gates a specific node. Its `users` is a list of **usernames** (strings) drawn from the
@@ -496,6 +521,7 @@ Before considering a terminal done:
       component). Cross-node reads are timed correctly (§8).
 - [ ] At most one `default: true` per `variants` array and per input `branches` array.
 - [ ] Per-node `login.users` names all exist in `content.login.users`.
+- [ ] Want a per-node/sub-section login but **no** prompt at boot? Set `login.gateOnBoot: false` on the root `login` (§5).
 - [ ] `meta.id` is **not** present; `meta.title` is non-empty; empty `hiddenId` is omitted.
 - [ ] Content is Italian, monochrome-safe, and in RobCo voice.
 

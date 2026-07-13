@@ -60,9 +60,13 @@ function stripContent(
   if (stripped.login && typeof stripped.login === 'object') {
     const users = (stripped.login as Record<string, unknown>).users;
     if (!Array.isArray(users) || users.length === 0) {
+      // Drop login when there are no fictional users — even if a `gateOnBoot`
+      // was stored. A boot gate with no credentials is unsatisfiable, so it
+      // must never be served.
       delete stripped.login;
     }
-    // else: users already contain only {username}, no password — pass through as-is
+    // else: users already contain only {username}, no password — pass through
+    // as-is (carrying any stored `gateOnBoot`).
   }
   return stripped;
 }
@@ -178,10 +182,15 @@ export class TerminalsService {
       state: dto.state ?? {},
       nodes: dto.nodes,
     };
-    if (dto.login?.users?.length) {
-      content.login = {
-        users: dto.login.users.map((u) => ({ username: u.username })),
-      };
+    if (dto.login && (dto.login.users?.length || dto.login.gateOnBoot !== undefined)) {
+      const login: Record<string, unknown> = {};
+      if (dto.login.users?.length) {
+        login.users = dto.login.users.map((u) => ({ username: u.username }));
+      }
+      if (dto.login.gateOnBoot !== undefined) {
+        login.gateOnBoot = dto.login.gateOnBoot;
+      }
+      content.login = login;
     }
     return content;
   }

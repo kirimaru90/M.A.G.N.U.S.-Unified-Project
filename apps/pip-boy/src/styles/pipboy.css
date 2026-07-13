@@ -630,10 +630,13 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-pa-track {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 10px;
     flex: 1;
 }
-.pb-pa-track .pb-pips { flex: 1; }
+/* Pip row sizes to its content so the − / + controls hug the squares
+   instead of being pushed to opposite edges of the header. */
+.pb-pa-track .pb-pips { flex: 0 0 auto; }
 .pb-pa-track button {
     width: 30px; height: 30px;
     border: 1px solid var(--green-border);
@@ -1097,3 +1100,82 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-popup-pane { display: flex; flex-direction: column; gap: 8px; }
 .pb-popup-tags { min-height: 4px; }
 .pb-popup-actions { display: flex; justify-content: flex-end; }
+
+/* --- full-screen catalog picker sheet -------------------------------------
+   The mobile-readable replacement for the native <datalist>. It opens above the
+   add-item popup (which sits at z-index 40), so it takes a higher layer and
+   fills the screen, with scrolling confined to its own list. Safe-area aware so
+   the sheet clears a notch. */
+.pb-picker-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    background: rgba(3, 8, 5, 0.85);
+}
+.pb-picker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding:
+        max(14px, var(--pb-safe-top)) max(14px, var(--pb-safe-right))
+        max(14px, var(--pb-safe-bottom)) max(14px, var(--pb-safe-left));
+    background: var(--screen-bg);
+    box-shadow: var(--screen-inner-glow);
+    gap: 10px;
+}
+.pb-picker-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.pb-picker-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    letter-spacing: 2px;
+}
+.pb-picker-close {
+    flex: none;
+    width: 32px; height: 32px;
+    border: 1px solid var(--amber-border);
+    background: transparent;
+    color: var(--amber);
+    font-family: var(--font-body);
+    font-size: 15px;
+    cursor: pointer;
+}
+.pb-picker-close:hover { background: var(--amber-fill); }
+.pb-picker-search { flex: none; }
+/* The only scroll region: the sheet itself never scrolls, its list does. */
+.pb-picker-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pb-picker-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 14px 12px;
+    border: 1px solid var(--green-border);
+    background: rgba(51, 255, 102, 0.06);
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    font-size: 14px;
+    cursor: pointer;
+}
+.pb-picker-row:hover { background: var(--green-fill); }
+/* The "use my typed text" row reads as an add affordance, not a catalog hit. */
+.pb-picker-freetext { border-style: dashed; }
+
+/* The add-item popup's "Scegli esistente" field is a button that opens the
+   picker; it borrows .pb-input but aligns like a field and dims its placeholder. */
+.pb-popup-picker-field { text-align: left; cursor: pointer; }
+.pb-popup-picker-field:disabled { opacity: 0.5; cursor: default; }
+.pb-popup-picker-value[data-empty] { color: rgba(51, 255, 102, 0.4); }
