@@ -53,10 +53,13 @@ services:
 
   # 4. FRONTEND (terminal emulator)
   frontend:
-    image: nginx:alpine
+    build:
+      context: ./apps/terminal
+      args:
+        # Stamps sw.js's cache version; start.sh exports the deployed commit's
+        # short SHA. Falls back to `dev` when unset (e.g. local `docker compose`).
+        BUILD_ID: ${BUILD_ID:-dev}
     container_name: magnus-terminal
-    volumes:
-      - ./apps/terminal:/usr/share/nginx/html
     networks:
       - edge
       - internal

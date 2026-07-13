@@ -1,4 +1,8 @@
-const CACHE_VERSION = 'robco-v9';
+// Version segment is stamped at image-build time from the deployed commit
+// (mirrors apps/pip-boy/sw.js): the Dockerfile seds `__BUILD_ID__` → ${BUILD_ID}.
+// The tracked source keeps the stable placeholder so `git pull` on deploy never
+// dirties this file. A build with no BUILD_ID falls back to `robco-dev`.
+const CACHE_VERSION = 'robco-__BUILD_ID__';
 const CONTENT_CACHE = 'robco-content-v1';
 
 const MARKED_CDN = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';

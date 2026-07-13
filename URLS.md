@@ -36,16 +36,18 @@ Host: Oracle Cloud (OCI) · Public IP `158.180.46.246` · TLS via Let's Encrypt.
 | API      | `/api` on any hostname above              |
 | MongoDB  | `127.0.0.1:27017` on the host — reach via SSH tunnel: `ssh -L 27017:127.0.0.1:27017 ubuntu@158.180.46.246`, then connect to `mongodb://localhost:27017` |
 
-## Local dev — editing the Pip-Boy PWA
+## Local dev — editing the Pip-Boy or Terminal PWA
 
-Pip-Boy is now **image-built** (its service-worker cache version is stamped from the
-deployed commit at build time), so source edits no longer appear from a bare volume mount.
-For local iteration, either:
+Pip-Boy **and Terminal** are now **image-built** (their service-worker cache version is
+stamped from the deployed commit at build time), so source edits no longer appear from a
+bare volume mount. For local iteration, either:
 
-- **Rebuild on demand:** `docker compose up -d --build pip-boy`, or
+- **Rebuild on demand:** `docker compose up -d --build pip-boy` (or `frontend` for the
+  terminal), or
 - **Re-mount for live editing:** `cp docker-compose.override.yml.example docker-compose.override.yml`
-  then `docker compose up -d` — the override mounts `./apps/pip-boy` over the image (the
-  git-ignored override never reaches the server, so production stays stamped).
+  then `docker compose up -d` — the override mounts `./apps/pip-boy` and `./apps/terminal`
+  over their images (the git-ignored override never reaches the server, so production stays
+  stamped).
 
 ## Routing
 

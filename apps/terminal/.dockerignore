@@ -1,0 +1,15 @@
+node_modules
+tests
+test-results
+docs
+playwright.config.ts
+package.json
+package-lock.json
+README.md
+docker-compose.yml
+Dockerfile
+.dockerignore
+.gitignore
+.git
+.vscode
+.claude
