@@ -13,9 +13,10 @@ The `kind` selector SHALL offer four kinds — `weapon`, `armor`, `consumable`, 
 The screen SHALL present a filter bar above the list with:
 - a **name** free-text filter, a case-insensitive substring match that narrows the list as the admin types;
 - an **isStarter** checkbox filter that, when checked, restricts the list to starter entries;
-- a **kind** multiselect **dropdown** over `weapon | armor | consumable | misc` (an empty selection means "all kinds"), using the shared theme-aware filter-multiselect style (see `cms-backoffice-table-conventions`) so its control and overlay match the active light/dark theme.
+- a **kind** multiselect **dropdown** over `weapon | armor | consumable | misc` (an empty selection means "all kinds"), using the shared theme-aware filter-multiselect style (see `cms-backoffice-table-conventions`) so its control and overlay match the active light/dark theme;
+- a **tag** searchable multiselect (a multiselect dropdown with a type-to-search box) whose options are the **distinct tag names present in the loaded catalog** (derived from the entries, not fetched from the tag catalog). An empty selection means "all tags"; when tags are selected an entry matches if it carries **any** of them (OR within the tag filter). It SHALL use the same shared theme-aware filter-multiselect style. Because only `weapon`/`armor` entries carry tags, selecting any tag naturally excludes `consumable`/`misc` entries.
 
-The filter bar SHALL NOT include a slug filter. All active filters combine with AND. Filtering is performed client-side over the loaded catalog and does not issue a new request.
+The filter bar SHALL NOT include a slug filter. All active filters combine with AND (the tag filter's OR applies only within the tag selection). Filtering is performed client-side over the loaded catalog and does not issue a new request.
 
 #### Scenario: Admin adds a starter weapon template with tags
 - **WHEN** an admin adds an entry with `kind: weapon`, `isStarter: true`, and two tags — one `core`, one `extra` — and saves
@@ -53,6 +54,19 @@ The filter bar SHALL NOT include a slug filter. All active filters combine with 
 #### Scenario: Kind multiselect filters by kind
 - **WHEN** an admin selects `weapon` and `misc` in the kind multiselect dropdown
 - **THEN** the list shows only `weapon` and `misc` entries; clearing the selection restores all kinds
+
+#### Scenario: Tag options are the distinct tags present in the catalog
+- **WHEN** an admin opens the tag filter
+- **THEN** its options are the distinct tag names carried by the loaded entries (deduplicated across weapon/armor entries), searchable by typing
+
+#### Scenario: Tag multiselect filters by tag (OR within the selection)
+- **GIVEN** the catalog holds a weapon tagged `AFFIDABILE` and another tagged `PROIETTILI`
+- **WHEN** an admin selects both `AFFIDABILE` and `PROIETTILI` in the tag filter
+- **THEN** the list shows every entry carrying either tag; clearing the selection restores all entries
+
+#### Scenario: Tag filter combines with the other filters via AND
+- **WHEN** an admin selects `weapon` in the kind filter and `AFFIDABILE` in the tag filter
+- **THEN** the list shows only weapon entries that also carry the `AFFIDABILE` tag
 
 #### Scenario: Starter checkbox filters to starters
 - **WHEN** an admin checks the isStarter filter
