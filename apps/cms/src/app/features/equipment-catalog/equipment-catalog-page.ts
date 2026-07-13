@@ -97,6 +97,17 @@ export const KIND_OPTIONS: readonly { value: EquipmentKind; label: string }[] = 
             [showToggleAll]="false"
             [style]="{ 'min-width': '200px' }"
           />
+          <p-multiselect
+            data-testid="filter-tag"
+            [options]="availableTags()"
+            [ngModel]="tagFilter()"
+            (ngModelChange)="tagFilter.set($event)"
+            [filter]="true"
+            filterPlaceholder="Cerca tag…"
+            placeholder="Tutti i tag"
+            [showToggleAll]="false"
+            [style]="{ 'min-width': '200px' }"
+          />
           <label style="display: inline-flex; gap: 4px; align-items: center;">
             <input
               type="checkbox"
@@ -445,6 +456,25 @@ export class EquipmentCatalogPage implements OnInit {
   protected readonly nameFilter = signal('');
   protected readonly starterFilter = signal(false);
   protected readonly kindFilter = signal<EquipmentKind[]>([]);
+  protected readonly tagFilter = signal<string[]>([]);
+
+  /**
+   * Distinct tag names present across the loaded catalog (weapon/armor entries
+   * carry tags; others don't), sorted for stable display. Drives the tag filter
+   * options — derived from the entries, not the tag catalog, so the choices are
+   * exactly the tags actually in use.
+   */
+  protected readonly availableTags = computed(() => {
+    const all = this.entries();
+    if (!all) return [];
+    const names = new Set<string>();
+    for (const e of all) {
+      for (const t of e.tags ?? []) {
+        if (t.name) names.add(t.name);
+      }
+    }
+    return [...names].sort((a, b) => a.localeCompare(b));
+  });
 
   /**
    * The loaded catalog narrowed by the active filters. Returns `undefined` while
@@ -457,10 +487,13 @@ export class EquipmentCatalogPage implements OnInit {
     const name = this.nameFilter().trim().toLowerCase();
     const starterOnly = this.starterFilter();
     const kinds = this.kindFilter();
+    const tags = this.tagFilter();
     return all.filter((e) => {
       if (name && !e.name.toLowerCase().includes(name)) return false;
       if (starterOnly && !e.isStarter) return false;
       if (kinds.length > 0 && !kinds.includes(e.kind)) return false;
+      // OR within the tag filter: the entry matches if it carries any selected tag.
+      if (tags.length > 0 && !(e.tags ?? []).some((t) => tags.includes(t.name))) return false;
       return true;
     });
   });

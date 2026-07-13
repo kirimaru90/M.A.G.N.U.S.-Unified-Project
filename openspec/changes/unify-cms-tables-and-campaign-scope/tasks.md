@@ -17,8 +17,8 @@
 - [x] 3.2 Remove the slug free-text filter input and its `slugFilter` signal + the slug branch in `filteredEntries`.
 - [x] 3.3 Render `isStarter` as a read-only indicator in the display row (remove the inline `toggleStarter` checkbox + handler); keep the editable checkbox only inside the row-edit and add-row templates.
 - [x] 3.4 Update `equipment-catalog-page.spec.ts`: kind multiselect filters, no slug filter present, starter is static outside edit and a checkbox in edit.
-- [ ] 3.5 Add a searchable tag multiselect to the equipment filter bar: a `p-multiselect` with `[filter]="true"` bound to a new `tagFilter` signal; options come from a computed of the distinct tag names across `entries()`; add an OR-within-tag branch to `filteredEntries` (entry matches if it carries any selected tag), AND-combined with the other filters; reuse the shared themed multiselect style.
-- [ ] 3.6 Extend `equipment-catalog-page.spec.ts`: tag options are the distinct catalog tags, tag filter matches entries with any selected tag (OR), and the tag filter ANDs with the kind filter.
+- [x] 3.5 Add a searchable tag multiselect to the equipment filter bar: a `p-multiselect` with `[filter]="true"` bound to a new `tagFilter` signal; options come from a computed of the distinct tag names across `entries()`; add an OR-within-tag branch to `filteredEntries` (entry matches if it carries any selected tag), AND-combined with the other filters; reuse the shared themed multiselect style.
+- [x] 3.6 Extend `equipment-catalog-page.spec.ts`: tag options are the distinct catalog tags, tag filter matches entries with any selected tag (OR), and the tag filter ANDs with the kind filter.
 
 ## 4. Conditions catalog filters
 

@@ -445,5 +445,26 @@ describe('EquipmentCatalogPage', () => {
       c['kindFilter'].set(['weapon']);
       expect(slugs(c)).toEqual(['pistola-10mm']);
     });
+
+    it('offers the distinct catalog tags as tag-filter options, sorted', async () => {
+      const c = await withEntries([PISTOL, GIUBBOTTO, STIMPACK, CHIAVE]);
+      // PISTOL → AFFIDABILE, GIUBBOTTO → CUOIO; consumable/misc carry none.
+      expect(c['availableTags']()).toEqual(['AFFIDABILE', 'CUOIO']);
+    });
+
+    it('filters by tag, matching entries carrying any selected tag (OR)', async () => {
+      const c = await withEntries([PISTOL, GIUBBOTTO, STIMPACK, CHIAVE]);
+      c['tagFilter'].set(['AFFIDABILE']);
+      expect(slugs(c)).toEqual(['pistola-10mm']);
+      c['tagFilter'].set(['AFFIDABILE', 'CUOIO']);
+      expect(slugs(c).sort()).toEqual(['giubbotto-di-pelle', 'pistola-10mm']);
+    });
+
+    it('ANDs the tag filter with the kind filter', async () => {
+      const c = await withEntries([PISTOL, GIUBBOTTO, STIMPACK, CHIAVE]);
+      c['kindFilter'].set(['weapon']);
+      c['tagFilter'].set(['AFFIDABILE', 'CUOIO']);
+      expect(slugs(c)).toEqual(['pistola-10mm']);
+    });
   });
 });
