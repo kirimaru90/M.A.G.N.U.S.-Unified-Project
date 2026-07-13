@@ -37,3 +37,15 @@ Table filter multiselect controls across the backoffice SHALL share a single vis
 #### Scenario: All filter multiselects look the same
 - **WHEN** an admin compares the equipment kind filter and the conditions polarity/severity filters
 - **THEN** all of them present the same shared multiselect styling
+
+### Requirement: Table filter bars are inset from the card edge and aligned to the columns
+
+A table filter bar SHALL NOT sit flush against the enclosing card's edges. The `.bo-filter-bar` shall be defined once as a shared style (not per-page inline styles) that insets the bar from the card's top, left, and right, with the left inset matching the table's cell padding so the filter controls line up with the columns beneath them. The bar SHALL keep its gap above the table. This applies to every backoffice table filter bar (today: equipment and conditions).
+
+#### Scenario: Filter controls are inset and column-aligned
+- **WHEN** an admin views a table with a filter bar (equipment or conditions)
+- **THEN** the filter controls are inset from the card edges — not touching the top or left border — and the leftmost control aligns with the left edge of the table's column text below it
+
+#### Scenario: Filter bars share one style
+- **WHEN** an admin compares the equipment and conditions filter bars
+- **THEN** both use the same shared `.bo-filter-bar` inset/spacing, not divergent per-page inline styles

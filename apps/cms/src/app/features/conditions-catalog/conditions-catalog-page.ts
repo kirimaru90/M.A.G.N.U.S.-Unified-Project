@@ -52,10 +52,7 @@ const emptyDraft = (): DraftRow => ({
       </div>
 
       <div class="bo-card">
-        <div
-          class="bo-filter-bar"
-          style="display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 12px;"
-        >
+        <div class="bo-filter-bar">
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             <span style="opacity: 0.7;">Polarità:</span>
             <p-multiselect

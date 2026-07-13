@@ -2,7 +2,8 @@
 
 - [x] 1.1 Define `.bo-page` and `.bo-page-head` in `src/styles/tokens.css`: `.bo-page-head` a flex row, title left, action group pushed right (`margin-left:auto`), vertically aligned, with sensible bottom spacing above the card.
 - [x] 1.2 Add global filter-multiselect overrides in `tokens.css`: style `.p-multiselect` (trigger) and its overlay panel/options/checkboxes to the `bo-` tokens (background `--bo-panel`, border `--bo-border-strong`, text `--bo-text`), relying on Aura's `[data-theme="dark"]` selector for dark mode.
-- [ ] 1.3 Visually verify in the running app that the multiselect trigger AND its dropdown panel match the chrome in both light and dark mode.
+- [x] 1.3 Visually verify in the running app that the multiselect trigger AND its dropdown panel match the chrome in both light and dark mode.
+- [x] 1.4 Define `.bo-filter-bar` in `tokens.css` (flex + `gap: 12px 16px` + `margin-bottom`) with an inset from the padding-less `.bo-card`: `padding: 12px 12px 0` so the bar clears the top/left/right edges and its left inset (12px) matches the table's cell padding for column alignment. Remove the now-duplicated inline styles from the equipment and conditions filter bars.
 
 ## 2. List-table sorting and header actions
 
@@ -44,5 +45,5 @@
 ## 7. Verification
 
 - [x] 7.1 Run `npm run lint` and `npm test` in `apps/cms`; fix any failures.
-- [ ] 7.2 Manually walk the app: each list sorts; users default alpha; equipment/conditions multiselects filter and theme correctly in light+dark; terminals reachable with and without a selected campaign; terminal editor actions in the header with a working dirty state and no summary card.
+- [x] 7.2 Manually walk the app: each list sorts; users default alpha; equipment/conditions multiselects filter and theme correctly in light+dark; terminals reachable with and without a selected campaign; terminal editor actions in the header with a working dirty state and no summary card.
 - [x] 7.3 Run `openspec validate unify-cms-tables-and-campaign-scope --strict` and confirm it passes.

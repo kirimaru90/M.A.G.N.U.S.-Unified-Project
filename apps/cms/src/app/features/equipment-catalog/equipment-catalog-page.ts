@@ -78,10 +78,7 @@ export const KIND_OPTIONS: readonly { value: EquipmentKind; label: string }[] = 
       </div>
 
       <div class="bo-card">
-        <div
-          class="bo-filter-bar"
-          style="display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-bottom: 12px;"
-        >
+        <div class="bo-filter-bar">
           <input
             pInputText
             data-testid="filter-name"
