@@ -1,5 +1,7 @@
 import { mount, esc } from '../engine/render.js';
-import { APPROACHES, SKILL_LEVELS, SKILL_LEVEL_LABELS } from '../sheet/model.js';
+import { APPROACHES, SKILL_LEVELS, SKILL_LEVEL_LABELS, paSourceLabel, clamp } from '../sheet/model.js';
+import { pips } from '../sheet/pips.js';
+import { openAddPopup } from '../tabs/add-popup.js';
 import {
     createCharacter,
     patchSpecial,
@@ -13,24 +15,24 @@ import {
 const STEP_LABELS = [
     'IDENTITÀ',
     'S.P.E.C.I.A.L.',
-    'PUNTI AZIONE MASSIMI',
     'TAG SKILLS',
     'EQUIPAGGIAMENTO',
     'RIEPILOGO',
 ];
 
+const TOTAL_STEPS = STEP_LABELS.length;
+
 const TOTAL_POINTS = 18;
 const ATTR_MIN = 1;
 const ATTR_MAX = 4;
 
-/** Maestria costs. A row left at `—` contributes no skill and no cost. */
+/** Maestria costs on the advisory budget: COMPETENTE 1, ESPERTO 2, MAESTRO 3. */
 const MAESTRIA_COST = { competent: 1, expert: 2, master: 3 };
-const MAESTRIA_SHORT = { competent: 'COMP', expert: 'ESP', master: 'MAE' };
 
-const PA_PANELS = [
-    { key: 'agility', trackedBy: 'agility', label: 'AGILITÀ' },
-    { key: 'endurance', trackedBy: 'endurance', label: 'RESISTENZA' },
-];
+// Maestria maps to a filled count on a three-slot square row, identical by
+// construction to the sheet's skills squares (COMPETENTE=1, ESPERTO=2, MAESTRO=3).
+const SKILL_SLOTS = 3;
+const maestriaSquares = (level) => pips(SKILL_LEVELS.indexOf(level) + 1, SKILL_SLOTS);
 
 const freshSpecial = () =>
     Object.fromEntries(APPROACHES.map((a) => [a.key, ATTR_MIN]));
@@ -41,16 +43,21 @@ const remaining = (special) => TOTAL_POINTS - spent(special);
 const maestriaCost = (rows) =>
     rows.reduce((sum, r) => sum + (r.level ? MAESTRIA_COST[r.level] : 0), 0);
 
-const chosenRows = (rows) => rows.filter((r) => r.slug && r.level);
-
-function hasDuplicates(rows) {
-    const slugs = chosenRows(rows).map((r) => r.slug);
-    return new Set(slugs).size !== slugs.length;
+// A custom (catalog-less) skill still needs an identity the PATCH .../skills
+// contract accepts; we derive a client-side slug from the typed name, mirroring
+// the sheet's skills add-flow.
+function slugify(name) {
+    return name
+        .toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'skill';
 }
 
 /**
- * The six-step creation wizard. All state is held here; no character document
- * exists until step 6 is submitted, so abandoning the wizard leaves no trace.
+ * The five-step creation wizard. All state is held here; no character document
+ * exists until step 5 is submitted, so abandoning the wizard leaves no trace.
+ * `paMax`/`paTrackedBy` are derived from the S.P.E.C.I.A.L. values at submit.
  */
 export function renderCreate(root, opts) {
     const {
@@ -61,7 +68,6 @@ export function renderCreate(root, opts) {
         ownerUserId, // admin only; a player omits it and owns the character
         onCancel,
         onCreated,
-        rollScraps = () => Math.floor(Math.random() * 6) + 1,
     } = opts;
 
     const weapons = starterEquipment.filter((e) => e.kind === 'weapon');
@@ -76,36 +82,30 @@ export function renderCreate(root, opts) {
         name: '',
         speciesSlug: speciesCatalog[0]?.slug ?? '',
         special: freshSpecial(),
-        paTrackedBy: 'agility',
-        skills: [
-            { slug: '', level: null },
-            { slug: '', level: null },
-            { slug: '', level: null },
-        ],
+        // A growable list of added tag skills, shaped like the sheet's model.
+        skills: [],
         weaponSlug: null,
         armorSlug: null,
-        scraps: 0,
+        scraps: 0, // starting scraps are always 0; no wizard control mutates this
         keepsake: '',
     };
 
     const species = () => speciesCatalog.find((s) => s.slug === draft.speciesSlug);
     const budget = () => species()?.tagSkillBudget ?? 3;
-    const paMax = () => draft.special[draft.paTrackedBy] ?? 0;
+    const skillName = (id) => skillsCatalog.find((s) => s.slug === id)?.name ?? id;
+
+    // PA is derived, not chosen: the tracked attribute is the higher of Agilità
+    // and Resistenza (a tie resolving to Agilità), and paMax is its value.
+    const paTrackedBy = () =>
+        draft.special.agility >= draft.special.endurance ? 'agility' : 'endurance';
+    const paMax = () => draft.special[paTrackedBy()];
 
     // ── per-step validation ──────────────────────────────────────────
-
-    function stepWarning() {
-        if (step === 4) {
-            if (hasDuplicates(draft.skills)) return 'ABILITÀ DUPLICATE';
-            if (maestriaCost(draft.skills) > budget()) return `MAESTRIA OLTRE IL BUDGET (${budget()})`;
-        }
-        return null;
-    }
 
     function stepValid() {
         if (step === 1) return draft.name.trim().length > 0;
         if (step === 2) return remaining(draft.special) === 0;
-        if (step === 4) return stepWarning() === null;
+        // Step 3 (Tag Skills) is always valid: the maestria budget is advisory.
         return true;
     }
 
@@ -114,6 +114,7 @@ export function renderCreate(root, opts) {
     function stepIdentita() {
         const sp = species();
         return `
+            <div class="pb-hint">Assegna un nome al sopravvissuto e scegli la specie.</div>
             <label class="pb-field">
                 <span class="pb-label">NOME</span>
                 <input class="pb-input" id="pb-cr-name" value="${esc(draft.name)}" placeholder="nome del personaggio">
@@ -160,20 +161,18 @@ export function renderCreate(root, opts) {
         `;
     }
 
-    function stepPa() {
+    function skillRow(s) {
+        const idx = SKILL_LEVELS.indexOf(s.level);
         return `
-            <div class="pb-hint">Scelta permanente: i Punti Azione derivano da Agilità o Resistenza.</div>
-            <div class="pb-pa-panels" id="pb-cr-pa">
-                ${PA_PANELS.map((p) => `
-                    <button class="pb-btn pb-pa-panel${draft.paTrackedBy === p.trackedBy ? ' active' : ''}" data-pa="${p.trackedBy}">
-                        <span class="pb-label">${p.label}</span>
-                        <span class="pb-pa-panel-value vt">${draft.special[p.key]}</span>
-                    </button>
-                `).join('')}
-            </div>
-            <div class="pb-info-box">
-                <div class="pb-label">PA MASSIMI</div>
-                <div class="pb-net-value vt" id="pb-cr-pamax">${paMax()}</div>
+            <div class="pb-row pb-split-row pb-skill-row" data-skill-row="${esc(s.id)}">
+                <span class="pb-skill-name">${esc(skillName(s.id))}</span>
+                <span class="pb-label pb-skill-level">${SKILL_LEVEL_LABELS[s.level] ?? ''}</span>
+                <div class="pb-stepper pb-stepper--tiny pb-skill-stepper">
+                    <button data-skill-dec="${esc(s.id)}" ${idx <= 0 ? 'disabled' : ''}>−</button>
+                    ${maestriaSquares(s.level)}
+                    <button data-skill-inc="${esc(s.id)}" ${idx >= SKILL_LEVELS.length - 1 ? 'disabled' : ''}>+</button>
+                </div>
+                <button class="pb-btn pb-btn--icon" data-remove-skill="${esc(s.id)}">✕</button>
             </div>
         `;
     }
@@ -182,24 +181,17 @@ export function renderCreate(root, opts) {
         const cost = maestriaCost(draft.skills);
         return `
             <div class="pb-split-row">
-                <div class="pb-hint">Competente 1 · Esperto 2 · Maestro 3 · budget ${budget()} (Umano +1) · «—» azzera</div>
+                <div class="pb-hint">Aggiungi le Tag Skill del personaggio · budget ${budget()} (indicativo)</div>
                 <div class="pb-remaining vt" id="pb-cr-maestria">MAESTRIA ${cost}/${budget()}</div>
             </div>
+            <div class="pb-section-head pb-inv-head">
+                <span>TAG SKILLS · MAESTRIA</span>
+                <button class="pb-btn pb-btn--icon pb-inv-add" data-add-skill aria-label="Aggiungi abilità">+</button>
+            </div>
             <div id="pb-cr-skills">
-                ${draft.skills.map((row, i) => `
-                    <div class="pb-row">
-                        <select class="pb-select" data-skill-slug="${i}">
-                            <option value="">— abilità —</option>
-                            ${skillsCatalog.map((s) =>
-                                `<option value="${esc(s.slug)}" ${row.slug === s.slug ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
-                        </select>
-                        <div class="pb-segmented" data-skill-level="${i}">
-                            <button class="pb-seg${row.level === null ? ' active' : ''}" data-level="">—</button>
-                            ${SKILL_LEVELS.map((l) =>
-                                `<button class="pb-seg${row.level === l ? ' active' : ''}" data-level="${l}">${MAESTRIA_SHORT[l]}</button>`).join('')}
-                        </div>
-                    </div>
-                `).join('')}
+                ${draft.skills.length === 0
+                    ? '<button class="pb-row pb-empty pb-skill-placeholder" data-add-skill-row>— aggiungi abilità —</button>'
+                    : draft.skills.map((s) => skillRow(s)).join('')}
             </div>
         `;
     }
@@ -216,6 +208,7 @@ export function renderCreate(root, opts) {
 
     function stepEquipment() {
         return `
+            <div class="pb-hint">Scegli un'arma e un'armatura di partenza; annota un oggetto significativo.</div>
             <div class="pb-section-head">ARMI</div>
             <div id="pb-cr-weapons">
                 ${weapons.map((w) => equipmentRow(w, draft.weaponSlug === w.slug, 'weapon')).join('')}
@@ -224,12 +217,6 @@ export function renderCreate(root, opts) {
             <div class="pb-section-head">ARMATURE</div>
             <div id="pb-cr-armors">
                 ${armors.map((a) => equipmentRow(a, draft.armorSlug === a.slug, 'armor')).join('')}
-            </div>
-
-            <div class="pb-row pb-split-row">
-                <span class="pb-label">ROTTAMI INIZIALI · 1d6</span>
-                <span class="vt pb-scraps-value" id="pb-cr-scraps">${draft.scraps}</span>
-                <button class="pb-btn" id="pb-cr-roll-scraps">TIRA</button>
             </div>
 
             <label class="pb-field">
@@ -245,13 +232,12 @@ export function renderCreate(root, opts) {
         const sp = species();
         const weapon = weapons.find((w) => w.slug === draft.weaponSlug);
         const armor = armors.find((a) => a.slug === draft.armorSlug);
-        const source = PA_PANELS.find((p) => p.trackedBy === draft.paTrackedBy);
-        const picked = chosenRows(draft.skills);
 
         return `
+            <div class="pb-hint">Rivedi la scheda; conferma per creare il personaggio.</div>
             <h2>${esc(draft.name)}</h2>
             <div class="pb-label" id="pb-cr-meta">
-                ${esc(sp?.name ?? '')} · PA ${paMax()} (${esc(source?.label ?? '')}) · TAPPI ${draft.special.luck}
+                ${esc(sp?.name ?? '')} · PA ${paMax()} (${esc(paSourceLabel(paTrackedBy()))}) · TAPPI ${draft.special.luck}
             </div>
 
             <div class="pb-mini-special" id="pb-cr-mini">
@@ -265,11 +251,11 @@ export function renderCreate(root, opts) {
 
             <div class="pb-section-head">ABILITÀ</div>
             <div id="pb-cr-summary-skills">
-                ${picked.length === 0
+                ${draft.skills.length === 0
                     ? '<div class="pb-empty">Nessuna abilità</div>'
-                    : picked.map((r) => `
+                    : draft.skills.map((r) => `
                         <div class="pb-spend-row">
-                            ${esc(skillsCatalog.find((s) => s.slug === r.slug)?.name ?? r.slug)}
+                            ${esc(skillName(r.id))}
                             <span class="pb-label">${SKILL_LEVEL_LABELS[r.level]}</span>
                         </div>
                     `).join('')}
@@ -279,26 +265,24 @@ export function renderCreate(root, opts) {
             <ul class="pb-summary-list" id="pb-cr-summary-gear">
                 ${weapon ? `<li>${esc(weapon.name)}</li>` : ''}
                 ${armor ? `<li>${esc(armor.name)}</li>` : ''}
-                <li>Rottami iniziali · ${draft.scraps}</li>
                 ${consumables.map((c) => `<li>${esc(c.name)} ×1</li>`).join('')}
                 ${draft.keepsake.trim() ? `<li>${esc(draft.keepsake.trim())}</li>` : ''}
             </ul>
         `;
     }
 
-    const STEP_BODIES = [stepIdentita, stepSpecial, stepPa, stepSkills, stepEquipment, stepSummary];
+    const STEP_BODIES = [stepIdentita, stepSpecial, stepSkills, stepEquipment, stepSummary];
 
     // ── shell ────────────────────────────────────────────────────────
 
     function draw() {
         const valid = stepValid();
-        const warning = stepWarning();
 
         mount(root, `
             <div class="pb-header">
                 <div class="pb-header-top">
                     <h2>CREAZIONE</h2>
-                    <span class="pb-label" id="pb-cr-counter">${step}/6 · ${STEP_LABELS[step - 1]}</span>
+                    <span class="pb-label" id="pb-cr-counter">${step}/${TOTAL_STEPS} · ${STEP_LABELS[step - 1]}</span>
                 </div>
                 <div class="pb-progress" id="pb-cr-progress">
                     ${STEP_LABELS.map((_, i) =>
@@ -308,15 +292,35 @@ export function renderCreate(root, opts) {
             <div class="pb-screen-content" id="pb-cr-body">${STEP_BODIES[step - 1]()}</div>
             <div class="pb-wizard-footer">
                 <button class="pb-btn" id="pb-cr-back">◄ INDIETRO</button>
-                ${warning ? `<span class="pb-error" id="pb-cr-warning">${warning}</span>` : ''}
                 ${error ? `<span class="pb-error" id="pb-cr-error">${esc(error)}</span>` : ''}
-                ${step < 6
+                ${step < TOTAL_STEPS
                     ? `<button class="pb-btn pb-btn--primary" id="pb-cr-next" ${valid ? '' : 'disabled'}>AVANTI ▸</button>`
                     : `<button class="pb-btn pb-btn--primary pb-btn--create" id="pb-cr-create" ${submitting ? 'disabled' : ''}>✓ CREA PERSONAGGIO</button>`}
             </div>
         `);
 
         bind();
+    }
+
+    // A small confirm popup: the maestria budget is advisory, so going forward
+    // over budget is a deliberate, acknowledged choice rather than a block.
+    function confirmOverBudget(onContinue) {
+        const overlay = document.createElement('div');
+        overlay.className = 'pb-popup-overlay';
+        overlay.innerHTML = `
+            <div class="pb-popup" role="dialog" aria-modal="true">
+                <div class="pb-popup-title">MAESTRIA OLTRE IL BUDGET (${budget()})</div>
+                <div class="pb-popup-actions">
+                    <button class="pb-btn" data-cancel>ANNULLA</button>
+                    <button class="pb-btn pb-btn--primary" data-continue>CONTINUA</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const close = () => overlay.remove();
+        overlay.querySelector('[data-cancel]').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-continue]').addEventListener('click', () => { close(); onContinue(); });
     }
 
     function bind() {
@@ -327,16 +331,23 @@ export function renderCreate(root, opts) {
         });
 
         const next = root.querySelector('#pb-cr-next');
-        if (next) next.addEventListener('click', () => { step += 1; draw(); });
+        if (next) next.addEventListener('click', () => {
+            // Over-budget on the Tag Skills step confirms before advancing.
+            if (step === 3 && maestriaCost(draft.skills) > budget()) {
+                confirmOverBudget(() => { step += 1; draw(); });
+                return;
+            }
+            step += 1;
+            draw();
+        });
 
         const create = root.querySelector('#pb-cr-create');
         if (create) create.addEventListener('click', submit);
 
         if (step === 1) bindIdentita();
         else if (step === 2) bindSpecial();
-        else if (step === 3) bindPa();
-        else if (step === 4) bindSkills();
-        else if (step === 5) bindEquipment();
+        else if (step === 3) bindSkills();
+        else if (step === 4) bindEquipment();
     }
 
     function bindIdentita() {
@@ -369,30 +380,74 @@ export function renderCreate(root, opts) {
         });
     }
 
-    function bindPa() {
-        root.querySelectorAll('[data-pa]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                draft.paTrackedBy = btn.dataset.pa;
-                draw();
-            });
-        });
-    }
-
     function bindSkills() {
-        root.querySelectorAll('[data-skill-slug]').forEach((sel) => {
-            sel.addEventListener('change', () => {
-                draft.skills[Number(sel.dataset.skillSlug)].slug = sel.value;
+        // Both the `+` control and the placeholder row open the shared add-popup,
+        // configured exactly like the sheet's skills section: a catalog tab over
+        // unused skills, and a custom tab (name + maestria toggle). Adding pushes
+        // onto the local draft and persists nothing.
+        const openAdd = () => {
+            const unused = (skillsCatalog ?? []).filter(
+                (sc) => !draft.skills.some((s) => s.id === sc.slug));
+            openAddPopup({
+                title: 'ABILITÀ',
+                catalog: {
+                    entries: unused,
+                    kindNoun: 'abilità',
+                    toItem: (entry) => ({ id: entry.slug, level: SKILL_LEVELS[0] }),
+                },
+                custom: {
+                    renderFields: (pane) => {
+                        pane.innerHTML = `
+                            <input class="pb-input" data-name placeholder="nome abilità">
+                            <div class="pb-toggle-row" data-maestria>
+                                ${SKILL_LEVELS.map((l, i) =>
+                                    `<button class="pb-btn pb-toggle ${i === 0 ? 'active' : ''}" data-level="${l}">${SKILL_LEVEL_LABELS[l]}</button>`).join('')}
+                            </div>
+                        `;
+                        pane.querySelectorAll('[data-maestria] [data-level]').forEach((btn) =>
+                            btn.addEventListener('click', () =>
+                                pane.querySelectorAll('[data-maestria] [data-level]')
+                                    .forEach((b) => b.classList.toggle('active', b === btn))));
+                    },
+                    readItem: (pane) => {
+                        const name = pane.querySelector('[data-name]').value.trim();
+                        if (!name) return null;
+                        const level = pane.querySelector('[data-maestria] .active')?.dataset.level ?? SKILL_LEVELS[0];
+                        return { id: slugify(name), level };
+                    },
+                },
+                onAdd: (item) => {
+                    // The catalog tab already excludes added skills; guard the
+                    // custom tab against re-adding an existing slug all the same.
+                    if (!draft.skills.some((s) => s.id === item.id)) draft.skills.push(item);
+                    draw();
+                },
+            });
+        };
+
+        const addBtn = root.querySelector('[data-add-skill]');
+        if (addBtn) addBtn.addEventListener('click', openAdd);
+        const placeholder = root.querySelector('[data-add-skill-row]');
+        if (placeholder) placeholder.addEventListener('click', openAdd);
+
+        root.querySelectorAll('[data-skill-dec], [data-skill-inc]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.skillDec ?? btn.dataset.skillInc;
+                const dir = btn.dataset.skillInc !== undefined ? 1 : -1;
+                const s = draft.skills.find((x) => x.id === id);
+                if (!s) return;
+                const idx = clamp(SKILL_LEVELS.indexOf(s.level) + dir, 0, SKILL_LEVELS.length - 1);
+                const level = SKILL_LEVELS[idx];
+                if (level === s.level) return;
+                s.level = level;
                 draw();
             });
         });
-        root.querySelectorAll('[data-skill-level]').forEach((group) => {
-            const i = Number(group.dataset.skillLevel);
-            group.querySelectorAll('button').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    // `—` clears the row entirely: no skill, no cost.
-                    draft.skills[i].level = btn.dataset.level || null;
-                    draw();
-                });
+
+        root.querySelectorAll('[data-remove-skill]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                draft.skills = draft.skills.filter((s) => s.id !== btn.dataset.removeSkill);
+                draw();
             });
         });
     }
@@ -408,11 +463,6 @@ export function renderCreate(root, opts) {
                 }
                 draw();
             });
-        });
-
-        root.querySelector('#pb-cr-roll-scraps').addEventListener('click', () => {
-            draft.scraps = rollScraps();
-            root.querySelector('#pb-cr-scraps').textContent = String(draft.scraps);
         });
 
         const keepsakeEl = root.querySelector('#pb-cr-keepsake');
@@ -454,24 +504,25 @@ export function renderCreate(root, opts) {
             const sp = species();
             const weapon = weapons.find((w) => w.slug === draft.weaponSlug);
             const armor = armors.find((a) => a.slug === draft.armorSlug);
-            const picked = chosenRows(draft.skills);
+            const trackedBy = paTrackedBy();
+            const max = paMax();
 
             await patchSpecial(campaignId, created.id, { ...draft.special });
 
-            if (picked.length > 0) {
+            if (draft.skills.length > 0) {
                 await patchSkills(campaignId, created.id, {
-                    items: picked.map((r) => ({ id: r.slug, level: r.level })),
+                    items: draft.skills.map((r) => ({ id: r.id, level: r.level })),
                 });
             }
 
             await patchActionPoints(campaignId, created.id, {
-                paMax: paMax(),
-                paCurrent: paMax(),
-                paTrackedBy: draft.paTrackedBy,
+                paMax: max,
+                paCurrent: max,
+                paTrackedBy: trackedBy,
             });
 
             await patchResources(campaignId, created.id, {
-                scraps: draft.scraps,
+                scraps: 0,
                 caps: draft.special.luck,
             });
 
