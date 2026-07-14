@@ -22,6 +22,12 @@ export function openConditionPopup({ presets, onAdd }) {
             entries: list,
             kindNoun: 'condizione',
             fieldId: 'pb-cond-existing',
+            // Colour-code each catalog row by polarity (colour only, no text) and
+            // show its weight as an abbreviation (×1 minor / ×2 major).
+            rowAccent: (entry) =>
+                entry.polarity === 'positive' ? 'pb-picker-row--pos' : 'pb-picker-row--neg',
+            renderMeta: (entry) =>
+                `<span class="pb-picker-meta">${entry.defaultSeverity === 'major' ? '×2' : '×1'}</span>`,
             toItem: (entry) => {
                 // A preset's polarity decides its collection; routing is client-side.
                 const item = { name: entry.name, severity: entry.defaultSeverity };

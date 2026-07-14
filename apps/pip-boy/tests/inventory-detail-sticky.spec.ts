@@ -45,22 +45,26 @@ test('consumable rows show the right-aligned stepper and no inline description',
   expect(stepperBox!.x).toBeGreaterThan(nameBox!.x);
 });
 
-test('with a long list the resource row stays pinned in view after scrolling', async ({ page }) => {
+test('with a long list the resource band stays fixed above the footer, untouched by scrolling', async ({ page }) => {
   await openInvConsumables(page, manyConsumables(40));
 
   const content = page.locator('#pb-sheet-content');
-  const resourceRow = page.locator('.pb-resource-row');
-  await expect(resourceRow).toBeVisible();
+  const band = page.locator('#pb-resource-band');
+  const footer = page.locator('.pb-footer');
+  await expect(band).toBeVisible();
 
-  // Scroll the item list to the bottom.
+  // The band's position before and after scrolling the item list is identical —
+  // it lives outside the scroll container, so scrolling cannot move it.
+  const before = await band.boundingBox();
   await content.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  const after = await band.boundingBox();
+  expect(after!.y).toBeCloseTo(before!.y, 0);
 
-  // The resource row remains within the visible content region (pinned bottom).
+  // The band sits below the scrolling content and above the footer.
   const contentBox = await content.boundingBox();
-  const rowBox = await resourceRow.boundingBox();
-  expect(rowBox).not.toBeNull();
-  expect(rowBox!.y + rowBox!.height).toBeLessThanOrEqual(contentBox!.y + contentBox!.height + 1);
-  expect(rowBox!.y).toBeGreaterThanOrEqual(contentBox!.y - 1);
+  const footerBox = await footer.boundingBox();
+  expect(after!.y).toBeGreaterThanOrEqual(contentBox!.y + contentBox!.height - 1);
+  expect(after!.y + after!.height).toBeLessThanOrEqual(footerBox!.y + 1);
 });
 
 test('tapping an item name opens a read-only detail popup that scrolls and closes without writing', async ({ page }) => {

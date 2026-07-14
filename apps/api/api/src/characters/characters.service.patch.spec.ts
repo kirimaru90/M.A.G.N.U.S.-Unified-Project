@@ -177,6 +177,67 @@ describe('patchPerks — ignored', () => {
   });
 });
 
+// ─── 3.2: status margin (health) ─────────────────────────────
+// margin is a root scalar merged alongside criticalState; sending it alone must
+// not disturb the condition arrays, and the echoed section carries it back.
+
+describe('patchStatus — margin', () => {
+  it('applies a sent margin and echoes it in the section', async () => {
+    const char = makeMockChar({ margin: 4 });
+    const svc = makeService(char);
+    const result = await svc.patchStatus(
+      String(char.campaignId),
+      String(char._id),
+      { margin: 6 },
+      playerActor(char),
+    );
+    expect(result.section.margin).toBe(6);
+    expect(result.ignored).toEqual([]);
+  });
+
+  it('leaves the condition arrays untouched when only margin is sent', async () => {
+    const positive = [{ id: 'p1', name: 'Ben Riposato', severity: 'minor' }];
+    const negative = [{ id: 'n1', name: 'Ferita', severity: 'major' }];
+    const char = makeMockChar({
+      margin: 4,
+      positiveConditions: positive,
+      negativeConditions: negative,
+    });
+    const svc = makeService(char);
+    const result = await svc.patchStatus(
+      String(char.campaignId),
+      String(char._id),
+      { margin: 8 },
+      playerActor(char),
+    );
+    expect(result.section.margin).toBe(8);
+    expect(result.section.positiveConditions).toEqual(positive);
+    expect(result.section.negativeConditions).toEqual(negative);
+  });
+
+  it('a character with no persisted margin reads back margin: 4', async () => {
+    // makeMockChar omits margin, so the document has none persisted.
+    const char = makeMockChar();
+    const svc = makeService(char);
+    const got = await svc.findById(String(char.campaignId), String(char._id));
+    expect(got.status.margin).toBe(4);
+  });
+
+  it('patchStatus on a marginless character still echoes the default until set', async () => {
+    const char = makeMockChar();
+    const svc = makeService(char);
+    // A criticalState-only patch does not touch margin → section reports the 4 default.
+    const result = await svc.patchStatus(
+      String(char.campaignId),
+      String(char._id),
+      { criticalState: true },
+      playerActor(char),
+    );
+    expect(result.section.criticalState).toBe(true);
+    expect(result.section.margin).toBe(4);
+  });
+});
+
 // ─── 9.8: resources are owner-writable, bobbleheads included ──
 
 describe('patchResources — owner writes', () => {
@@ -405,6 +466,32 @@ describe('update (PUT) — full-document replace', () => {
     );
     expect(result.resources).toEqual({ caps: 1 });
     expect(result.resources.bobbleheads).toBeUndefined();
+  });
+
+  // An owner PUT passes each section through the per-section whitelist
+  // (scrubUpdate's non-admin branch); margin survives the full-document
+  // serialization untouched, since PUT never carries it.
+  it('owner PUT scrubs each section and preserves the stored margin', async () => {
+    const char = makeMockChar({ margin: 5 });
+    const svc = makeService(char);
+    const result = await svc.update(
+      String(char.campaignId),
+      String(char._id),
+      {
+        name: 'Renamed',
+        special: { strength: 4 },
+        actionPoints: { paMax: 12, paCurrent: 6, paTrackedBy: 'endurance' },
+        resources: { caps: 7, bobbleheads: 1, scraps: 2 },
+        status: { criticalState: true },
+      } as never,
+      playerActor(char),
+    );
+    expect(result.name).toBe('Renamed');
+    expect(result.special.strength).toBe(4);
+    expect(result.actionPoints.paMax).toBe(12);
+    expect(result.status.criticalState).toBe(true);
+    // PUT does not carry margin; the persisted value is echoed by the serializer.
+    expect(result.status.margin).toBe(5);
   });
 
   it('inventory replaces wholesale: omitted arrays become empty', async () => {

@@ -86,6 +86,8 @@ export function openAddPopup({ title, catalog, custom, onAdd }) {
             openCatalogPicker({
                 title: `Scegli ${kindNoun}`,
                 entries,
+                renderMeta: catalog.renderMeta,
+                rowAccent: catalog.rowAccent,
                 onPick: (entry) => {
                     selectedEntry = entry;
                     const valueEl = existingField.querySelector('.pb-popup-picker-value');

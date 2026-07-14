@@ -54,4 +54,13 @@ describe('SpeciesCatalogBootstrapService', () => {
       expect(s.svantaggio.length).toBeGreaterThan(0);
     }
   });
+
+  // Task 3.1 — every seeded species carries a positive-integer starting margin.
+  it('seeds a positive-integer margin on every default entry', () => {
+    for (const s of DEFAULT_SPECIES_CATALOG) {
+      expect(Number.isInteger(s.margin)).toBe(true);
+      expect(s.margin).toBeGreaterThanOrEqual(1);
+      expect(s.margin).toBe(4);
+    }
+  });
 });

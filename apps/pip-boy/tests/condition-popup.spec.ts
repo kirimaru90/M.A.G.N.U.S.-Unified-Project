@@ -61,12 +61,12 @@ test('the custom tab adds a condition with the chosen sign/weight and persists c
     }),
   });
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
-  await expect(page.locator('#pb-net-value')).toHaveText('2');
+  await expect(page.locator('#pb-health-value')).toHaveText('2/4');
 
   await page.locator('#pb-cond-add').click();
   await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('IRRADIATO');
-  await page.locator('[data-weight="major"]').click(); // net wear 2 → 4
+  await page.locator('[data-weight="major"]').click(); // net wear 2 → 4, health → 0
 
   const req = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
   await page.locator('[data-ok]').click();
@@ -75,7 +75,7 @@ test('the custom tab adds a condition with the chosen sign/weight and persists c
     negativeConditions: { items: [{ name: 'IRRADIATO', severity: 'major' }] },
     criticalState: true,
   });
-  await expect(page.locator('#pb-net-value')).toHaveText('4');
+  await expect(page.locator('#pb-health-value')).toHaveText('0/4');
 });
 
 test('a positive custom condition routes to positiveConditions', async ({ page }) => {

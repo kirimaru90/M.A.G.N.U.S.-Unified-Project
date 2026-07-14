@@ -291,19 +291,33 @@ test('tags render in the server-canonical stored order and edits target the stor
 
 // ── resources relocated to the bottom, fitting the width ────────────
 
-test('resources sit at the bottom of an INV subtab and do not overflow the width', async ({ page }) => {
+test('the resources band is a fixed strip above the footer, outside the scroll, and does not overflow', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
 
-  // The resource row follows the item list in DOM order.
-  const resourceAfterList = await page.locator('#pb-sheet-content').evaluate((el) => {
-    const list = el.querySelector('[data-section-list]')!;
-    const res = el.querySelector('.pb-resource-row')!;
-    return !!(list.compareDocumentPosition(res) & Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  expect(resourceAfterList).toBe(true);
+  const band = page.locator('#pb-resource-band');
+  await expect(band).toBeVisible();
 
-  // The three boxes fit the content width — no horizontal overflow.
-  const overflow = await page.locator('#pb-sheet-content').evaluate((el) => el.scrollWidth - el.clientWidth);
+  // The band is NOT inside the scrolling content — it lives in the sheet shell.
+  await expect(page.locator('#pb-sheet-content .pb-resource-row')).toHaveCount(0);
+  await expect(band.locator('.pb-resource-row')).toHaveCount(1);
+
+  // In DOM order it sits after the scrolling content and before the footer.
+  const order = await page.evaluate(() => {
+    const content = document.querySelector('#pb-sheet-content')!;
+    const bandEl = document.querySelector('#pb-resource-band')!;
+    const footer = document.querySelector('.pb-footer')!;
+    const afterContent = !!(content.compareDocumentPosition(bandEl) & Node.DOCUMENT_POSITION_FOLLOWING);
+    const beforeFooter = !!(bandEl.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING);
+    return afterContent && beforeFooter;
+  });
+  expect(order).toBe(true);
+
+  // The three boxes fit the width — no horizontal overflow of the band.
+  const overflow = await band.evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+
+  // The band is hidden on a non-INV tab.
+  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await expect(band).toBeHidden();
 });

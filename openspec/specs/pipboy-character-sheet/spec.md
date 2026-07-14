@@ -10,9 +10,9 @@ Character sheet screens for `apps/pip-boy`: a two-level tab layout with an owner
 
 The sheet header SHALL present the character's action points per the reference layout: the label `PUNTI AZIONE` and a row of `paMax` pip squares (filled and glowing when "on") **flanked by a `−` control on the left and a `+` control on the right**. The `−` and `+` controls SHALL sit **immediately adjacent to the pip row** — the `−` directly preceding the first pip and the `+` directly following the last pip — and SHALL NOT be pushed to opposite edges of the header. The pip row SHALL size to its content (`paMax` squares) rather than stretching to fill the header width, so that the gap between the last pip and the `+` control stays small and constant regardless of `paMax`. The header SHALL NOT render a numeric `paCurrent` readout — the filled square count is the sole indication of the current value. Activating the `−`/`+` controls SHALL write `paCurrent` via the existing `PATCH .../action-points` endpoint.
 
-`paMax` and `paTrackedBy` SHALL NOT be editable from the header. They are edited by the owner (or an admin) in the S.P.E.C.I.A.L. subtab's editor mode, via a `FONTE PA` selector and a `MAX PA` stepper, consistent with `api-character-stats` making both owner-writable. When `paMax` is lowered below `paCurrent`, the app SHALL clamp `paCurrent` to the new maximum and persist the clamped value.
+`paMax` SHALL NOT be editable from the header; it is edited by the owner (or an admin) in the S.P.E.C.I.A.L. subtab's editor mode via a `MAX PA` stepper, consistent with `api-character-stats` making it owner-writable. When `paMax` is lowered below `paCurrent`, the app SHALL clamp `paCurrent` to the new maximum and persist the clamped value. `paTrackedBy` is set once during character creation (the higher of Agilità and Resistenza) and is **not** editable from the sheet; there is no `FONTE PA` control.
 
-The header SHALL also show the character's name, a bordered species chip, and a `PA · <source approach name>` line derived from `paTrackedBy`.
+The header SHALL also show the character's name, a bordered species chip, and a `PA · <source approach name>` line derived from the stored `paTrackedBy`.
 
 #### Scenario: Header renders squares flanked by steppers with no number
 - **GIVEN** a character with `paMax: 5` and `paCurrent: 2`
@@ -37,6 +37,11 @@ The header SHALL also show the character's name, a bordered species chip, and a 
 - **WHEN** the owner lowers `MAX PA` to `4`
 - **THEN** `paCurrent` is clamped to `4` and the clamped value is persisted
 
+#### Scenario: The header PA source reflects the stored paTrackedBy
+- **GIVEN** a character whose stored `paTrackedBy` is `agility`
+- **WHEN** the sheet header renders
+- **THEN** the `PA · <source>` line reads the Agilità source, and no control to change it is offered anywhere on the sheet
+
 ### Requirement: Header PA control spacing
 
 A margin of 2px SHALL separate the header's action-points `−`/pips/`+` control from the first-level tab bar rendered immediately below it, so the PA control reads as distinct from the tabs rather than butting against them. This spacing SHALL NOT alter the internal layout of the PA control specified by `Action points stepper`.
@@ -47,26 +52,63 @@ A margin of 2px SHALL separate the header's action-points `−`/pips/`+` control
 
 ### Requirement: Status and conditions editor
 
-The SALUTE tab SHALL present the character's `status` as owner- and admin-editable via the existing `PATCH .../status` endpoint, laid out per the reference's *Tracciato del Logoramento*:
+The SALUTE tab SHALL present the character's `status` as owner- and admin-editable via the existing `PATCH .../status` endpoint, laid out per the reference's *Tracciato del Logoramento*, expressed as a **health margin** rather than a raw net-wear count:
 
-- A `VALORE NETTO` readout showing **net wear** = (sum of negative-condition weights) − (sum of positive-condition weights), where a `minor` condition weighs `1` and a `major` condition weighs `2`. The number renders green normally and amber+glowing when greater than `0`.
-- The active-condition list, **negatives sorted before positives**, each a full-width button carrying a `−`/`+` sign glyph, the condition name, a `BASE` / `MODERATA ×2` weight tag, and a `✕`. Activating a row removes that condition (representing rest / stimpack / RadAway).
-- A dashed empty state (`nessuna condizione attiva`) when both collections are empty.
+- A `SALUTE` indicator showing **health** = `margin − net wear`, where **net wear** = (sum of negative-condition weights) − (sum of positive-condition weights), a `minor` condition weighs `1`, and a `major` condition weighs `2`. The indicator SHALL render the numeric readout `{health}/{margin}` together with a horizontal depleting fill bar whose fill is `health/margin`. Positive conditions MAY push `health` **above** `margin` (overshoot): the numeric readout SHALL show the true value (which MAY exceed `margin` or be negative) while the fill bar SHALL clamp between empty and full. The readout SHALL render in the negative accent (not critical amber) when `health ≤ 0`.
+- The character's `margin` is a character-document field (default `4`, per `api-character-stats`), seeded from the species at creation (per `pipboy-character-creation`) and editable here. In **editor** mode the tab SHALL present a `MARGINE` stepper bounded to a minimum of `1`, writing `PATCH .../status { margin }`. Because lowering `margin` can cross the critical threshold, the margin write SHALL re-derive and persist `criticalState` in the same PATCH.
+- The active-condition list SHALL render as **two columns**: **negative** conditions on the **left** and **positive** conditions on the **right**. Within each column, conditions SHALL be ordered **major before minor** (weight `2` before weight `1`), stable within a weight. Each condition is a full-width button within its column carrying a `−`/`+` sign glyph, the condition name, a `BASE` / `MODERATA ×2` weight tag, and a `✕`. Activating a row removes that condition (representing rest / stimpack / RadAway).
+- The two columns SHALL be **colour-coded**: negative conditions use a **muted negative (red-family) accent**, positive conditions a green accent. This negative accent SHALL be visually distinct from the full-glow critical amber, which stays reserved for the critical state alone (banner/ring/LED per `pipboy-terminal-chrome`).
+- A dashed empty state (`nessuna condizione attiva`) when both collections are empty; a per-column empty affordance when only one collection is empty.
 - A single add-path: a `+ AGGIUNGI CONDIZIONE` trigger that opens a **two-tab add-condition popup** mirroring the inventory add-item popup (an `OK` action and a small red `✕` that cancels without any write; the popup owns no persistence and hands the assembled condition to its caller, which issues the `PATCH .../status`). The popup SHALL present:
-  - **Scegli esistente** — a selection over the conditions catalog (`GET /conditions-catalog`), presented via the full-screen catalog picker sheet; choosing a preset copies its `name`/`defaultSeverity` and routes it to the collection its `polarity` implies (client-side). When the catalog fetch fails, the picker SHALL fall back to a small hardcoded preset list rather than being empty.
+  - **Scegli esistente** — a selection over the conditions catalog (`GET /conditions-catalog`), presented via the full-screen catalog picker sheet; choosing a preset copies its `name`/`defaultSeverity` and routes it to the collection its `polarity` implies (client-side). When the catalog fetch fails, the picker SHALL fall back to a small hardcoded preset list rather than being empty. In this picker, each catalog row SHALL show its **polarity by colour only** — the negative/positive accents above, **with no `NEGATIVA`/`POSITIVA` text** — and its **weight as an abbreviation** (`×1` for `minor`, `×2` for `major`).
   - **Aggiungi custom** — a freeform `nome condizione` input, a `NEGATIVA`/`POSITIVA` sign toggle, and a `BASE ×1`/`MODERATA ×2` weight toggle. `OK` adds exactly one condition (no multiselect).
 
-**Critical state** SHALL be derived by the client as `net wear ≥ 4` and persisted through `PATCH .../status { criticalState }` whenever the condition collections change. When critical, the sheet SHALL show the amber `⚠ STATO CRITICO — NON PUOI AGIRE` banner beneath the tab bar on **every tab**, flip the status-bar dot and label to amber `⚠ CRITICO`, and apply the amber inset ring specified by `pipboy-terminal-chrome`.
+**Critical state** SHALL be derived by the client as `health ≤ 0` (equivalently `net wear ≥ margin`) and persisted through `PATCH .../status { criticalState }` whenever the condition collections or the margin change. When critical, the sheet SHALL show the amber `⚠ STATO CRITICO — NON PUOI AGIRE` banner beneath the tab bar on **every tab**, flip the status-bar dot and label to amber `⚠ CRITICO`, and apply the amber inset ring specified by `pipboy-terminal-chrome`. A character whose `health` is above `0` — including above `margin` — is not critical.
 
-#### Scenario: Net wear is computed from weights
-- **GIVEN** a character with two `major` negative conditions and one `minor` positive condition
+#### Scenario: Health is margin minus net wear
+- **GIVEN** a character with `margin: 6`, two `major` negative conditions, and one `minor` positive condition
 - **WHEN** the SALUTE tab renders
-- **THEN** `VALORE NETTO` reads `3` (2+2 − 1) and renders amber
+- **THEN** the `SALUTE` readout shows `3/6` (net wear `2+2−1 = 3`; health `6−3 = 3`) and the fill bar is filled to half
 
-#### Scenario: Negatives sort before positives
-- **GIVEN** a character with one positive and one negative condition
+#### Scenario: Positives can overshoot the margin
+- **GIVEN** a character with `margin: 6`, no negative conditions, and one `major` positive condition
+- **WHEN** the SALUTE tab renders
+- **THEN** the readout shows `8/6` and the fill bar is clamped at full
+
+#### Scenario: Negatives and positives render in two colour-coded columns
+- **GIVEN** a character with two negative and one positive condition
 - **WHEN** the active-condition list renders
-- **THEN** the negative condition appears above the positive one
+- **THEN** the negative conditions appear in the left column with the negative accent and the positive condition appears in the right column with the positive accent
+
+#### Scenario: Each column is ordered major before minor
+- **GIVEN** the negative column holds a `minor` and a `major` condition
+- **WHEN** the list renders
+- **THEN** the `major` condition appears above the `minor` one in that column
+
+#### Scenario: Critical derives from the character's margin
+- **GIVEN** a character with `margin: 3` whose net wear is `2` and `criticalState` is `false`
+- **WHEN** the owner adds a `minor` negative condition, taking net wear to `3` (health `0`)
+- **THEN** the app issues `PATCH .../status` setting `criticalState: true` alongside the new condition
+
+#### Scenario: A different margin moves the critical threshold
+- **GIVEN** a character with `margin: 6` and net wear `4`
+- **WHEN** the SALUTE tab renders
+- **THEN** the character is **not** critical (health `2`), unlike the legacy fixed threshold of `4`
+
+#### Scenario: Owner edits the margin in editor mode
+- **GIVEN** a character with `margin: 6` in editor mode
+- **WHEN** the owner raises `MARGINE` to `7`
+- **THEN** the app issues `PATCH .../status { margin: 7 }` (with the re-derived `criticalState`) and the `SALUTE` readout denominator becomes `7`
+
+#### Scenario: Margin stepper is bounded at one
+- **GIVEN** a character with `margin: 1` in editor mode
+- **WHEN** the SALUTE tab renders its `MARGINE` stepper
+- **THEN** the `−` control is disabled at `1`
+
+#### Scenario: Catalog picker rows show colour-coded polarity and abbreviated weight
+- **GIVEN** the conditions catalog holds a `negative`/`major` entry and a `positive`/`minor` entry
+- **WHEN** the owner opens the add-condition popup's **Scegli esistente** picker
+- **THEN** the negative entry's row carries the negative accent and shows `×2`, and the positive entry's row carries the positive accent and shows `×1`, with no `NEGATIVA`/`POSITIVA` text on either
 
 #### Scenario: Owner adds a condition from a catalog suggestion via the popup
 - **WHEN** the owning player opens the add-condition popup's **Scegli esistente** tab and selects a catalog entry in the picker
@@ -88,11 +130,6 @@ The SALUTE tab SHALL present the character's `status` as owner- and admin-editab
 #### Scenario: Tapping a condition removes it
 - **WHEN** the owning player activates an active-condition row
 - **THEN** the app issues `PATCH .../status` with that condition's id in the matching collection's `deletedIds`
-
-#### Scenario: Crossing the critical threshold persists criticalState
-- **GIVEN** a character whose net wear is `3` and `criticalState` is `false`
-- **WHEN** the owner adds a `minor` negative condition, taking net wear to `4`
-- **THEN** the app issues `PATCH .../status` setting `criticalState: true` alongside the new condition
 
 #### Scenario: Critical banner appears on every tab
 - **GIVEN** a character whose `criticalState` is `true`
@@ -167,21 +204,21 @@ When an item has no description, the popup SHALL still open and present the name
 
 ### Requirement: Resources display and edit
 
-The `INV` subtabs SHALL present `resources` as three bordered boxes in a row — `TAPPI` (caps), `ROTTAMI` (scraps), and `BOBBLEHEAD` (bobbleheads) — each with a label and a `[−] value [+]` stepper whose value is also a directly-editable numeric input. The resource row SHALL be rendered at the **bottom** of every INV subtab (below the item list) and SHALL be **pinned** to the bottom of the subtab's viewport so it stays visible while the item list above it scrolls — the resource indicators SHALL NOT scroll out of view when the list is longer than the screen. The three boxes SHALL be sized to fit the device width (≈360px) without causing horizontal overflow.
+The `INV` tab SHALL present `resources` as three bordered boxes in a row — `TAPPI` (caps), `ROTTAMI` (scraps), and `BOBBLEHEAD` (bobbleheads) — each with a label and a `[−] value [+]` stepper whose value is also a directly-editable numeric input. The resource band SHALL be rendered as a **fixed strip outside the scrolling item list**, positioned between the scrolling content area and the sheet footer, so it stays visible and is **untouched by scrolling** — the resource indicators SHALL NOT scroll with, or disappear at the end of, the item list. The band SHALL be a **single** element shown while the `INV` first-level tab is active, not re-rendered inside each subtab's scrolling list. The three boxes SHALL be sized to fit the device width (≈360px) without causing horizontal overflow.
 
 All three SHALL be editable by the character's owner or an admin via the existing `PATCH .../resources` endpoint, consistent with `api-character-resources` making `bobbleheads` owner-writable. The sheet footer SHALL show `TAPPI n` reflecting the current caps value.
 
-#### Scenario: Resources appear at the bottom of every INV subtab
+#### Scenario: Resource band renders once above the footer on the INV tab
 - **WHEN** the user selects any of `Armi`, `Armature`, `Consumabili`, or `Vari`
-- **THEN** the `TAPPI`/`ROTTAMI`/`BOBBLEHEAD` resource row is rendered below that subtab's item list
+- **THEN** a single `TAPPI`/`ROTTAMI`/`BOBBLEHEAD` resource band is shown as a fixed strip between the item list and the footer, not inside the scrolling list
 
-#### Scenario: Resources stay visible while the item list scrolls
+#### Scenario: Resources stay fixed while the item list scrolls
 - **GIVEN** an INV subtab whose item list is taller than the content area
 - **WHEN** the user scrolls the item list
-- **THEN** the resource row remains pinned in view at the bottom of the subtab
+- **THEN** the resource band remains fixed above the footer, untouched by the scroll, rather than scrolling to the end of the list
 
-#### Scenario: Resource row fits the device width
-- **WHEN** an INV subtab renders on a ≈360px-wide device
+#### Scenario: Resource band fits the device width
+- **WHEN** the INV tab renders on a ≈360px-wide device
 - **THEN** the three resource boxes fit within the case width with no horizontal overflow
 
 #### Scenario: Owner adjusts caps
@@ -233,7 +270,7 @@ Activating an approach row SHALL switch to the `DADI` tab with that approach pre
 
 Beneath the rows, a bordered legend box SHALL render the dice-outcome reference: `6 = Successo Pieno · 4/5 = Successo con Costo · 1/2/3 = Fallimento. Ogni 6 oltre il primo restituisce 1 PA.`
 
-In **editor** mode the subtab SHALL instead show the header `▸ MODIFICA S.P.E.C.I.A.L.` and seven stepper rows (letter · name · `[−] value [+]`) bounded `1..5`, writing through `PATCH .../special`; followed by a `FONTE PA` selector writing `paTrackedBy` and a `MAX PA` stepper writing `paMax`. The `MAX PA` stepper's bounds SHALL be independent of the SPECIAL range — narrowing SPECIAL to `1..5` SHALL NOT lower the reachable `paMax`, which retains its `0..8` range.
+In **editor** mode the subtab SHALL instead show the header `▸ MODIFICA S.P.E.C.I.A.L.` and seven stepper rows (letter · name · `[−] value [+]`) bounded `1..5`, writing through `PATCH .../special`; followed by a `MAX PA` stepper writing `paMax`. The subtab SHALL NOT present a `FONTE PA` selector — `paTrackedBy` is set at character creation and is not editable from the sheet. The `MAX PA` stepper's bounds SHALL be independent of the SPECIAL range — narrowing SPECIAL to `1..5` SHALL NOT lower the reachable `paMax`, which retains its `0..8` range.
 
 #### Scenario: Approach rows render with pips
 - **WHEN** the `S.P.E.C.I.A.L.` subtab renders in view mode
@@ -257,9 +294,9 @@ In **editor** mode the subtab SHALL instead show the header `▸ MODIFICA S.P.E.
 - **WHEN** the owner raises `MAX PA` in editor mode
 - **THEN** the stepper continues past `5` toward its own `0..8` bound, unaffected by the SPECIAL maximum of `5`
 
-#### Scenario: Owner changes the PA source
-- **WHEN** the owning player selects `Resistenza` in the `FONTE PA` selector
-- **THEN** the app issues `PATCH .../action-points { paTrackedBy: "endurance" }` and the header's `PA · <source>` line updates
+#### Scenario: No PA source selector in the editor
+- **WHEN** the `S.P.E.C.I.A.L.` subtab renders in editor mode
+- **THEN** no `FONTE PA` selector is present, and the only action-point control is the `MAX PA` stepper
 
 ### Requirement: Abilities tab
 
@@ -394,7 +431,7 @@ The sheet SHALL provide a reusable **full-screen catalog picker** used wherever 
 - on tapping a row, return the chosen entry to the caller and close;
 - offer a `✕` (and a backdrop tap) that closes the sheet without selecting anything.
 
-The picker owns no persistence and imposes no catalog-specific behaviour — it only changes **how** an entry is chosen. It SHALL be theme-consistent with the rest of the Pip-Boy shell and safe-area aware.
+The picker SHALL accept **optional** per-row presentation hooks supplied by the caller: a `renderMeta(entry)` returning trailing per-row metadata (e.g. a weight abbreviation) and a `rowAccent(entry)` returning a colour-accent class for the row. When a caller omits these hooks, each row SHALL render its display name only, exactly as before; these hooks change presentation only and never alter which entry is returned. The picker owns no persistence and imposes no catalog-specific behaviour — it only changes **how** an entry is chosen and displayed. It SHALL be theme-consistent with the rest of the Pip-Boy shell and safe-area aware.
 
 #### Scenario: Picker opens full-screen and filters as you type
 - **GIVEN** a catalog with several entries
@@ -408,3 +445,13 @@ The picker owns no persistence and imposes no catalog-specific behaviour — it 
 #### Scenario: Dismissing the picker selects nothing
 - **WHEN** the user taps the picker's `✕` or the backdrop
 - **THEN** the sheet closes and no selection is made
+
+#### Scenario: Rows render name-only when no presentation hooks are given
+- **GIVEN** a caller opens the picker without `renderMeta`/`rowAccent`
+- **WHEN** the list renders
+- **THEN** each row shows its display name only, with no accent or trailing metadata
+
+#### Scenario: Per-row hooks add accent and trailing metadata
+- **GIVEN** a caller supplies `renderMeta` and `rowAccent`
+- **WHEN** the list renders
+- **THEN** each row shows the caller's trailing metadata and carries the caller's accent class, while tapping it still returns the same entry

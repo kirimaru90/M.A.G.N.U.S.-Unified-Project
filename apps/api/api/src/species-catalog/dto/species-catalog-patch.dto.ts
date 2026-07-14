@@ -37,6 +37,15 @@ export class SpeciesCatalogEntryDto {
   @Min(1)
   tagSkillBudget?: number;
 
+  @ApiPropertyOptional({
+    minimum: 1,
+    description: 'Starting health margin (positive integer)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  margin?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -129,7 +129,7 @@ test('tapping the PERCEZIONE approach row opens DADI with it preselected', async
 
 // ── 5.T.5 net wear ──────────────────────────────────────────────────
 
-test('VALORE NETTO reads 3 and renders amber, with negatives sorted above positives', async ({ page }) => {
+test('SALUTE reads health/margin with negatives left and positives right', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
       status: {
@@ -144,13 +144,13 @@ test('VALORE NETTO reads 3 and renders amber, with negatives sorted above positi
   });
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
-  // 2 + 2 − 1 = 3
-  await expect(page.locator('#pb-net-value')).toHaveText('3');
-  await expect(page.locator('#pb-net-value')).toHaveClass(/amber/);
-  await expect(page.locator('#pb-net-value')).toHaveCSS('color', 'rgb(255, 176, 46)');
+  // net wear 2 + 2 − 1 = 3; margin defaults to 4; health = 4 − 3 = 1 (not critical)
+  await expect(page.locator('#pb-health-value')).toHaveText('1/4');
+  await expect(page.locator('#pb-health-value')).not.toHaveClass(/neg/);
 
-  const names = await page.locator('.pb-cond-name').allInnerTexts();
-  expect(names).toEqual(['FERITO', 'STREMATO', 'BEN NUTRITO']);
+  // Negatives in the left column, positives in the right column.
+  await expect(page.locator('.pb-cond-col--neg .pb-cond-name')).toHaveText(['FERITO', 'STREMATO']);
+  await expect(page.locator('.pb-cond-col--pos .pb-cond-name')).toHaveText(['BEN NUTRITO']);
 
   await expect(page.locator('.pb-cond-row').first()).toContainText('MODERATA ×2');
   await expect(page.locator('.pb-cond-row').last()).toContainText('BASE');
@@ -163,7 +163,8 @@ test('an empty condition list renders the dashed empty state', async ({ page }) 
   const empty = page.locator('.pb-empty-dashed');
   await expect(empty).toHaveText('nessuna condizione attiva');
   await expect(empty).toHaveCSS('border-style', 'dashed');
-  await expect(page.locator('#pb-net-value')).toHaveText('0');
+  // No conditions: health equals the full margin (default 4).
+  await expect(page.locator('#pb-health-value')).toHaveText('4/4');
 });
 
 // ── 5.T.6 critical threshold ────────────────────────────────────────
@@ -179,9 +180,10 @@ test('crossing net wear to 4 persists criticalState and banners every tab', asyn
     }),
   });
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
-  await expect(page.locator('#pb-net-value')).toHaveText('2');
+  // margin 4, net wear 2 → health 2
+  await expect(page.locator('#pb-health-value')).toHaveText('2/4');
 
-  // Add a `major` negative via the custom tab: net wear 2 → 4, the critical threshold.
+  // Add a `major` negative via the custom tab: net wear 2 → 4, health 4 → 0 (critical).
   await page.locator('#pb-cond-add').click();
   await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('IRRADIATO');
@@ -192,7 +194,7 @@ test('crossing net wear to 4 persists criticalState and banners every tab', asyn
   const req = await patchReq;
 
   expect(req.postDataJSON()).toMatchObject({ criticalState: true });
-  await expect(page.locator('#pb-net-value')).toHaveText('4');
+  await expect(page.locator('#pb-health-value')).toHaveText('0/4');
 
   // The banner rides above the content on every tab, not just SALUTE.
   for (const label of TAB_LABELS) {
@@ -380,16 +382,20 @@ test('lowering MAX PA beneath paCurrent clamps and persists paCurrent', async ({
   await expect(page.locator('#pb-pa-stepper .value')).toHaveCount(0);
 });
 
-test('changing FONTE PA persists paTrackedBy and updates the header line', async ({ page }) => {
-  await openSheet(page, { character: ownedCharacter() });
-  await page.locator('#pb-editor-toggle').click();
+test('the S.P.E.C.I.A.L. editor has no FONTE PA selector; the header reflects the stored paTrackedBy', async ({ page }) => {
+  await openSheet(page, {
+    character: ownedCharacter({
+      actionPoints: { paMax: 4, paCurrent: 4, paTrackedBy: 'endurance' },
+    }),
+  });
 
-  const patchReq = page.waitForRequest((r) => r.url().includes('/action-points') && r.method() === 'PATCH');
-  await page.locator('#pb-pa-source').selectOption('endurance');
-  const req = await patchReq;
-
-  expect(req.postDataJSON()).toEqual({ paTrackedBy: 'endurance' });
+  // The header's PA source line reflects the stored (creation-set) paTrackedBy.
   await expect(page.locator('#pb-sheet-header')).toContainText('PA · RESISTENZA');
+
+  // In editor mode there is no FONTE PA control — only the MAX PA stepper.
+  await page.locator('#pb-editor-toggle').click();
+  await expect(page.locator('#pb-pa-source')).toHaveCount(0);
+  await expect(page.locator('#pb-pa-max-stepper')).toBeVisible();
 });
 
 test('SPECIAL steppers are bounded 1..5', async ({ page }) => {

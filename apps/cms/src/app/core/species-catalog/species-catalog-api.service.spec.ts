@@ -31,6 +31,7 @@ describe('SpeciesCatalogApiService', () => {
         permesso: 'Immune alle radiazioni.',
         svantaggio: 'Inviso agli umani.',
         tagSkillBudget: 3,
+        margin: 4,
       },
     ];
     req.flush(entries);
@@ -48,6 +49,7 @@ describe('SpeciesCatalogApiService', () => {
           permesso: 'Versatilità completa.',
           svantaggio: 'Nessun talento sovrannaturale.',
           tagSkillBudget: 5,
+          margin: 4,
         },
       },
     ];

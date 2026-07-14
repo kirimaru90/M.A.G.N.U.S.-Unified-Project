@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice } from './fixtures';
 
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
@@ -385,13 +385,31 @@ test('a critical character in editor mode shows the amber ring, not the green on
 });
 
 test('a select option renders on the dark screen theme, not white', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
+  // The reroll `.pb-select` (#pb-dice-reroll-skill) is revealed on the DADI tab
+  // after a roll — the sheet's only remaining <select> now that FONTE PA is gone.
+  await seedDice(page, [6]);
+  await stubEnvironment(page, {
+    role: 'player',
+    userId: 'user-player',
+    lastCampaignId: 'camp-1',
+    lastCharacterId: 'char-1',
+    character: makeCharacter({
+      id: 'char-1',
+      campaignId: 'camp-1',
+      userId: 'user-player',
+      special: { strength: 3, perception: 3, endurance: 3, charisma: 3, intelligence: 3, agility: 3, luck: 3 },
+    }),
+  });
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 
-  // FONTE PA (#pb-pa-source) is a `.pb-select` revealed by editor mode.
-  await page.locator('#pb-editor-toggle').click();
+  await page.locator('.pb-tab', { hasText: 'DADI' }).click();
+  await page.locator('[data-approach="strength"]').click();
+  await page.locator('#pb-dice-roll').click();
+  await page.waitForTimeout(900); // let the tumble settle so the reroll row renders
+
   const bg = await page
-    .locator('#pb-pa-source option')
+    .locator('#pb-dice-reroll-skill option')
     .first()
     .evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg).toBe('rgb(6, 17, 10)');

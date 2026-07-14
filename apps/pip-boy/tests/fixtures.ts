@@ -51,10 +51,10 @@ export const DEFAULT_PLAYERS = [
 ];
 
 export const DEFAULT_SPECIES_CATALOG = [
-  { slug: 'human', name: 'Umano', permesso: 'Versatilità completa.', svantaggio: 'Nessun talento sovrannaturale.', tagSkillBudget: 4 },
-  { slug: 'ghoul', name: 'Ghoul', permesso: 'Immune alle radiazioni.', svantaggio: 'Inviso agli umani.', tagSkillBudget: 3 },
-  { slug: 'super_mutant', name: 'Supermutante', permesso: 'Forza sovrumana.', svantaggio: 'Respinto nei contesti civili.', tagSkillBudget: 3 },
-  { slug: 'robot', name: 'Robot', permesso: 'Immune a veleni.', svantaggio: 'Vulnerabile a EMP.', tagSkillBudget: 3 },
+  { slug: 'human', name: 'Umano', permesso: 'Versatilità completa.', svantaggio: 'Nessun talento sovrannaturale.', tagSkillBudget: 4, margin: 6 },
+  { slug: 'ghoul', name: 'Ghoul', permesso: 'Immune alle radiazioni.', svantaggio: 'Inviso agli umani.', tagSkillBudget: 3, margin: 5 },
+  { slug: 'super_mutant', name: 'Supermutante', permesso: 'Forza sovrumana.', svantaggio: 'Respinto nei contesti civili.', tagSkillBudget: 3, margin: 5 },
+  { slug: 'robot', name: 'Robot', permesso: 'Immune a veleni.', svantaggio: 'Vulnerabile a EMP.', tagSkillBudget: 3, margin: 5 },
 ];
 
 export const DEFAULT_STARTER_EQUIPMENT = [
@@ -224,6 +224,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
       (next as any)[coll] = items;
     }
     if (body.criticalState !== undefined) (next as any).criticalState = body.criticalState;
+    if (body.margin !== undefined) (next as any).margin = body.margin;
     return next;
   }));
   await page.route(/\/characters\/[^/]+\/action-points$/, patchSection('actionPoints', (body) => ({ ...character.actionPoints, ...body })));

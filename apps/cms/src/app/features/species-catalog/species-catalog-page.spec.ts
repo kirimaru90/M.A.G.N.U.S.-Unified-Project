@@ -13,6 +13,7 @@ const GHOUL = {
   permesso: 'Immune alle radiazioni.',
   svantaggio: 'Inviso agli umani.',
   tagSkillBudget: 3,
+  margin: 4,
 };
 
 describe('SpeciesCatalogPage', () => {
@@ -58,6 +59,7 @@ describe('SpeciesCatalogPage', () => {
       permesso: 'Indistinguibile da un umano.',
       svantaggio: "Cacciato dall'Istituto.",
       tagSkillBudget: 3,
+      margin: 4,
       description: '',
     };
     component['submitAdd']();
@@ -72,6 +74,7 @@ describe('SpeciesCatalogPage', () => {
           permesso: 'Indistinguibile da un umano.',
           svantaggio: "Cacciato dall'Istituto.",
           tagSkillBudget: 3,
+          margin: 4,
           description: undefined,
         },
       },
@@ -87,6 +90,7 @@ describe('SpeciesCatalogPage', () => {
       permesso: '',
       svantaggio: '',
       tagSkillBudget: 3,
+      margin: 4,
       description: '',
     };
     component['submitAdd']();
@@ -104,6 +108,7 @@ describe('SpeciesCatalogPage', () => {
       permesso: 'a',
       svantaggio: 'b',
       tagSkillBudget: budget,
+      margin: 4,
       description: '',
     };
     component['submitAdd']();
@@ -129,6 +134,7 @@ describe('SpeciesCatalogPage', () => {
           permesso: 'Immune alle radiazioni.',
           svantaggio: 'Rischio di selvatichire.',
           tagSkillBudget: 3,
+          margin: 4,
           description: undefined,
         },
       },
@@ -146,6 +152,41 @@ describe('SpeciesCatalogPage', () => {
     expect(patchSpy).toHaveBeenCalledWith([
       { action: 'update', slug: 'human', entry: expect.objectContaining({ tagSkillBudget: 5 }) },
     ]);
+  });
+
+  it('renders the margin column header', () => {
+    expect(fixture.nativeElement.textContent).toContain('Margine salute');
+  });
+
+  it("changes a species' health margin via an update op", () => {
+    const human = { ...GHOUL, slug: 'human', name: 'Umano', margin: 5 };
+    component['startEdit'](human);
+    fixture.detectChanges();
+    component['draft'].margin = 6;
+    component['submitEdit'](human);
+    fixture.detectChanges();
+
+    expect(patchSpy).toHaveBeenCalledWith([
+      { action: 'update', slug: 'human', entry: expect.objectContaining({ margin: 6 }) },
+    ]);
+  });
+
+  it.each([0, -1])('rejects a margin of %s client-side', (margin) => {
+    component['showAddRow']();
+    component['draft'] = {
+      slug: 'synth',
+      name: 'Sintetico',
+      permesso: 'a',
+      svantaggio: 'b',
+      tagSkillBudget: 3,
+      margin,
+      description: '',
+    };
+    component['submitAdd']();
+    fixture.detectChanges();
+
+    expect(patchSpy).not.toHaveBeenCalled();
+    expect(component['rowError']()).toBe('Il margine salute deve essere un intero positivo');
   });
 
   it('renames a species via a single rename op when only the slug changes', () => {
@@ -185,6 +226,7 @@ describe('SpeciesCatalogPage', () => {
       permesso: 'a',
       svantaggio: 'b',
       tagSkillBudget: 3,
+      margin: 4,
       description: '',
     };
     component['submitAdd']();

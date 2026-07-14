@@ -244,6 +244,15 @@ export class Character {
   @Prop({ default: false })
   criticalState: boolean;
 
+  /**
+   * Health margin: the condition-weight points the character's health absorbs
+   * before reaching critical. Seeded from the species at creation and edited
+   * thereafter. Defaults to 4 so characters persisted before this field existed
+   * keep the prior fixed critical threshold.
+   */
+  @Prop({ type: Number, min: 1, default: 4 })
+  margin: number;
+
   // --- Perks ---
   @Prop({ type: [CharacterPerkSchema], default: [] })
   perks: CharacterPerk[];

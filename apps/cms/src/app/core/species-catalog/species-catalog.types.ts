@@ -11,6 +11,8 @@ export interface SpeciesCatalogEntryDto {
   svantaggio: string;
   /** Maestria budget spendable across Tag Skills at creation (positive integer). */
   tagSkillBudget: number;
+  /** Starting health margin a character of this species is created with (positive integer). */
+  margin: number;
   description?: string;
 }
 
@@ -19,6 +21,7 @@ export interface SpeciesCatalogEntryShape {
   permesso: string;
   svantaggio: string;
   tagSkillBudget: number;
+  margin: number;
   description?: string;
 }
 

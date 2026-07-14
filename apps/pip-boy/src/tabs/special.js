@@ -1,7 +1,6 @@
 import { patchSpecial, patchActionPoints } from '../api/characters.js';
 import {
     APPROACHES,
-    PA_SOURCES,
     SPECIAL_MIN,
     SPECIAL_MAX,
     PA_MAX_MIN,
@@ -56,12 +55,6 @@ function editorMode(special, ap) {
             }).join('')}
         </div>
 
-        <div class="pb-section-head">FONTE PA</div>
-        <select class="pb-select" id="pb-pa-source">
-            ${PA_SOURCES.map((s) =>
-                `<option value="${s.value}" ${ap.paTrackedBy === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
-        </select>
-
         <div class="pb-section-head">MAX PA</div>
         <div class="pb-row pb-stepper-row">
             <div class="pb-stepper" id="pb-pa-max-stepper">
@@ -98,11 +91,6 @@ export function renderSpecialTab(container, ctx) {
                 ctx.onSectionUpdate('special', res.section ?? res);
             });
         });
-    });
-
-    container.querySelector('#pb-pa-source').addEventListener('change', async (e) => {
-        const res = await patchActionPoints(campaignId, character.id, { paTrackedBy: e.target.value });
-        ctx.onSectionUpdate('actionPoints', res.section ?? res);
     });
 
     container.querySelectorAll('#pb-pa-max-stepper button').forEach((btn) => {

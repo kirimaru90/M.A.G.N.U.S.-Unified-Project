@@ -10,6 +10,7 @@ import {
     patchActionPoints,
     patchResources,
     patchInventory,
+    patchStatus,
 } from '../api/characters.js';
 
 const STEP_LABELS = [
@@ -114,7 +115,7 @@ export function renderCreate(root, opts) {
     function stepIdentita() {
         const sp = species();
         return `
-            <div class="pb-hint">Assegna un nome al sopravvissuto e scegli la specie.</div>
+            <div class="pb-step-intro">Assegna un nome al sopravvissuto e scegli la specie.</div>
             <label class="pb-field">
                 <span class="pb-label">NOME</span>
                 <input class="pb-input" id="pb-cr-name" value="${esc(draft.name)}" placeholder="nome del personaggio">
@@ -139,7 +140,7 @@ export function renderCreate(root, opts) {
         const left = remaining(draft.special);
         return `
             <div class="pb-split-row">
-                <div class="pb-hint">18 punti · min 1 · max 4 per attributo</div>
+                <div class="pb-step-intro">18 punti · min 1 · max 4 per attributo</div>
                 <div class="pb-remaining vt${left > 0 ? ' amber' : ' zero'}" id="pb-cr-remaining">${left} rimasti</div>
             </div>
             <div id="pb-cr-special">
@@ -181,7 +182,7 @@ export function renderCreate(root, opts) {
         const cost = maestriaCost(draft.skills);
         return `
             <div class="pb-split-row">
-                <div class="pb-hint">Aggiungi le Tag Skill del personaggio · budget ${budget()} (indicativo)</div>
+                <div class="pb-step-intro">Aggiungi le abilità del personaggio · budget ${budget()}</div>
                 <div class="pb-remaining vt" id="pb-cr-maestria">MAESTRIA ${cost}/${budget()}</div>
             </div>
             <div class="pb-section-head pb-inv-head">
@@ -189,9 +190,7 @@ export function renderCreate(root, opts) {
                 <button class="pb-btn pb-btn--icon pb-inv-add" data-add-skill aria-label="Aggiungi abilità">+</button>
             </div>
             <div id="pb-cr-skills">
-                ${draft.skills.length === 0
-                    ? '<button class="pb-row pb-empty pb-skill-placeholder" data-add-skill-row>— aggiungi abilità —</button>'
-                    : draft.skills.map((s) => skillRow(s)).join('')}
+                ${draft.skills.map((s) => skillRow(s)).join('')}
             </div>
         `;
     }
@@ -208,7 +207,7 @@ export function renderCreate(root, opts) {
 
     function stepEquipment() {
         return `
-            <div class="pb-hint">Scegli un'arma e un'armatura di partenza; annota un oggetto significativo.</div>
+            <div class="pb-step-intro">Scegli un'arma e un'armatura di partenza; annota un oggetto significativo.</div>
             <div class="pb-section-head">ARMI</div>
             <div id="pb-cr-weapons">
                 ${weapons.map((w) => equipmentRow(w, draft.weaponSlug === w.slug, 'weapon')).join('')}
@@ -234,7 +233,7 @@ export function renderCreate(root, opts) {
         const armor = armors.find((a) => a.slug === draft.armorSlug);
 
         return `
-            <div class="pb-hint">Rivedi la scheda; conferma per creare il personaggio.</div>
+            <div class="pb-step-intro">Rivedi la scheda; conferma per creare il personaggio.</div>
             <h2>${esc(draft.name)}</h2>
             <div class="pb-label" id="pb-cr-meta">
                 ${esc(sp?.name ?? '')} · PA ${paMax()} (${esc(paSourceLabel(paTrackedBy()))}) · TAPPI ${draft.special.luck}
@@ -427,8 +426,6 @@ export function renderCreate(root, opts) {
 
         const addBtn = root.querySelector('[data-add-skill]');
         if (addBtn) addBtn.addEventListener('click', openAdd);
-        const placeholder = root.querySelector('[data-add-skill-row]');
-        if (placeholder) placeholder.addEventListener('click', openAdd);
 
         root.querySelectorAll('[data-skill-dec], [data-skill-inc]').forEach((btn) => {
             btn.addEventListener('click', () => {
@@ -520,6 +517,10 @@ export function renderCreate(root, opts) {
                 paCurrent: max,
                 paTrackedBy: trackedBy,
             });
+
+            // Seed the health margin from the species template; it lives on the
+            // character document thereafter (falling back to 4 if unset).
+            await patchStatus(campaignId, created.id, { margin: sp?.margin ?? 4 });
 
             await patchResources(campaignId, created.id, {
                 scraps: 0,

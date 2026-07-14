@@ -74,6 +74,7 @@ function toResponse(c: LeanCharacter) {
       positiveConditions: c.positiveConditions ?? [],
       negativeConditions: c.negativeConditions ?? [],
       criticalState: c.criticalState ?? false,
+      margin: c.margin ?? 4,
     },
     perks: c.perks ?? [],
     resources: c.resources,
@@ -328,12 +329,14 @@ export class CharactersService {
     }
     if (scrubbed.criticalState !== undefined)
       set.criticalState = scrubbed.criticalState;
+    if (scrubbed.margin !== undefined) set.margin = scrubbed.margin;
 
     const updated = await this.persist(existing._id, set);
     const section = {
       positiveConditions: updated.positiveConditions ?? [],
       negativeConditions: updated.negativeConditions ?? [],
       criticalState: updated.criticalState ?? false,
+      margin: updated.margin ?? 4,
     };
     return { section, ignored };
   }

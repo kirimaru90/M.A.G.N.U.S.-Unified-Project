@@ -1,7 +1,7 @@
 import { mount, esc } from '../engine/render.js';
 import { showSheetNav, setCriticalChrome, setEditorChrome } from '../engine/chrome.js';
 import { isAdmin, logout, getUser } from '../api/session.js';
-import { patchActionPoints } from '../api/characters.js';
+import { patchActionPoints, patchResources } from '../api/characters.js';
 import { getEquipmentCatalog } from '../api/equipment.js';
 import { getTagCatalog } from '../api/catalogs.js';
 import { clamp, paSourceLabel } from '../sheet/model.js';
@@ -47,6 +47,15 @@ const SWIPE_RATIO = 1.6;
 
 const EDITOR_STRIP = '◉ EDITOR — modifica S.P.E.C.I.A.L., abilità e talenti';
 const CRITICAL_BANNER = '⚠ STATO CRITICO — NON PUOI AGIRE';
+
+// The three numeric resource counters shown as a fixed band above the footer
+// while the INV tab is active — a character-level fact, so it lives in the sheet
+// shell (outside the scrolling content), not re-rendered per INV subtab.
+const RESOURCES = [
+    { key: 'caps', label: 'TAPPI' },
+    { key: 'scraps', label: 'ROTTAMI' },
+    { key: 'bobbleheads', label: 'BOBBLEHEAD' },
+];
 
 function clock() {
     const now = new Date();
@@ -97,6 +106,7 @@ export function renderSheet(root, opts) {
         <div class="pb-subtabs" id="pb-tabs-sub"></div>
         <div id="pb-sheet-strip"></div>
         <div class="pb-screen-content" id="pb-sheet-content"></div>
+        <div class="pb-resource-band" id="pb-resource-band" hidden></div>
         <div class="pb-footer">
             <span id="pb-footer-tab"></span>
             <span id="pb-footer-caps"></span>
@@ -125,6 +135,7 @@ export function renderSheet(root, opts) {
     const subBarEl = root.querySelector('#pb-tabs-sub');
     const contentEl = root.querySelector('#pb-sheet-content');
     const stripEl = root.querySelector('#pb-sheet-strip');
+    const resourceBandEl = root.querySelector('#pb-resource-band');
     const footerTabEl = root.querySelector('#pb-footer-tab');
     const footerCapsEl = root.querySelector('#pb-footer-caps');
 
@@ -281,9 +292,64 @@ export function renderSheet(root, opts) {
         selectTop('dice');
     }
 
+    // The resources band is a fixed strip above the footer, shown only while the
+    // INV tab is active — outside the scrolling content, so it is untouched by
+    // scrolling. Resources are a character-level fact, rendered once here rather
+    // than duplicated inside each INV subtab.
+    function renderResourceBand() {
+        if (activeTop !== 'inv') {
+            resourceBandEl.hidden = true;
+            resourceBandEl.innerHTML = '';
+            return;
+        }
+        const resources = character.resources ?? {};
+        resourceBandEl.hidden = false;
+        resourceBandEl.innerHTML = `
+            <div class="pb-resource-row">
+                ${RESOURCES.map(({ key, label }) => `
+                    <div class="pb-resource-box">
+                        <div class="pb-label">${label}</div>
+                        <div class="pb-stepper pb-stepper--tiny" data-resource="${key}">
+                            <button data-dir="-1" ${!canEdit || (resources[key] ?? 0) <= 0 ? 'disabled' : ''}>−</button>
+                            <input class="pb-input pb-resource-input" data-resource-input="${key}" type="number" min="0"
+                                   value="${resources[key] ?? 0}" ${canEdit ? '' : 'disabled'}>
+                            <button data-dir="1" ${canEdit ? '' : 'disabled'}>+</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        if (!canEdit) return;
+
+        async function patchRes(body) {
+            const res = await patchResources(campaignId, character.id, body);
+            onSectionUpdate('resources', res.section ?? res);
+        }
+
+        resourceBandEl.querySelectorAll('[data-resource]').forEach((stepper) => {
+            const key = stepper.dataset.resource;
+            stepper.querySelectorAll('button').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const cur = character.resources?.[key] ?? 0;
+                    const nextVal = Math.max(0, cur + Number(btn.dataset.dir));
+                    if (nextVal === cur) return;
+                    return patchRes({ [key]: nextVal });
+                });
+            });
+        });
+        resourceBandEl.querySelectorAll('[data-resource-input]').forEach((input) => {
+            input.addEventListener('change', () => {
+                const value = Math.max(0, Number(input.value) || 0);
+                return patchRes({ [input.dataset.resourceInput]: value });
+            });
+        });
+    }
+
     function renderActiveTab() {
         const leaf = activeLeaf();
         renderFooter();
+        renderResourceBand();
         const approach = pendingApproach;
         pendingApproach = null;
         leaf.render(contentEl, {

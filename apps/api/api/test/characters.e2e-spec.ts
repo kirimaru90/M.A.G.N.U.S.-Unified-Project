@@ -263,6 +263,74 @@ describe('CharactersModule (e2e)', () => {
     expect(sectionOf(d)).toHaveLength(0);
   });
 
+  // --- 3.3 status margin (health) ---
+
+  it('a freshly created character reads back margin: 4 by default', async () => {
+    const id = await createCharacter(playerAId);
+    const res = await app.inject({
+      method: 'GET',
+      url: `/campaigns/${campaignId}/characters/${id}`,
+      headers: auth(playerAToken),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).status.margin).toBe(4);
+  });
+
+  it('PATCH status { margin } persists and echoes it in the section', async () => {
+    const id = await createCharacter(playerAId);
+
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/status`,
+      headers: auth(playerAToken),
+      payload: { margin: 7 },
+    });
+    expect(patch.statusCode).toBe(200);
+    expect(sectionOf(patch).margin).toBe(7);
+    expect(ignoredOf(patch)).toEqual([]);
+
+    // persisted: a subsequent GET reads the new margin back
+    const get = await app.inject({
+      method: 'GET',
+      url: `/campaigns/${campaignId}/characters/${id}`,
+      headers: auth(playerAToken),
+    });
+    expect(JSON.parse(get.body).status.margin).toBe(7);
+  });
+
+  it('PATCH status { margin } leaves condition arrays untouched', async () => {
+    const id = await createCharacter(playerAId);
+
+    // seed a negative condition first
+    const seed = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/status`,
+      headers: auth(playerAToken),
+      payload: { negativeConditions: { items: [{ name: 'Ferita' }] } },
+    });
+    expect(sectionOf(seed).negativeConditions).toHaveLength(1);
+
+    const patch = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/status`,
+      headers: auth(playerAToken),
+      payload: { margin: 3 },
+    });
+    expect(sectionOf(patch).margin).toBe(3);
+    expect(sectionOf(patch).negativeConditions).toHaveLength(1);
+  });
+
+  it('PATCH status rejects a non-positive margin with 400', async () => {
+    const id = await createCharacter(playerAId);
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/campaigns/${campaignId}/characters/${id}/status`,
+      headers: auth(playerAToken),
+      payload: { margin: 0 },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
   // --- 8.5 Every section is owner-writable; non-owners get 404 ---
 
   it('the owner may write every section of their own character', async () => {

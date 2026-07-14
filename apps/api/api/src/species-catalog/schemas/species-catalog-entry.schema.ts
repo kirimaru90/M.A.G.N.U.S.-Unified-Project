@@ -28,6 +28,14 @@ export class SpeciesCatalogEntry {
   @Prop({ type: Number, required: true, min: 1 })
   tagSkillBudget: number;
 
+  /**
+   * Starting health margin a character of this species is created with: the
+   * number of condition-weight points its health absorbs before reaching
+   * critical (positive integer). Copied onto the character at creation.
+   */
+  @Prop({ type: Number, required: true, min: 1 })
+  margin: number;
+
   @Prop()
   description?: string;
 }

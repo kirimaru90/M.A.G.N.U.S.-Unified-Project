@@ -11,7 +11,9 @@ import {
  * values `character.species` accepted as a hard enum before this catalog
  * existed, so every persisted character resolves without a migration.
  *
- * Umano carries a tag-skill budget of 4; the other three carry 3.
+ * Umano carries a tag-skill budget of 4; the other three carry 3. Every seeded
+ * species carries a neutral starting health `margin` of 4 (the pre-existing
+ * fixed critical threshold); real per-species margins are authored in the CMS.
  */
 export const DEFAULT_SPECIES_CATALOG: Array<{
   slug: string;
@@ -19,6 +21,7 @@ export const DEFAULT_SPECIES_CATALOG: Array<{
   permesso: string;
   svantaggio: string;
   tagSkillBudget: number;
+  margin: number;
 }> = [
   {
     slug: 'human',
@@ -28,6 +31,7 @@ export const DEFAULT_SPECIES_CATALOG: Array<{
     svantaggio:
       'Nessun talento sovrannaturale né resistenza speciale: un colpo è un colpo.',
     tagSkillBudget: 4,
+    margin: 4,
   },
   {
     slug: 'ghoul',
@@ -37,6 +41,7 @@ export const DEFAULT_SPECIES_CATALOG: Array<{
     svantaggio:
       'Inviso e attaccato a vista dagli umani. Rischio di "selvatichire".',
     tagSkillBudget: 3,
+    margin: 4,
   },
   {
     slug: 'super_mutant',
@@ -45,6 +50,7 @@ export const DEFAULT_SPECIES_CATALOG: Array<{
       'Forza e resistenza sovrumane. Intimidazione automatica. Resiste alle radiazioni.',
     svantaggio: 'Respinto nei contesti civili. Difficoltà con tecnologie fini.',
     tagSkillBudget: 3,
+    margin: 4,
   },
   {
     slug: 'robot',
@@ -54,6 +60,7 @@ export const DEFAULT_SPECIES_CATALOG: Array<{
     svantaggio:
       'Non si cura con stimpack o cibo: serve riparazione. Vulnerabile a EMP.',
     tagSkillBudget: 3,
+    margin: 4,
   },
 ];
 

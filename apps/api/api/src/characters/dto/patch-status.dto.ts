@@ -2,9 +2,11 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
+  Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -69,4 +71,13 @@ export class PatchStatusDto {
   @IsOptional()
   @IsBoolean()
   criticalState?: boolean;
+
+  @ApiPropertyOptional({
+    minimum: 1,
+    description: 'Health margin (positive integer)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  margin?: number;
 }

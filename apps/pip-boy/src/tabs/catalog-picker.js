@@ -13,9 +13,12 @@ import { esc } from '../engine/render.js';
 //     - allowFreeText?: when true, a non-catalog search term can be committed as
 //       `{ name: <typed text> }` — so tag inputs stay open to names not in the
 //       catalog (the catalog is a convenience, never a constraint).
+//     - renderMeta?(entry): optional — returns trailing per-row HTML (e.g. a
+//       weight abbreviation). Omitted → rows show the name only.
+//     - rowAccent?(entry): optional — returns a colour-accent class for the row.
 //     - onPick(entry): called with the chosen (or free-typed) entry, then closes
 
-export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, onPick }) {
+export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, renderMeta, rowAccent, onPick }) {
     const list = Array.isArray(entries) ? entries : [];
 
     const overlay = document.createElement('div');
@@ -51,7 +54,11 @@ export function openCatalogPicker({ title, entries, query = '', allowFreeText = 
         if (allowFreeText && typed && !exact) {
             rows.push(`<button class="pb-picker-row pb-picker-freetext" data-freetext>＋ Usa «${esc(typed)}»</button>`);
         }
-        rows.push(...matches.map((e) => `<button class="pb-picker-row" data-pick="${esc(e.name)}">${esc(e.name)}</button>`));
+        rows.push(...matches.map((e) => {
+            const accent = rowAccent ? rowAccent(e) : '';
+            const meta = renderMeta ? renderMeta(e) : '';
+            return `<button class="pb-picker-row${accent ? ` ${accent}` : ''}" data-pick="${esc(e.name)}">${esc(e.name)}${meta}</button>`;
+        }));
 
         listEl.innerHTML = rows.length === 0
             ? '<div class="pb-empty">Nessun elemento</div>'

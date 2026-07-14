@@ -29,6 +29,16 @@
     --amber-glow: 0 0 4px rgba(255, 176, 46, 0.4);
     --amber-glow-strong: 0 0 6px rgba(255, 176, 46, 0.5);
 
+    /* ── Negative accent ──────────────────────────────────────────
+       A desaturated red for negative conditions / depleted health. Kept
+       deliberately distinct from --amber, which stays critical-only, so the
+       critical escalation signal is never diluted by ordinary negatives. */
+    --neg: #e0685c;
+    --neg-border: rgba(224, 104, 92, 0.5);
+    --neg-fill: rgba(224, 104, 92, 0.12);
+    --neg-glow: 0 0 4px rgba(224, 104, 92, 0.4);
+    --pos: var(--phosphor);
+
     /* ── CRT ──────────────────────────────────────────────────── */
     --phosphor-text-glow: 0 0 4px rgba(51, 255, 102, 0.55);
     --screen-inner-glow: inset 0 0 60px rgba(51, 255, 102, 0.14), inset 0 0 6px rgba(51, 255, 102, 0.4);
@@ -706,6 +716,17 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 .pb-hint { font-size: 10px; opacity: 0.45; margin-bottom: 12px; }
 
+/* The primary per-step instruction in the creation wizard: larger and higher
+   contrast than .pb-hint footnotes, so it reads as the step's main guidance. */
+.pb-step-intro {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--phosphor-bright);
+    opacity: 0.9;
+    margin-bottom: 12px;
+    letter-spacing: 0.3px;
+}
+
 .pb-approach-row {
     display: flex;
     align-items: center;
@@ -773,14 +794,36 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 /* ── SALUTE tab ─────────────────────────────────────────────────── */
 
-.pb-net-box {
+/* SALUTE indicator: health readout over a depleting fill bar. The numeric
+   readout carries the true value (may exceed margin on overshoot, or go
+   negative); the bar clamps 0..100%. */
+.pb-health-box {
     border: 1px solid var(--green-border-soft);
     padding: 10px;
     margin-bottom: 12px;
     text-align: center;
 }
-.pb-net-value { font-size: 34px; line-height: 1; }
-.pb-net-value.amber { color: var(--amber); text-shadow: var(--amber-glow-strong); }
+.pb-health-readout { font-size: 34px; line-height: 1; }
+.pb-health-readout.neg { color: var(--neg); text-shadow: var(--neg-glow); }
+.pb-health-bar {
+    margin-top: 8px;
+    height: 8px;
+    border: 1px solid var(--green-border-soft);
+    background: var(--screen-bg);
+    overflow: hidden;
+}
+.pb-health-bar-fill {
+    height: 100%;
+    background: var(--phosphor);
+    box-shadow: inset 0 0 6px rgba(51, 255, 102, 0.5);
+    transition: width 0.2s ease;
+}
+.pb-health-bar-fill.empty { background: var(--neg); box-shadow: inset 0 0 6px var(--neg-fill); }
+
+/* Two columns: negatives left, positives right, each ordered major→minor. */
+.pb-cond-columns { display: flex; gap: 8px; }
+.pb-cond-col { flex: 1 1 0; min-width: 0; }
+.pb-margin-row { margin-top: 12px; }
 
 .pb-cond-row {
     display: flex;
@@ -798,10 +841,20 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     text-align: left;
 }
 .pb-cond-row:hover { background: var(--green-fill); }
+.pb-cond-row--neg { border-color: var(--neg-border); color: var(--neg); }
+.pb-cond-row--neg:hover { background: var(--neg-fill); }
+.pb-cond-row--pos { border-color: var(--green-border); color: var(--pos); }
 .pb-cond-sign { font-family: var(--font-display); font-size: 18px; width: 12px; }
 .pb-cond-name { flex: 1; letter-spacing: 1px; }
 .pb-cond-tag { font-size: 9px; opacity: 0.6; letter-spacing: 1px; }
 .pb-cond-remove { opacity: 0.6; }
+
+/* Catalog picker rows: optional polarity accent + weight abbreviation. */
+.pb-picker-row--neg,
+.pb-picker-row--pos { display: flex; align-items: center; gap: 8px; }
+.pb-picker-row--neg { border-color: var(--neg-border); color: var(--neg); }
+.pb-picker-row--pos { border-color: var(--green-border); color: var(--pos); }
+.pb-picker-meta { margin-left: auto; font-size: 10px; opacity: 0.75; letter-spacing: 1px; }
 
 .pb-preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pb-preset { font-size: 10px; padding: 6px 8px; }
@@ -821,21 +874,19 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 /* ── ZAINO tab ──────────────────────────────────────────────────── */
 
-/* Pinned at the bottom of every INV subtab. Sized to fit ~360px: three boxes
-   share the width with a min-width of 0 so the numeric input can shrink rather
-   than overflow the case. `position: sticky; bottom: 0` keeps it in view while
-   the item list scrolls; the opaque screen-bg backing (plus a hairline) hides
-   items sliding under it, and `.pb-inv-list`'s bottom padding lets the last item
-   clear the pinned band. */
+/* A fixed band above the footer, shown only on the INV tab (sheet.js renders it
+   outside `.pb-screen-content`), so it is untouched by scrolling rather than
+   pinned to a scrolling list. Sized to fit ~360px: three boxes share the width
+   with a min-width of 0 so the numeric input can shrink rather than overflow. */
+.pb-resource-band {
+    padding: 8px 14px;
+    background: var(--screen-bg);
+    border-top: 1px solid var(--green-hairline);
+}
+.pb-resource-band[hidden] { display: none; }
 .pb-resource-row {
     display: flex;
     gap: 6px;
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    padding-top: 12px;
-    background: var(--screen-bg);
-    border-top: 1px solid var(--green-hairline-faint);
 }
 .pb-inv-list { padding-bottom: 12px; }
 .pb-resource-box {

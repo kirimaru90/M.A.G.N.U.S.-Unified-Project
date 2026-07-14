@@ -1,14 +1,8 @@
 import { esc } from '../engine/render.js';
-import { patchInventory, patchResources } from '../api/characters.js';
+import { patchInventory } from '../api/characters.js';
 import { openAddItemPopup } from './add-item-popup.js';
 import { openInfoPopup } from './info-popup.js';
 import { openCatalogPicker } from './catalog-picker.js';
-
-const RESOURCES = [
-    { key: 'caps', label: 'TAPPI' },
-    { key: 'scraps', label: 'ROTTAMI' },
-    { key: 'bobbleheads', label: 'BOBBLEHEAD' },
-];
 
 // Weapons/armor render tag chips; consumables/misc render quantity rows. A
 // consumable/misc description is no longer shown inline — the name is an
@@ -89,8 +83,9 @@ function qtyItemRow(item, section, editMode) {
 }
 
 /**
- * Renders one INV subtab: exactly one inventory collection, its `+` add trigger
- * (view and editor mode both), and the resources row pinned at the bottom.
+ * Renders one INV subtab: exactly one inventory collection and its `+` add
+ * trigger (view and editor mode both). The resources band is rendered by the
+ * sheet shell (screens/sheet.js) as a fixed strip above the footer, not here.
  * `node` carries `invKey` (the collection) and `invKind` (the catalog kind the
  * add-item popup filters by).
  */
@@ -99,7 +94,6 @@ export function renderInvSubtab(container, ctx, node) {
     const section = node.invKey;
     const isTagSection = TAG_SECTIONS.has(section);
     const inv = character.inventory ?? {};
-    const resources = character.resources ?? {};
     const items = inv[section] ?? [];
     const inEditor = canEdit && editMode;
 
@@ -115,20 +109,6 @@ export function renderInvSubtab(container, ctx, node) {
             ${canEdit ? '<button class="pb-btn pb-btn--icon pb-inv-add" data-add-open aria-label="Aggiungi">+</button>' : ''}
         </div>
         <div class="pb-inv-list" data-section-list="${section}">${listHtml}</div>
-
-        <div class="pb-resource-row">
-            ${RESOURCES.map(({ key, label }) => `
-                <div class="pb-resource-box">
-                    <div class="pb-label">${label}</div>
-                    <div class="pb-stepper pb-stepper--tiny" data-resource="${key}">
-                        <button data-dir="-1" ${!canEdit || (resources[key] ?? 0) <= 0 ? 'disabled' : ''}>−</button>
-                        <input class="pb-input pb-resource-input" data-resource-input="${key}" type="number" min="0"
-                               value="${resources[key] ?? 0}" ${canEdit ? '' : 'disabled'}>
-                        <button data-dir="1" ${canEdit ? '' : 'disabled'}>+</button>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
     `;
 
     const findItem = (sec, id) => (inv[sec] ?? []).find((i) => i.id === id);
@@ -150,10 +130,6 @@ export function renderInvSubtab(container, ctx, node) {
         const res = await patchInventory(campaignId, character.id, { [sec]: body });
         ctx.onSectionUpdate('inventory', res.section ?? res);
     }
-    async function patchRes(body) {
-        const res = await patchResources(campaignId, character.id, body);
-        ctx.onSectionUpdate('resources', res.section ?? res);
-    }
 
     // --- add-item popup (available in both view and editor mode) ------------
     const addBtn = container.querySelector('[data-add-open]');
@@ -168,24 +144,6 @@ export function renderInvSubtab(container, ctx, node) {
             });
         });
     }
-
-    // --- resources: stepper and direct numeric entry both write the same field
-    container.querySelectorAll('[data-resource]').forEach((stepper) => {
-        const key = stepper.dataset.resource;
-        stepper.querySelectorAll('button').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const nextVal = Math.max(0, (resources[key] ?? 0) + Number(btn.dataset.dir));
-                if (nextVal === resources[key]) return;
-                return patchRes({ [key]: nextVal });
-            });
-        });
-    });
-    container.querySelectorAll('[data-resource-input]').forEach((input) => {
-        input.addEventListener('change', () => {
-            const value = Math.max(0, Number(input.value) || 0);
-            return patchRes({ [input.dataset.resourceInput]: value });
-        });
-    });
 
     // --- view mode: tap a chip to toggle its damaged flag
     container.querySelectorAll('[data-toggle-tag]').forEach((chip) => {

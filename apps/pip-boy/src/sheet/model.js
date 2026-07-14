@@ -37,8 +37,8 @@ export const SKILL_LEVEL_LABELS = {
 /** A `minor` condition weighs 1, a `major` weighs 2 (BASE / MODERATA ×2). */
 export const CONDITION_WEIGHTS = { minor: 1, major: 2 };
 
-/** Net wear at or above this is critical state. The one place the rule lives. */
-export const CRIT = 4;
+/** Fallback margin for a character persisted before `margin` existed. */
+export const DEFAULT_MARGIN = 4;
 
 export function conditionWeight(condition) {
     return CONDITION_WEIGHTS[condition?.severity] ?? 1;
@@ -51,9 +51,17 @@ export function netWear(status) {
     return sum(status?.negativeConditions) - sum(status?.positiveConditions);
 }
 
+/**
+ * Health = margin − net wear. Positives may push it above `margin` (overshoot);
+ * negatives may take it below 0. The one place the rule lives.
+ */
+export function health(status, margin = DEFAULT_MARGIN) {
+    return margin - netWear(status);
+}
+
 /** The client derives `criticalState` and persists it (see design D5). */
-export function isCritical(status) {
-    return netWear(status) >= CRIT;
+export function isCritical(status, margin = DEFAULT_MARGIN) {
+    return health(status, margin) <= 0;
 }
 
 export function approachByKey(key) {

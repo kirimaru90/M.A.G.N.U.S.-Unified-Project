@@ -23,6 +23,7 @@ export interface CatalogEntry {
   permesso: string;
   svantaggio: string;
   tagSkillBudget: number;
+  margin: number;
   description?: string;
 }
 
@@ -33,6 +34,14 @@ function assertValidBudget(budget: unknown) {
     throw new BadRequestException(
       'entry.tagSkillBudget must be a positive integer',
     );
+  }
+}
+
+/** `margin` is a starting health margin, so it must be a positive integer. */
+function assertValidMargin(margin: unknown) {
+  if (margin === undefined) return;
+  if (!Number.isInteger(margin) || (margin as number) < 1) {
+    throw new BadRequestException('entry.margin must be a positive integer');
   }
 }
 
@@ -53,6 +62,7 @@ export class SpeciesCatalogService {
       permesso: e.permesso,
       svantaggio: e.svantaggio,
       tagSkillBudget: e.tagSkillBudget,
+      margin: e.margin,
       description: e.description,
     }));
   }
@@ -82,6 +92,7 @@ export class SpeciesCatalogService {
           permesso: d.permesso,
           svantaggio: d.svantaggio,
           tagSkillBudget: d.tagSkillBudget,
+          margin: d.margin,
           description: d.description,
         },
       ]),
@@ -105,12 +116,16 @@ export class SpeciesCatalogService {
         if (e.tagSkillBudget === undefined)
           throw new BadRequestException('entry.tagSkillBudget is required');
         assertValidBudget(e.tagSkillBudget);
+        if (e.margin === undefined)
+          throw new BadRequestException('entry.margin is required');
+        assertValidMargin(e.margin);
 
         const entry: CatalogEntry = {
           name: e.name,
           permesso: e.permesso,
           svantaggio: e.svantaggio,
           tagSkillBudget: e.tagSkillBudget,
+          margin: e.margin,
           description: e.description,
         };
         map.set(op.slug, entry);
@@ -122,6 +137,7 @@ export class SpeciesCatalogService {
           continue;
         }
         assertValidBudget(op.entry?.tagSkillBudget);
+        assertValidMargin(op.entry?.margin);
         const merged: CatalogEntry = { ...existing, ...definedOnly(op.entry) };
         map.set(op.slug, merged);
         toUpsert.set(op.slug, merged);

@@ -62,7 +62,7 @@ describe('SpeciesCatalogModule (e2e)', () => {
           headers: auth(adminToken),
         })
       ).body,
-    ) as Array<{ slug: string; tagSkillBudget: number }>;
+    ) as Array<{ slug: string; tagSkillBudget: number; margin: number }>;
 
   beforeAll(async () => {
     const uri = await startMongoMemoryServer();
@@ -147,6 +147,16 @@ describe('SpeciesCatalogModule (e2e)', () => {
     expect(entries.find((e) => e.slug === 'ghoul')?.tagSkillBudget).toBe(3);
   });
 
+  // Task 3.3 — GET returns a positive margin for every seeded species.
+  it('GET returns margin for every seeded species', async () => {
+    const entries = await listSpecies();
+    for (const e of entries) {
+      expect(typeof e.margin).toBe('number');
+      expect(e.margin).toBeGreaterThanOrEqual(1);
+    }
+    expect(entries.find((e) => e.slug === 'human')?.margin).toBe(4);
+  });
+
   // --- 2.T.4 RBAC ---
 
   it('GET is 200 for a player and 401 anonymous', async () => {
@@ -197,6 +207,7 @@ describe('SpeciesCatalogModule (e2e)', () => {
               permesso: 'Indistinguibile da un umano.',
               svantaggio: "Cacciato dall'Istituto.",
               tagSkillBudget: 3,
+              margin: 5,
             },
           },
         ],
@@ -204,7 +215,10 @@ describe('SpeciesCatalogModule (e2e)', () => {
     });
     expect(add.statusCode).toBe(200);
     expect(JSON.parse(add.body).ignored).toEqual([]);
-    expect((await listSpecies()).some((e) => e.slug === 'synth')).toBe(true);
+    const afterAdd = await listSpecies();
+    expect(afterAdd.some((e) => e.slug === 'synth')).toBe(true);
+    // Task 3.3 — add round-trips margin.
+    expect(afterAdd.find((e) => e.slug === 'synth')?.margin).toBe(5);
 
     const update = await app.inject({
       method: 'PATCH',
@@ -212,14 +226,19 @@ describe('SpeciesCatalogModule (e2e)', () => {
       headers: auth(adminToken),
       payload: {
         ops: [
-          { action: 'update', slug: 'synth', entry: { tagSkillBudget: 5 } },
+          {
+            action: 'update',
+            slug: 'synth',
+            entry: { tagSkillBudget: 5, margin: 9 },
+          },
         ],
       },
     });
     expect(update.statusCode).toBe(200);
-    expect(
-      (await listSpecies()).find((e) => e.slug === 'synth')?.tagSkillBudget,
-    ).toBe(5);
+    const afterUpdate = await listSpecies();
+    expect(afterUpdate.find((e) => e.slug === 'synth')?.tagSkillBudget).toBe(5);
+    // Task 3.3 — update round-trips margin.
+    expect(afterUpdate.find((e) => e.slug === 'synth')?.margin).toBe(9);
 
     // clean up so later assertions on the catalog size are stable
     await app.inject({
@@ -269,6 +288,54 @@ describe('SpeciesCatalogModule (e2e)', () => {
               permesso: 'a',
               svantaggio: 'b',
               tagSkillBudget: budget,
+            },
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  // Task 3.3 — a non-positive margin is rejected with 400.
+  it.each([0, -1])('margin of %s on add → 400', async (margin) => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/species-catalog',
+      headers: auth(adminToken),
+      payload: {
+        ops: [
+          {
+            action: 'add',
+            slug: 'badmargin',
+            entry: {
+              name: 'X',
+              permesso: 'a',
+              svantaggio: 'b',
+              tagSkillBudget: 3,
+              margin,
+            },
+          },
+        ],
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('an add missing margin → 400', async () => {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: '/species-catalog',
+      headers: auth(adminToken),
+      payload: {
+        ops: [
+          {
+            action: 'add',
+            slug: 'nomargin',
+            entry: {
+              name: 'X',
+              permesso: 'a',
+              svantaggio: 'b',
+              tagSkillBudget: 3,
             },
           },
         ],

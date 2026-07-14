@@ -7,6 +7,7 @@ type Entry = {
   permesso: string;
   svantaggio: string;
   tagSkillBudget: number;
+  margin: number;
   description?: string;
 };
 
@@ -16,6 +17,7 @@ const GHOUL: Entry = {
   permesso: 'Immune alle radiazioni.',
   svantaggio: 'Inviso agli umani.',
   tagSkillBudget: 3,
+  margin: 4,
 };
 
 /** `inUseSlugs` stands in for live characters pointing at a species. */
@@ -53,6 +55,7 @@ const validEntry = {
   permesso: 'Indistinguibile da un umano.',
   svantaggio: 'Cacciato dall Istituto.',
   tagSkillBudget: 3,
+  margin: 4,
 };
 
 describe('SpeciesCatalogService.patchSchema', () => {
@@ -121,6 +124,7 @@ describe('SpeciesCatalogService.patchSchema', () => {
           permesso: GHOUL.permesso,
           svantaggio: GHOUL.svantaggio,
           tagSkillBudget: 5,
+          margin: 4,
           description: undefined,
         },
       },
@@ -214,7 +218,7 @@ describe('SpeciesCatalogService.patchSchema', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
-  it.each(['name', 'permesso', 'svantaggio', 'tagSkillBudget'])(
+  it.each(['name', 'permesso', 'svantaggio', 'tagSkillBudget', 'margin'])(
     'rejects an add missing entry.%s',
     async (field) => {
       const { service } = makeService([]);
@@ -225,6 +229,84 @@ describe('SpeciesCatalogService.patchSchema', () => {
       ).rejects.toThrow(BadRequestException);
     },
   );
+
+  // Task 3.1 — margin is a starting health margin: positive integer, required on add.
+  it('accepts a valid margin on add and persists it', async () => {
+    const { service, updateOne } = makeService([]);
+    const result = await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'synth',
+        entry: { ...validEntry, margin: 6 },
+      } as never,
+    ]);
+    expect(result.ignored).toEqual([]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'synth' },
+      {
+        $set: {
+          slug: 'synth',
+          ...validEntry,
+          margin: 6,
+          description: undefined,
+        },
+      },
+      { upsert: true },
+    );
+  });
+
+  it('rejects an add missing entry.margin with a clear 400', async () => {
+    const { service } = makeService([]);
+    const entry: Record<string, unknown> = { ...validEntry };
+    delete entry.margin;
+    await expect(
+      service.patchSchema([{ action: 'add', slug: 'synth', entry } as never]),
+    ).rejects.toThrow('entry.margin is required');
+  });
+
+  it.each([0, -1, 2.5])('rejects a margin of %s on add', async (bad) => {
+    const { service } = makeService([]);
+    await expect(
+      service.patchSchema([
+        {
+          action: 'add',
+          slug: 'synth',
+          entry: { ...validEntry, margin: bad },
+        } as never,
+      ]),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it.each([0, -1, 2.5])('rejects a margin of %s on update', async (bad) => {
+    const { service } = makeService([GHOUL]);
+    await expect(
+      service.patchSchema([
+        { action: 'update', slug: 'ghoul', entry: { margin: bad } } as never,
+      ]),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('updates an existing margin to a new positive integer', async () => {
+    const { service, updateOne } = makeService([GHOUL]);
+    const result = await service.patchSchema([
+      { action: 'update', slug: 'ghoul', entry: { margin: 7 } } as never,
+    ]);
+    expect(result.ignored).toEqual([]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'ghoul' },
+      { $set: { ...GHOUL, margin: 7, description: undefined } },
+      { upsert: true },
+    );
+  });
+});
+
+describe('SpeciesCatalogService.findAll', () => {
+  it('returns margin for every entry', async () => {
+    const { service } = makeService([GHOUL]);
+    const entries = await service.findAll();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ slug: 'ghoul', margin: 4 });
+  });
 });
 
 describe('SpeciesCatalogService.slugExists', () => {

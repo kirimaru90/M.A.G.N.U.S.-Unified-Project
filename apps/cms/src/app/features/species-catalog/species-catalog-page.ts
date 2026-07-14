@@ -15,6 +15,7 @@ interface DraftRow {
   permesso: string;
   svantaggio: string;
   tagSkillBudget: number;
+  margin: number;
   description: string;
 }
 
@@ -24,6 +25,7 @@ const emptyDraft = (): DraftRow => ({
   permesso: '',
   svantaggio: '',
   tagSkillBudget: 3,
+  margin: 4,
   description: '',
 });
 
@@ -64,6 +66,7 @@ const emptyDraft = (): DraftRow => ({
               <th pSortableColumn="permesso">Permesso <p-sortIcon field="permesso" /></th>
               <th pSortableColumn="svantaggio">Svantaggio <p-sortIcon field="svantaggio" /></th>
               <th pSortableColumn="tagSkillBudget">Budget maestria <p-sortIcon field="tagSkillBudget" /></th>
+              <th pSortableColumn="margin">Margine salute <p-sortIcon field="margin" /></th>
               <th>Azioni</th>
             </tr>
           </ng-template>
@@ -81,6 +84,15 @@ const emptyDraft = (): DraftRow => ({
                     type="number"
                     min="1"
                     [(ngModel)]="draft.tagSkillBudget"
+                    style="width: 100%;"
+                  />
+                </td>
+                <td>
+                  <input
+                    pInputText
+                    type="number"
+                    min="1"
+                    [(ngModel)]="draft.margin"
                     style="width: 100%;"
                   />
                 </td>
@@ -119,6 +131,7 @@ const emptyDraft = (): DraftRow => ({
                 <td>{{ entry.permesso }}</td>
                 <td>{{ entry.svantaggio }}</td>
                 <td>{{ entry.tagSkillBudget }}</td>
+                <td>{{ entry.margin }}</td>
                 <td>
                   <div class="row-actions">
                     <button
@@ -222,6 +235,15 @@ const emptyDraft = (): DraftRow => ({
                   />
                 </td>
                 <td>
+                  <input
+                    pInputText
+                    type="number"
+                    min="1"
+                    [(ngModel)]="draft.margin"
+                    style="width: 100%;"
+                  />
+                </td>
+                <td>
                   <div
                     style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start;"
                   >
@@ -254,7 +276,7 @@ const emptyDraft = (): DraftRow => ({
 
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="6" style="text-align: center; color: var(--bo-text-faint);">
+              <td colspan="7" style="text-align: center; color: var(--bo-text-faint);">
                 Nessuna specie nel catalogo
               </td>
             </tr>
@@ -311,6 +333,10 @@ export class SpeciesCatalogPage implements OnInit {
       this.rowError.set('Il budget maestria deve essere un intero positivo');
       return;
     }
+    if (!this.isPositiveInteger(this.draft.margin)) {
+      this.rowError.set('Il margine salute deve essere un intero positivo');
+      return;
+    }
     this.api
       .patchSchema([
         {
@@ -321,6 +347,7 @@ export class SpeciesCatalogPage implements OnInit {
             permesso,
             svantaggio,
             tagSkillBudget: Number(this.draft.tagSkillBudget),
+            margin: Number(this.draft.margin),
             description: this.draft.description.trim() || undefined,
           },
         },
@@ -345,6 +372,7 @@ export class SpeciesCatalogPage implements OnInit {
       permesso: entry.permesso,
       svantaggio: entry.svantaggio,
       tagSkillBudget: entry.tagSkillBudget,
+      margin: entry.margin,
       description: entry.description ?? '',
     };
     this.rowError.set(null);
@@ -369,6 +397,10 @@ export class SpeciesCatalogPage implements OnInit {
       this.rowError.set('Il budget maestria deve essere un intero positivo');
       return;
     }
+    if (!this.isPositiveInteger(this.draft.margin)) {
+      this.rowError.set('Il margine salute deve essere un intero positivo');
+      return;
+    }
 
     const op =
       newSlug !== entry.slug
@@ -381,6 +413,7 @@ export class SpeciesCatalogPage implements OnInit {
               permesso,
               svantaggio,
               tagSkillBudget: Number(this.draft.tagSkillBudget),
+              margin: Number(this.draft.margin),
               description: this.draft.description.trim() || undefined,
             },
           };

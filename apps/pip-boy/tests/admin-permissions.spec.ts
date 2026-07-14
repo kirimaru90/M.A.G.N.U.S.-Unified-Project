@@ -41,9 +41,9 @@ test('S.P.E shows approach rows in view mode and steppers in editor mode', async
 
   await page.locator('#pb-editor-toggle').click();
 
-  // editor mode: seven 1..5 steppers, plus FONTE PA and MAX PA
+  // editor mode: seven 1..5 steppers and the MAX PA stepper (no FONTE PA selector)
   await expect(page.locator('#pb-special-grid .pb-stepper')).toHaveCount(7);
-  await expect(page.locator('#pb-pa-source')).toBeVisible();
+  await expect(page.locator('#pb-pa-source')).toHaveCount(0);
   await expect(page.locator('#pb-pa-max-stepper')).toBeVisible();
   await expect(page.locator('.pb-approach-row')).toHaveCount(0);
 });

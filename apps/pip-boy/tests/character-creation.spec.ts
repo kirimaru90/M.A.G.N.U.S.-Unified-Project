@@ -135,26 +135,32 @@ test('the PUNTI AZIONE MASSIMI step is absent; the five steps are as specified',
   await expect(page.getByText('PUNTI AZIONE MASSIMI')).toHaveCount(0);
 });
 
-test('every step renders an instruction block', async ({ page }) => {
+test('every step renders a prominent instruction block', async ({ page }) => {
   await openWizard(page);
 
-  const hint = () => page.locator('#pb-cr-body .pb-hint').first();
+  // Each step's primary instruction uses the prominent .pb-step-intro style.
+  const intro = () => page.locator('#pb-cr-body .pb-step-intro').first();
 
-  await expect(hint()).toBeVisible(); // 1 · IDENTITÀ
+  await expect(intro()).toBeVisible(); // 1 · IDENTITÀ
+  // The prominent intro is larger than a secondary .pb-hint footnote.
+  const introSize = await intro().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+  expect(introSize).toBeGreaterThan(10);
   await page.locator('#pb-cr-name').fill('Marta');
   await next(page).click();
 
-  await expect(hint()).toBeVisible(); // 2 · S.P.E.C.I.A.L.
+  await expect(intro()).toBeVisible(); // 2 · S.P.E.C.I.A.L.
   await spendAllPoints(page);
   await next(page).click();
 
-  await expect(hint()).toBeVisible(); // 3 · TAG SKILLS
+  await expect(intro()).toBeVisible(); // 3 · TAG SKILLS
   await next(page).click();
 
-  await expect(hint()).toBeVisible(); // 4 · EQUIPAGGIAMENTO
+  await expect(intro()).toBeVisible(); // 4 · EQUIPAGGIAMENTO
+  // The equipment step's fixed-dotazione footnote stays in the lesser style.
+  await expect(page.locator('#pb-cr-body .pb-hint')).toBeVisible();
   await next(page).click();
 
-  await expect(hint()).toBeVisible(); // 5 · RIEPILOGO
+  await expect(intro()).toBeVisible(); // 5 · RIEPILOGO
 });
 
 // ── budget from the species catalog ──────────────────────────────────
@@ -200,15 +206,15 @@ async function reachSkillsStep(page: Page, species = 'human') {
   await expect(page.locator('#pb-cr-counter')).toHaveText('3/5 · TAG SKILLS');
 }
 
-test('the placeholder and the + control both open the add-popup', async ({ page }) => {
+test('the empty skills step shows no placeholder row; the + control opens the add-popup', async ({ page }) => {
   await openWizard(page);
   await reachSkillsStep(page);
 
-  await expect(page.locator('[data-add-skill-row]')).toBeVisible();
-  await page.locator('[data-add-skill-row]').click();
-  await expect(page.locator('.pb-popup')).toBeVisible();
-  await page.locator('.pb-popup [data-cancel]').click();
+  // No placeholder row — the list starts empty.
+  await expect(page.locator('[data-add-skill-row]')).toHaveCount(0);
+  await expect(page.locator('#pb-cr-skills .pb-skill-row')).toHaveCount(0);
 
+  // The section-head + is the sole add affordance.
   await page.locator('[data-add-skill]').click();
   await expect(page.locator('.pb-popup')).toBeVisible();
 });
@@ -239,10 +245,10 @@ test('an added skill renders maestria squares, a stepper, and a remove control',
   await expect(row.locator('[data-skill-dec="lockpicking"]')).toBeVisible();
   await expect(row.locator('[data-remove-skill="lockpicking"]')).toBeVisible();
 
-  // ✕ removes the skill, restoring the placeholder
+  // ✕ removes the skill, leaving the list empty (no placeholder row)
   await row.locator('[data-remove-skill="lockpicking"]').click();
   await expect(page.locator('[data-skill-row="lockpicking"]')).toHaveCount(0);
-  await expect(page.locator('[data-add-skill-row]')).toBeVisible();
+  await expect(page.locator('[data-add-skill-row]')).toHaveCount(0);
 });
 
 test('the maestria readout updates as skills are added', async ({ page }) => {
@@ -443,6 +449,9 @@ test('PA derives to the higher of Agilità and Resistenza', async ({ page }) => 
     paCurrent: 3,
     paTrackedBy: 'agility',
   });
+
+  // The health margin is seeded from the selected species (human → 6).
+  expect(reqs.patch('/status')!.postDataJSON()).toEqual({ margin: 6 });
 });
 
 test('PA derivation resolves a tie to Agilità', async ({ page }) => {
