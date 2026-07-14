@@ -8,7 +8,7 @@ import { abortCurrentTyping } from '../engine/typewriter.js';
 export async function mountTerminalList(rootEl, opts) {
     const {
         campaignId, campaignName, campaignIsPublic,
-        onTerminalSelected, onTerminalDataLoaded, onBack,
+        onTerminalSelected, onTerminalDataLoaded, onPersonalTerminal, onBack,
         onLogin, onLogout, setKeyHandler,
     } = opts;
     abortCurrentTyping();
@@ -32,6 +32,18 @@ export async function mountTerminalList(rootEl, opts) {
     }
 
     rootEl.innerHTML = '<h2>ROBCO INDUSTRIES - UNIFIED OPERATING SYSTEM</h2><p>SELEZIONARE ARCHIVIO DA CARICARE:</p>';
+
+    // Authenticated-only synthetic entry: opens the character picker (not a
+    // stored terminal, so it never hits /terminals/:id/load). Prepended above
+    // the campaign's public archives.
+    if (isAuthenticated() && onPersonalTerminal) {
+        const personalBtn = document.createElement('button');
+        personalBtn.className = 'choice-btn';
+        personalBtn.textContent = '[ SCHEDA PERSONALE ]';
+        personalBtn.addEventListener('mouseenter', hoverSound);
+        personalBtn.onclick = () => { clickSound(); onPersonalTerminal(); };
+        rootEl.appendChild(personalBtn);
+    }
 
     terminalList.filter(t => t.isPublic).forEach(terminal => {
         const btn = document.createElement('button');

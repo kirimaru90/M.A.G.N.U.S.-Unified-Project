@@ -6,6 +6,7 @@ import { apiGet } from './api/client.js';
 import { rehydrate, logout as sessionLogout, getUser } from './api/session.js';
 import { mountCampaignSelect } from './screens/campaign-select.js';
 import { mountTerminalList } from './screens/terminal-list.js';
+import { mountCharacterSelect } from './screens/character-select.js';
 import { mountTerminal } from './screens/terminal.js';
 import { mountLoginFictional } from './screens/login-fictional.js';
 import { mountLoginReal } from './screens/login-real.js';
@@ -148,11 +149,50 @@ document.addEventListener('DOMContentLoaded', () => {
             campaignIsPublic: currentCampaign.isPublic,
             onTerminalSelected: handleTerminalSelected,
             onTerminalDataLoaded: playTerminalData,
+            onPersonalTerminal: showCharacterSelect,
             onBack: showCampaignSelect,
             onLogin: makeOnLogin(bootEl),
             onLogout,
             setKeyHandler,
         });
+    }
+
+    // Personal-terminal flow: the authenticated-only list entry opens a character
+    // picker (rendered into the same boot container), and choosing a character
+    // plays its server-generated terminal through the normal playback engine.
+    function showCharacterSelect() {
+        store.clear();
+        abortCurrentTyping();
+        campaignSelectEl.style.display = 'none';
+        loginEl.style.display = 'none';
+        terminalEl.style.display = 'none';
+        bootEl.style.display = 'flex';
+        mountCharacterSelect(bootEl, {
+            campaignId: currentCampaign.id,
+            onCharacterSelected: handleCharacterSelected,
+            onBack: showTerminalList,
+            setKeyHandler,
+        });
+    }
+
+    async function handleCharacterSelected(character) {
+        try {
+            const rawData = await apiGet(
+                '/campaigns/' + encodeURIComponent(currentCampaign.id) +
+                '/characters/' + encodeURIComponent(character.id) + '/terminal'
+            );
+            playTerminalData(rawData);
+        } catch (error) {
+            abortCurrentTyping();
+            bootEl.innerHTML = `<h2 style="color:red">ERRORE LETTURA</h2><p>${error.message}</p>`;
+            const backBtn = document.createElement('button');
+            backBtn.className = 'choice-btn';
+            backBtn.textContent = '[ Torna al menu ]';
+            backBtn.onclick = showTerminalList;
+            bootEl.appendChild(backBtn);
+            setKeyHandler(makeNavHandler([backBtn]));
+            backBtn.focus();
+        }
     }
 
     // Task 3.2: On campaign load → fetch campaign config and apply.

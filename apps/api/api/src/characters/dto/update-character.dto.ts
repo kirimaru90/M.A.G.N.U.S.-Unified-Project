@@ -135,4 +135,14 @@ export class UpdateCharacterDto {
   @ValidateNested()
   @Type(() => UpdateInventoryDto)
   inventory?: UpdateInventoryDto;
+
+  /**
+   * Narrative background. Exempt from the PUT "replace" semantics: because it is
+   * never delivered on the read paths, an omitted `background` leaves the stored
+   * value unchanged; a present one overwrites it.
+   */
+  @ApiPropertyOptional({ description: 'Narrative background prose' })
+  @IsOptional()
+  @IsString()
+  background?: string;
 }

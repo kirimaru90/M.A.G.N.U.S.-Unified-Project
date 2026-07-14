@@ -25,13 +25,18 @@ import { PatchStatusDto } from './dto/patch-status.dto';
 import { PatchActionPointsDto } from './dto/patch-action-points.dto';
 import { PatchInventoryDto } from './dto/patch-inventory.dto';
 import { PatchResourcesDto } from './dto/patch-resources.dto';
+import { PatchBackgroundDto } from './dto/patch-background.dto';
+import { PersonalTerminalService } from './personal-terminal.service';
 
 @ApiTags('characters')
 @ApiBearerAuth()
 @Controller('campaigns/:campaignId/characters')
 @UseGuards(JwtRequiredGuard, CampaignAccessGuard)
 export class CharactersController {
-  constructor(private readonly charactersService: CharactersService) {}
+  constructor(
+    private readonly charactersService: CharactersService,
+    private readonly personalTerminalService: PersonalTerminalService,
+  ) {}
 
   // --- CRUD ---
 
@@ -209,6 +214,52 @@ export class CharactersController {
       characterId,
       dto,
       req.user,
+    );
+  }
+
+  // --- Background (hidden field, dedicated read/write) ---
+
+  @Get(':characterId/background')
+  @UseGuards(CharacterOwnerGuard)
+  @ApiOperation({ summary: 'Read character background (owner or admin)' })
+  getBackground(
+    @Param('campaignId') campaignId: string,
+    @Param('characterId') characterId: string,
+  ) {
+    return this.charactersService.getBackground(campaignId, characterId);
+  }
+
+  @Patch(':characterId/background')
+  @UseGuards(CharacterOwnerGuard)
+  @ApiOperation({
+    summary: 'Set or clear character background (owner or admin)',
+  })
+  setBackground(
+    @Param('campaignId') campaignId: string,
+    @Param('characterId') characterId: string,
+    @Body() dto: PatchBackgroundDto,
+  ) {
+    return this.charactersService.setBackground(
+      campaignId,
+      characterId,
+      dto.background,
+    );
+  }
+
+  // --- Personal terminal (generated, read-only) ---
+
+  @Get(':characterId/terminal')
+  @UseGuards(CharacterOwnerGuard)
+  @ApiOperation({
+    summary: 'Generate the read-only personal terminal (owner or admin)',
+  })
+  getPersonalTerminal(
+    @Param('campaignId') campaignId: string,
+    @Param('characterId') characterId: string,
+  ) {
+    return this.personalTerminalService.getPersonalTerminal(
+      campaignId,
+      characterId,
     );
   }
 }

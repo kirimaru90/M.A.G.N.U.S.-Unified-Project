@@ -159,6 +159,37 @@ export class CharactersService {
     return toResponse(character);
   }
 
+  // --- Background (select:false; only these paths touch it) ---
+
+  /** Read the hidden `background`, explicitly selecting it. `null` when unset. */
+  async getBackground(campaignId: string, characterId: string) {
+    if (!Types.ObjectId.isValid(characterId)) throw new NotFoundException();
+    const doc = await this.characterModel
+      .findOne({
+        _id: new Types.ObjectId(characterId),
+        campaignId: new Types.ObjectId(campaignId),
+        isDeleted: { $ne: true },
+      })
+      .select('+background')
+      .lean<{ background?: string }>();
+    if (!doc) throw new NotFoundException();
+    return { background: doc.background ?? null };
+  }
+
+  /** Set the background (empty string clears it via `$unset`). */
+  async setBackground(
+    campaignId: string,
+    characterId: string,
+    background?: string,
+  ) {
+    const existing = await this.loadOr404(campaignId, characterId);
+    const update = background
+      ? { $set: { background } }
+      : { $unset: { background: '' } };
+    await this.characterModel.findByIdAndUpdate(existing._id, update);
+    return { background: background ? background : null };
+  }
+
   async softDelete(campaignId: string, characterId: string) {
     if (!Types.ObjectId.isValid(characterId)) throw new NotFoundException();
     const result = await this.characterModel.findOneAndUpdate(
@@ -206,6 +237,9 @@ export class CharactersService {
         set.criticalState = s.status.criticalState;
     }
     if (s.resources) set.resources = s.resources;
+    // Background carve-out: present → overwrite; absent → leave the stored
+    // (select:false) value untouched so a background-less full update never wipes it.
+    if (s.background !== undefined) set.background = s.background;
     if (s.inventory) {
       const inv = s.inventory;
       set.inventory = {
@@ -523,6 +557,7 @@ export class CharactersService {
       ).scrubbed;
     if (dto.status) out.status = dto.status;
     if (dto.inventory) out.inventory = dto.inventory;
+    if (dto.background !== undefined) out.background = dto.background;
     return out;
   }
 }

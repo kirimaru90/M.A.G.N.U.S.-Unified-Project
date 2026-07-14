@@ -265,6 +265,13 @@ export class Character {
   @Prop({ type: InventorySectionSchema, default: () => ({}) })
   inventory: InventorySection;
 
+  // --- Background (narrative prose) ---
+  // Hidden on every ordinary read (`select: false`): long/spoiler-ish text that
+  // must not ride along on list rows, sheet loads, or admin pickers. Read only
+  // through the dedicated `GET .../background` handler, which `.select('+background')`s it.
+  @Prop({ type: String, select: false })
+  background?: string;
+
   // --- Soft-delete ---
   @Prop({ default: false })
   isDeleted: boolean;

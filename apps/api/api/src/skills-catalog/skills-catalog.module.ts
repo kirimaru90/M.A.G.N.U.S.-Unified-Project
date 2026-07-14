@@ -16,5 +16,7 @@ import {
   ],
   providers: [SkillsCatalogService, SkillsCatalogBootstrapService],
   controllers: [SkillsCatalogController],
+  // CharactersModule's personal-terminal generator resolves skill slugs to names.
+  exports: [SkillsCatalogService],
 })
 export class SkillsCatalogModule {}

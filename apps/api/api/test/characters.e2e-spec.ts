@@ -128,7 +128,7 @@ describe('CharactersModule (e2e)', () => {
 
   // --- 8.1 Route registration (Swagger) ---
 
-  it('exposes all 12 character routes in Swagger', () => {
+  it('exposes all 19 character routes in Swagger', () => {
     const doc = SwaggerModule.createDocument(
       app,
       new DocumentBuilder().addBearerAuth().build(),
@@ -144,7 +144,7 @@ describe('CharactersModule (e2e)', () => {
         ).length,
       0,
     );
-    expect(operationCount).toBe(12);
+    expect(operationCount).toBe(19);
   });
 
   // --- 8.2 Player self-create + read ---
@@ -524,7 +524,9 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(playerAToken),
       payload: {
         weapons: {
-          items: [{ name: 'Laser Rifle', tags: [{ name: 'ENERGY', type: 'core' }] }],
+          items: [
+            { name: 'Laser Rifle', tags: [{ name: 'ENERGY', type: 'core' }] },
+          ],
         },
       },
     });
@@ -690,5 +692,371 @@ describe('CharactersModule (e2e)', () => {
       headers: auth(playerAToken),
     });
     expect(again.statusCode).toBe(404);
+  });
+
+  // --- Background (hidden field + dedicated endpoint) ---
+
+  describe('background', () => {
+    it('is absent from detail and list, readable via its own endpoint', async () => {
+      const id = await createCharacter(playerAId, 'WithStory');
+
+      // Set it.
+      const patch = await app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+        payload: { background: 'Nato nel Vault 88.' },
+      });
+      expect(patch.statusCode).toBe(200);
+
+      // Detail must not carry `background`.
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}`,
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(detail.body)).not.toHaveProperty('background');
+
+      // List must not carry `background` on any row.
+      const list = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters`,
+        headers: auth(playerAToken),
+      });
+      for (const row of JSON.parse(list.body) as Record<string, unknown>[]) {
+        expect(row).not.toHaveProperty('background');
+      }
+
+      // Dedicated endpoint returns it.
+      const bg = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+      });
+      expect(bg.statusCode).toBe(200);
+      expect(JSON.parse(bg.body)).toEqual({ background: 'Nato nel Vault 88.' });
+    });
+
+    it('reads as null when unset and clears on empty string', async () => {
+      const id = await createCharacter(playerAId, 'NoStory');
+
+      const unset = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(unset.body)).toEqual({ background: null });
+
+      await app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+        payload: { background: 'Storia' },
+      });
+      const cleared = await app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+        payload: { background: '' },
+      });
+      expect(JSON.parse(cleared.body)).toEqual({ background: null });
+    });
+
+    it('is preserved by a PUT that omits it, overwritten when present', async () => {
+      const id = await createCharacter(playerAId, 'PutStory');
+      await app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+        payload: { background: 'Prima storia' },
+      });
+
+      // Full update without background → preserved.
+      await app.inject({
+        method: 'PUT',
+        url: `/campaigns/${campaignId}/characters/${id}`,
+        headers: auth(playerAToken),
+        payload: { name: 'PutStory Renamed' },
+      });
+      const kept = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(kept.body)).toEqual({ background: 'Prima storia' });
+
+      // Full update with background → overwritten.
+      await app.inject({
+        method: 'PUT',
+        url: `/campaigns/${campaignId}/characters/${id}`,
+        headers: auth(playerAToken),
+        payload: { name: 'PutStory Renamed', background: 'Nuova storia' },
+      });
+      const overwritten = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(overwritten.body)).toEqual({
+        background: 'Nuova storia',
+      });
+    });
+
+    it('enforces access control (owner 200, non-owner 404, admin 200, anon 401)', async () => {
+      const id = await createCharacter(playerAId, 'Guarded');
+      const url = `/campaigns/${campaignId}/characters/${id}/background`;
+
+      const owner = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(playerAToken),
+      });
+      expect(owner.statusCode).toBe(200);
+
+      const nonOwner = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(playerBToken),
+      });
+      expect(nonOwner.statusCode).toBe(404);
+
+      const admin = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(adminToken),
+      });
+      expect(admin.statusCode).toBe(200);
+
+      const anon = await app.inject({ method: 'GET', url });
+      expect(anon.statusCode).toBe(401);
+    });
+  });
+
+  // --- Notes (own collection, per-character CRUD) ---
+
+  describe('notes', () => {
+    it('supports full CRUD and isolates notes per character', async () => {
+      const charA = await createCharacter(playerAId, 'NotesA');
+      const charB = await createCharacter(playerAId, 'NotesB');
+      const notesUrl = (cid: string) =>
+        `/campaigns/${campaignId}/characters/${cid}/notes`;
+
+      // Create under A.
+      const created = await app.inject({
+        method: 'POST',
+        url: notesUrl(charA),
+        headers: auth(playerAToken),
+        payload: { title: 'Contatti', note: 'Parlare con Ada.' },
+      });
+      expect(created.statusCode).toBe(201);
+      const note = JSON.parse(created.body);
+      expect(note.id).toBeTruthy();
+      expect(note.title).toBe('Contatti');
+      expect(note.createdAt).toBeTruthy();
+      expect(note.updatedAt).toBeTruthy();
+      expect(note).not.toHaveProperty('_id');
+
+      // List under A returns it.
+      const listA = await app.inject({
+        method: 'GET',
+        url: notesUrl(charA),
+        headers: auth(playerAToken),
+      });
+      expect(
+        (JSON.parse(listA.body) as { id: string }[]).map((n) => n.id),
+      ).toContain(note.id);
+
+      // List under B is empty (isolation).
+      const listB = await app.inject({
+        method: 'GET',
+        url: notesUrl(charB),
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(listB.body)).toHaveLength(0);
+
+      // The note is 404 under B's path.
+      const crossUpdate = await app.inject({
+        method: 'PATCH',
+        url: `${notesUrl(charB)}/${note.id}`,
+        headers: auth(playerAToken),
+        payload: { note: 'x' },
+      });
+      expect(crossUpdate.statusCode).toBe(404);
+
+      // Update under A merges + bumps updatedAt.
+      const updated = await app.inject({
+        method: 'PATCH',
+        url: `${notesUrl(charA)}/${note.id}`,
+        headers: auth(playerAToken),
+        payload: { note: 'Aggiornato.' },
+      });
+      expect(updated.statusCode).toBe(200);
+      expect(JSON.parse(updated.body).note).toBe('Aggiornato.');
+
+      // Delete under A.
+      const deleted = await app.inject({
+        method: 'DELETE',
+        url: `${notesUrl(charA)}/${note.id}`,
+        headers: auth(playerAToken),
+      });
+      expect(deleted.statusCode).toBe(200);
+
+      // Deleting an unknown note → 404.
+      const missing = await app.inject({
+        method: 'DELETE',
+        url: `${notesUrl(charA)}/${note.id}`,
+        headers: auth(playerAToken),
+      });
+      expect(missing.statusCode).toBe(404);
+    });
+
+    it('rejects a note without a title (400)', async () => {
+      const id = await createCharacter(playerAId, 'NoTitle');
+      const res = await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/characters/${id}/notes`,
+        headers: auth(playerAToken),
+        payload: { note: 'senza titolo' },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('enforces access control (non-owner 404, admin ok, anon 401)', async () => {
+      const id = await createCharacter(playerAId, 'GuardedNotes');
+      const url = `/campaigns/${campaignId}/characters/${id}/notes`;
+
+      const nonOwner = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(playerBToken),
+      });
+      expect(nonOwner.statusCode).toBe(404);
+
+      const admin = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(adminToken),
+      });
+      expect(admin.statusCode).toBe(200);
+
+      const anon = await app.inject({ method: 'GET', url });
+      expect(anon.statusCode).toBe(401);
+    });
+  });
+
+  // --- Personal terminal (generated, read-only) ---
+
+  describe('personal terminal', () => {
+    it('returns the load-shaped payload reflecting background and notes', async () => {
+      const id = await createCharacter(playerAId, 'Ada');
+      await app.inject({
+        method: 'PATCH',
+        url: `/campaigns/${campaignId}/characters/${id}/background`,
+        headers: auth(playerAToken),
+        payload: { background: 'Nata nel Vault 88.' },
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/campaigns/${campaignId}/characters/${id}/notes`,
+        headers: auth(playerAToken),
+        payload: { title: 'Contatti', note: 'Parlare con Ada.' },
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/terminal`,
+        headers: auth(playerAToken),
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      // Same shape as GET /terminals/:id/load.
+      expect(Object.keys(body).sort()).toEqual([
+        'content',
+        'globalState',
+        'localState',
+      ]);
+      expect(body.localState).toEqual({});
+      expect(body.globalState).toEqual({});
+      expect(body.content).not.toHaveProperty('login');
+      expect(body.content.meta.public).toBe(false);
+      expect(body.content.meta.title).toBe('SCHEDA PERSONALE — Ada');
+      // start node present and links the sections.
+      expect(body.content.nodes.start).toBeTruthy();
+      // Background + a per-note node reflect current data.
+      expect(body.content.nodes.background.text).toContain(
+        'Nata nel Vault 88.',
+      );
+      const noteNode = Object.keys(body.content.nodes).find((k) =>
+        k.startsWith('note_'),
+      );
+      expect(noteNode).toBeTruthy();
+    });
+
+    it('yields a playable terminal for a character with no notes', async () => {
+      const id = await createCharacter(playerAId, 'Empty');
+      const res = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/terminal`,
+        headers: auth(playerAToken),
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.content.nodes.start).toBeTruthy();
+      expect(body.content.nodes.notes.text).toContain('Nessuna nota.');
+      expect(body.content.nodes.background.text).toContain(
+        'Nessun background registrato.',
+      );
+    });
+
+    it('is read-only: does not modify the character', async () => {
+      const id = await createCharacter(playerAId, 'ReadOnly');
+      const before = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}`,
+        headers: auth(playerAToken),
+      });
+      await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}/terminal`,
+        headers: auth(playerAToken),
+      });
+      const after = await app.inject({
+        method: 'GET',
+        url: `/campaigns/${campaignId}/characters/${id}`,
+        headers: auth(playerAToken),
+      });
+      expect(JSON.parse(after.body).updatedAt).toBe(
+        JSON.parse(before.body).updatedAt,
+      );
+    });
+
+    it('enforces access control (owner 200, non-owner 404, admin 200, anon 401)', async () => {
+      const id = await createCharacter(playerAId, 'GuardedTerminal');
+      const url = `/campaigns/${campaignId}/characters/${id}/terminal`;
+
+      const owner = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(playerAToken),
+      });
+      expect(owner.statusCode).toBe(200);
+
+      const nonOwner = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(playerBToken),
+      });
+      expect(nonOwner.statusCode).toBe(404);
+
+      const admin = await app.inject({
+        method: 'GET',
+        url,
+        headers: auth(adminToken),
+      });
+      expect(admin.statusCode).toBe(200);
+
+      const anon = await app.inject({ method: 'GET', url });
+      expect(anon.statusCode).toBe(401);
+    });
   });
 });
