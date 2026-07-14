@@ -93,6 +93,10 @@ export interface StubOptions {
   speciesCatalog?: typeof DEFAULT_SPECIES_CATALOG;
   starterEquipment?: typeof DEFAULT_STARTER_EQUIPMENT;
   miscCatalog?: typeof DEFAULT_MISC_CATALOG;
+  notes?: Array<{ id: string; title: string; note: string; createdAt: string; updatedAt: string }>;
+  background?: string | null;
+  /** When true the notes/background endpoints 404 (the non-owner case). */
+  notesForbidden?: boolean;
   allowServiceWorker?: boolean;
 }
 
@@ -246,6 +250,48 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     }
     return next;
   }));
+
+  // --- per-character notes collection + background field ---
+  // Registered before the catalogs but after the character routes; their
+  // distinct `/notes`/`/background` suffixes never collide with `/characters/:id`.
+  const notes = opts.notes ? [...opts.notes] : [];
+  let background: string | null = opts.background ?? null;
+  const notesForbidden = opts.notesForbidden ?? false;
+
+  await page.route(/\/characters\/[^/]+\/notes$/, (route) => {
+    if (notesForbidden) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() ?? {};
+      const now = new Date().toISOString();
+      const created = { id: `note-${notes.length + 1}`, title: body.title, note: body.note ?? '', createdAt: now, updatedAt: now };
+      notes.push(created);
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(created) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(notes) });
+  });
+
+  await page.route(/\/characters\/[^/]+\/notes\/[^/]+$/, (route) => {
+    if (notesForbidden) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    const id = new URL(route.request().url()).pathname.split('/').pop();
+    const idx = notes.findIndex((n) => n.id === id);
+    if (route.request().method() === 'DELETE') {
+      if (idx >= 0) notes.splice(idx, 1);
+      return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+    }
+    const body = route.request().postDataJSON() ?? {};
+    if (idx >= 0) notes[idx] = { ...notes[idx], ...body, updatedAt: new Date().toISOString() };
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(idx >= 0 ? notes[idx] : {}) });
+  });
+
+  await page.route(/\/characters\/[^/]+\/background$/, (route) => {
+    if (notesForbidden) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    if (route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON() ?? {};
+      background = body.background ? body.background : null;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ background }) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ background }) });
+  });
 
   await page.route('**/skills-catalog', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(skillsCatalog) }),

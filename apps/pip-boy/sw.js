@@ -43,6 +43,11 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/health.js',
   './src/tabs/gear.js',
   './src/tabs/dice.js',
+  './src/tabs/notes.js',
+  './src/tabs/note-editor.js',
+  './src/tabs/confirm-dialog.js',
+  './src/api/notes.js',
+  './src/sheet/markdown.js',
 ];
 
 // Optional shell assets — cached individually (best-effort) so a single failed

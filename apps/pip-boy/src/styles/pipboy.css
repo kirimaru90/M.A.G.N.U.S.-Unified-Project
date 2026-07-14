@@ -1260,6 +1260,135 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     word-break: break-word;
 }
 
+/* ── NOTES tab: background + note sections ──────────────────────────── */
+
+/* The single background row reads as its own thing, fenced off from the note
+   list by the separator below. */
+.pb-bg-row {
+    border: 1px solid var(--green-border-soft);
+    padding: 10px;
+    cursor: pointer;
+}
+.pb-bg-row:hover { background: var(--green-fill); }
+.pb-bg-snippet {
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pb-notes-sep {
+    border: none;
+    border-top: 1px dashed rgba(51, 255, 102, 0.3);
+    margin: 16px 0 4px;
+}
+.pb-note-list { padding-bottom: 12px; }
+/* Note rows: a full-width control showing title (left) and date (right). */
+.pb-note-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: transparent;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    text-align: left;
+    cursor: pointer;
+}
+.pb-note-row:hover { background: var(--green-fill); }
+.pb-note-row-title {
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pb-note-row-date { flex: none; }
+
+/* ── Shared note/background editor ──────────────────────────────────── */
+
+/* The editable variant of the 80%-surface popup. Title, toolbar and actions are
+   fixed; only the body scrolls. */
+.pb-note-title {
+    flex: none;
+    font-family: var(--font-display);
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin-right: 28px; /* clears the ✕ */
+}
+.pb-input--invalid { border-color: var(--amber-border); box-shadow: var(--amber-glow); }
+
+.pb-note-toolbar {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.pb-note-tool {
+    min-width: 34px;
+    padding: 6px 8px;
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* The contenteditable body: same scroll box as the read-only popup, but it
+   accepts input and shows the subset formatting natively. */
+.pb-note-body {
+    white-space: normal;
+    outline: none;
+    border: 1px solid var(--green-border-soft);
+    padding: 8px;
+    cursor: text;
+}
+.pb-note-body:focus { border-color: var(--green-border); }
+.pb-note-body h2 { font-size: 15px; letter-spacing: 1px; margin: 6px 0; }
+.pb-note-body ul { margin: 6px 0; padding-left: 20px; }
+.pb-note-body blockquote {
+    margin: 6px 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--green-border-soft);
+    opacity: 0.85;
+}
+.pb-note-body p { margin: 6px 0; }
+
+/* Actions row: ELIMINA (left) and SALVA (right) are separated with a real gap. */
+.pb-note-actions {
+    flex: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+.pb-note-actions [data-save] { margin-left: auto; }
+
+/* ── Reusable confirm dialog ────────────────────────────────────────── */
+
+/* Stacks above the editor's own overlay. */
+.pb-confirm-overlay { z-index: 60; }
+.pb-confirm-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 280px;
+    border: 1px solid var(--green-border);
+    background: var(--screen-bg);
+    box-shadow: var(--screen-inner-glow);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.pb-confirm-message {
+    font-size: 13px;
+    line-height: 1.4;
+    text-align: center;
+}
+/* Two separate flex items with a real gap and no shared edge — a mis-tap cannot
+   land on the destructive action. */
+.pb-confirm-actions {
+    display: flex;
+    gap: 16px;
+}
+.pb-confirm-actions .pb-btn { flex: 1; text-align: center; }
+
 /* --- full-screen catalog picker sheet -------------------------------------
    The mobile-readable replacement for the native <datalist>. It opens above the
    add-item popup (which sits at z-index 40), so it takes a higher layer and

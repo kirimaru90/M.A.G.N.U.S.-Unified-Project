@@ -50,3 +50,14 @@ export function patchInventory(campaignId, characterId, body) {
 export function patchResources(campaignId, characterId, body) {
     return apiPatch(`${base(campaignId)}/${characterId}/resources`, body);
 }
+
+// Background is a hidden character field read/written only through its own
+// endpoints, returning/accepting `{ background }` (a markdown string or `null`;
+// an empty string clears it). Owner-or-admin only — `404` for others.
+export function getBackground(campaignId, characterId) {
+    return apiGet(`${base(campaignId)}/${characterId}/background`);
+}
+
+export function patchBackground(campaignId, characterId, { background } = {}) {
+    return apiPatch(`${base(campaignId)}/${characterId}/background`, { background });
+}
