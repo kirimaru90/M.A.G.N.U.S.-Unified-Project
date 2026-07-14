@@ -844,17 +844,25 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-cond-row--neg { border-color: var(--neg-border); color: var(--neg); }
 .pb-cond-row--neg:hover { background: var(--neg-fill); }
 .pb-cond-row--pos { border-color: var(--green-border); color: var(--pos); }
-.pb-cond-sign { font-family: var(--font-display); font-size: 18px; width: 12px; }
-.pb-cond-name { flex: 1; letter-spacing: 1px; }
-.pb-cond-tag { font-size: 9px; opacity: 0.6; letter-spacing: 1px; }
-.pb-cond-remove { opacity: 0.6; }
+.pb-cond-sign { flex: none; font-family: var(--font-display); font-size: 18px; width: 12px; }
+.pb-cond-name { flex: 1; min-width: 0; overflow-wrap: anywhere; letter-spacing: 1px; }
+.pb-cond-tag { flex: none; font-size: 9px; opacity: 0.6; letter-spacing: 1px; }
+.pb-cond-remove { flex: none; opacity: 0.6; }
 
-/* Catalog picker rows: optional polarity accent + weight abbreviation. */
-.pb-picker-row--neg,
-.pb-picker-row--pos { display: flex; align-items: center; gap: 8px; }
-.pb-picker-row--neg { border-color: var(--neg-border); color: var(--neg); }
-.pb-picker-row--pos { border-color: var(--green-border); color: var(--pos); }
-.pb-picker-meta { margin-left: auto; font-size: 10px; opacity: 0.75; letter-spacing: 1px; }
+/* Catalog picker rows: optional polarity accent + weight abbreviation.
+   The compound `.pb-picker-row.pb-picker-row--neg` selector raises specificity
+   above the base `.pb-picker-row` rule (declared far below) so the accent
+   colour/border actually paints regardless of source order. */
+.pb-picker-row.pb-picker-row--neg,
+.pb-picker-row.pb-picker-row--pos { display: flex; align-items: center; gap: 8px; }
+.pb-picker-row.pb-picker-row--neg { border-color: var(--neg-border); color: var(--neg); }
+.pb-picker-row.pb-picker-row--pos { border-color: var(--green-border); color: var(--pos); }
+/* Rows carrying trailing meta and/or an accent lay out as a flex row so the name
+   can shrink/wrap while the meta stays right-aligned. Name-only rows keep the
+   base `display: block`. */
+.pb-picker-row--rich { display: flex; align-items: center; gap: 8px; }
+.pb-picker-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pb-picker-meta { flex: none; margin-left: auto; font-size: 10px; opacity: 0.75; letter-spacing: 1px; }
 
 .pb-preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pb-preset { font-size: 10px; padding: 6px 8px; }

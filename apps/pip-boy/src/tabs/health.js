@@ -54,7 +54,12 @@ function conditionColumn(list, neg, canEdit) {
 }
 
 export function renderHealthTab(container, ctx) {
-    const { character, canEdit, campaignId } = ctx;
+    const { character, canEdit, editMode, campaignId } = ctx;
+    // Structural edits (the MARGINE stepper) show only when the ✎ editor mode is
+    // toggled on, matching the S.P.E.C.I.A.L. / skills / talents / inventory
+    // editors. `+ AGGIUNGI CONDIZIONE` and the condition remove ✕ stay on plain
+    // `canEdit` (per the change's scope).
+    const inEditor = canEdit && editMode;
     const status = character.status ?? { positiveConditions: [], negativeConditions: [] };
 
     const margin = status.margin ?? DEFAULT_MARGIN;
@@ -87,7 +92,7 @@ export function renderHealthTab(container, ctx) {
                 </div>
             `}
 
-        ${canEdit ? `
+        ${inEditor ? `
             <div class="pb-row pb-stepper-row pb-margin-row">
                 <span class="pb-approach-name">MARGINE</span>
                 <div class="pb-stepper" id="pb-margin-stepper">
@@ -96,6 +101,8 @@ export function renderHealthTab(container, ctx) {
                     <button data-dir="1">+</button>
                 </div>
             </div>
+        ` : ''}
+        ${canEdit ? `
             <button class="pb-btn pb-btn--block pb-btn--submit vt" id="pb-cond-add">+ AGGIUNGI CONDIZIONE</button>
         ` : ''}
     `;

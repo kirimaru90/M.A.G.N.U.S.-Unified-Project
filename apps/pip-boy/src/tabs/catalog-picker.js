@@ -57,7 +57,15 @@ export function openCatalogPicker({ title, entries, query = '', allowFreeText = 
         rows.push(...matches.map((e) => {
             const accent = rowAccent ? rowAccent(e) : '';
             const meta = renderMeta ? renderMeta(e) : '';
-            return `<button class="pb-picker-row${accent ? ` ${accent}` : ''}" data-pick="${esc(e.name)}">${esc(e.name)}${meta}</button>`;
+            // Name-only rows (no meta/accent) render the name as a bare text node,
+            // exactly as before. When there is trailing meta or an accent, wrap the
+            // name in `.pb-picker-name` so it can shrink and wrap independently while
+            // the meta stays right-aligned.
+            if (accent || meta) {
+                const cls = `pb-picker-row pb-picker-row--rich${accent ? ` ${accent}` : ''}`;
+                return `<button class="${cls}" data-pick="${esc(e.name)}"><span class="pb-picker-name">${esc(e.name)}</span>${meta}</button>`;
+            }
+            return `<button class="pb-picker-row" data-pick="${esc(e.name)}">${esc(e.name)}</button>`;
         }));
 
         listEl.innerHTML = rows.length === 0
