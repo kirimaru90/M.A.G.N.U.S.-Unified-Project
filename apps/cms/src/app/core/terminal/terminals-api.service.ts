@@ -15,6 +15,16 @@ export class TerminalsApiService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiBaseUrl;
 
+  /**
+   * Remove the server-owned `meta.id` from content before any write. The API injects
+   * `meta.id` on read and rejects a non-empty `meta.id` on input (HTTP 400), so every
+   * create/import/update path must strip it first.
+   */
+  private stripServerOwned(content: TerminalContent): TerminalContent {
+    const { id: _drop, ...meta } = content.meta;
+    return { ...content, meta };
+  }
+
   listByCampaign(campaignId: string): Observable<TerminalDto[]> {
     return this.http
       .get<TerminalListItem[]>(`${this.base}/campaigns/${campaignId}/terminals`)
@@ -22,13 +32,16 @@ export class TerminalsApiService {
   }
 
   create(campaignId: string, content: TerminalContent): Observable<TerminalDto> {
-    return this.http.post<TerminalDto>(`${this.base}/campaigns/${campaignId}/terminals`, content);
+    return this.http.post<TerminalDto>(
+      `${this.base}/campaigns/${campaignId}/terminals`,
+      this.stripServerOwned(content),
+    );
   }
 
   import(campaignId: string, content: TerminalContent): Observable<TerminalDto> {
     return this.http.post<TerminalDto>(
       `${this.base}/campaigns/${campaignId}/terminals/import`,
-      content,
+      this.stripServerOwned(content),
     );
   }
 
@@ -57,7 +70,10 @@ export class TerminalsApiService {
   }
 
   update(id: string, content: TerminalContent): Observable<TerminalDetailEnvelope> {
-    return this.http.put<TerminalDetailEnvelope>(`${this.base}/terminals/${id}`, content);
+    return this.http.put<TerminalDetailEnvelope>(
+      `${this.base}/terminals/${id}`,
+      this.stripServerOwned(content),
+    );
   }
 
   export(id: string): Observable<TerminalContent> {

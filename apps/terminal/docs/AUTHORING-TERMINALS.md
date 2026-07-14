@@ -48,16 +48,16 @@ author these as choices.**
 
 ## 2. The import file format (READ THIS FIRST)
 
-The file you produce and import is the **content object itself** — the four keys
+The file you produce and import is the **content object itself** — up to four keys
 `meta`, `state`, `login`, `nodes` at the **top level**. Do **not** wrap them in a
 `content` object, and do **not** include `localState` / `globalState`:
 
 ```jsonc
 {
-  "meta":  { /* identity — §3 */ },
-  "state": { /* variable declarations — §4 */ },
-  "login": { /* terminal-wide fictional users — §5 */ },
-  "nodes": { /* the graph, keyed by node id — §6 */ }
+  "meta":  { /* identity — §3 (required) */ },
+  "state": { /* variable declarations — §4 (optional) */ },
+  "login": { /* terminal-wide fictional users — §5 (optional) */ },
+  "nodes": { /* the graph, keyed by node id — §6 (required) */ }
 }
 ```
 
@@ -65,8 +65,6 @@ The file you produce and import is the **content object itself** — the four ke
 > If the importer reports `Il file non è un terminale valido:` followed by:
 > ```
 > meta: Invalid input: expected object, received undefined
-> state: Invalid input: expected object, received undefined
-> login: Invalid input: expected object, received undefined
 > nodes: Invalid input: expected record, received undefined
 > ```
 > …your file is **wrapped in a `content` envelope**. The importer validates the *content
@@ -75,27 +73,30 @@ The file you produce and import is the **content object itself** — the four ke
 > `globalState` is the *runtime* shape the API serves to the player — never the import
 > file.)
 
-**All four top-level keys are required.** The importer validates against
-`TerminalContentSchema` ([`apps/cms/src/app/domain/terminal-schema.ts`](../../cms/src/app/domain/terminal-schema.ts)).
-Even when a terminal has no state or no login, the keys must still be present with empty
-containers:
+**Only `meta` and `nodes` are required; `state` and `login` are optional.** The importer
+validates against `TerminalContentSchema`
+([`apps/cms/src/app/domain/terminal-schema.ts`](../../cms/src/app/domain/terminal-schema.ts)),
+which matches the API: an omitted `state` / `login` is filled with a neutral default rather
+than rejected.
 
-- `state` **must** have both `local` and `global` (each an object; use `{}` when empty).
-- `login` **must** have `users` (an array; use `[]` when empty).
+- `meta` **must** be present and include a non-empty `title`.
 - `nodes` **must** contain **at least one** node.
+- `state` is **optional**; omit it and it defaults to `{ "local": {}, "global": {} }`. When
+  present, both `local` and `global` are objects (`{}` when empty).
+- `login` is **optional**; omit it and it defaults to `{ "users": [] }`. When present it
+  has a `users` array (`[]` when empty).
 
 Hard rule for playback: **`nodes` must contain a node with id `"start"`.** The engine
 enters `start` first; a missing `start` is a fatal load error (`Nodo 'start' mancante`).
 (The schema only checks "≥1 node"; the `start` requirement is enforced at play time, so
 the CMS may accept a startless file that then fails to play.)
 
-The absolute minimum importable file:
+The absolute minimum importable file — only `meta.title` and `nodes` (with a `start`
+node); `state`, `login`, and `meta.public` are filled by defaults:
 
 ```json
 {
-  "meta":  { "title": "Terminale minimo", "public": true },
-  "state": { "local": {}, "global": {} },
-  "login": { "users": [] },
+  "meta":  { "title": "Terminale minimo" },
   "nodes": {
     "start": { "text": "Ciao, mondo.", "choices": [] }
   }
@@ -112,9 +113,11 @@ The absolute minimum importable file:
    `path: message` (e.g. `nodes.porta.choices.0.target: Required`).
 4. Click **Importa** to create the terminal in the current campaign.
 
-The file limit is **1 MB**. The importer strips/ignores `meta.id`; keep it out of your
-file (see §3). Export (terminal detail → **Esporta**) produces a file in exactly this
-same top-level shape, so exports round-trip straight back through import.
+The file limit is **1 MB**. The CMS **strips a server-owned `meta.id` before every write**
+(create, import, and save), so a file that carries `meta.id` imports cleanly instead of
+being rejected by the API — but you should still keep it out of your file (see §3). Export
+(terminal detail → **Esporta**) produces a file in exactly this same top-level shape, so
+exports round-trip straight back through import.
 
 ---
 
@@ -123,7 +126,7 @@ same top-level shape, so exports round-trip straight back through import.
 ```jsonc
 "meta": {
   "title":    "Terminale Sicurezza — Vault 88",  // required, shown in the terminal list
-  "public":   true,                              // listed publicly vs. hidden-access only
+  "public":   true,                              // optional; omitted = hidden-access only
   "hiddenId": "super-duper-admin"                // optional: secret code for hidden access
 }
 ```
@@ -131,9 +134,9 @@ same top-level shape, so exports round-trip straight back through import.
 | Field | Required | Notes |
 |---|---|---|
 | `title` | yes | Display label (Italian). Min length 1. |
-| `public` | yes | `false` = only reachable via the hidden-terminal code path. |
+| `public` | no | Optional, defaults to hidden (`false`). `false`/omitted = only reachable via the hidden-terminal code path; `true` = listed publicly. |
 | `hiddenId` | no | Secret access code. Omit the key entirely if unused (don't emit `""`). |
-| `id` | **never author** | Server-owned. Used internally for state endpoints. Do **not** include it — it is not serialized back on save. |
+| `id` | **never author** | Server-owned. Used internally for state endpoints. Never author it — the CMS strips a server-owned `meta.id` before every write (create/import/save), so a stray or loaded `id` is removed for you instead of causing an error. |
 
 `meta.id` (not `hiddenId`) is what the engine uses to scope **local** state mutations.
 You don't write it, but know it exists: local state belongs to *this terminal*, global
@@ -174,8 +177,9 @@ rejects type mismatches. There are two scopes:
 | `enum` | one of `values` | `values: string[]` (required, ≥1) | `set` (value must be a declared member) |
 
 Rules:
-- **Both `local` and `global` keys are required** by the import schema — even when a
-  scope has no variables, emit it as `{}`. A missing scope fails validation.
+- **The whole `state` key is optional** — omit it and it defaults to
+  `{ "local": {}, "global": {} }` (a stateless terminal). When you *do* include `state`,
+  emit both `local` and `global` (each an object; use `{}` for a scope with no variables).
 - Names are unique **within a scope** (`local.x` and `global.x` may coexist).
 - An `enum`'s `default` must be one of its `values`.
 - A terminal with **no declared variables** (`"state": { "local": {}, "global": {} }`)
@@ -187,8 +191,9 @@ Rules:
 
 ## 5. `login` — access gating
 
-The top-level `login` key is **always required** (§2). Use `{ "users": [] }` when the
-terminal has no login. Two independent gates, both otherwise optional:
+The top-level `login` key is **optional** (§2) — omit it and it defaults to
+`{ "users": [] }` (no login). Include it as `{ "users": [] }` explicitly if you prefer.
+Two independent gates, both optional:
 
 ### Terminal-wide login (top-level `login`)
 Declared once. Holds the credential registry (cleartext — this is a fiction, not real
@@ -504,10 +509,12 @@ fight them (e.g. no rapidly "flashing" text written as many near-duplicate nodes
 
 Before considering a terminal done:
 
-- [ ] **Top level is `{ meta, state, login, nodes }` — NO `content` wrapper, no
-      `localState`/`globalState`.**
-- [ ] `state` has **both** `local` and `global` (each an object, `{}` if empty).
-- [ ] `login` is present with a `users` array (`[]` if empty).
+- [ ] **Top level is `{ meta, nodes }` (with optional `state`, `login`) — NO `content`
+      wrapper, no `localState`/`globalState`.**
+- [ ] `state` is either omitted (defaults to `{ local: {}, global: {} }`) or, when present,
+      has **both** `local` and `global` (each an object, `{}` if empty).
+- [ ] `login` is either omitted (defaults to `{ users: [] }`) or, when present, has a
+      `users` array (`[]` if empty).
 - [ ] `nodes` has ≥1 node, and `nodes.start` exists.
 - [ ] Every `increment` mutation includes an explicit `by`.
 - [ ] Ran **Controlla JSON** in the import dialog and it reports *JSON valido*.
@@ -522,7 +529,8 @@ Before considering a terminal done:
 - [ ] At most one `default: true` per `variants` array and per input `branches` array.
 - [ ] Per-node `login.users` names all exist in `content.login.users`.
 - [ ] Want a per-node/sub-section login but **no** prompt at boot? Set `login.gateOnBoot: false` on the root `login` (§5).
-- [ ] `meta.id` is **not** present; `meta.title` is non-empty; empty `hiddenId` is omitted.
+- [ ] `meta.title` is non-empty; empty `hiddenId` is omitted. Don't author `meta.id` — but
+      if a stray or loaded `id` remains, the CMS strips it on every write, so it won't 400.
 - [ ] Content is Italian, monochrome-safe, and in RobCo voice.
 
 ---

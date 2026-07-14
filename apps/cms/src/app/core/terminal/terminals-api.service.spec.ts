@@ -16,6 +16,15 @@ function baseContent(): TerminalContent {
   } as TerminalContent;
 }
 
+function contentWithMetaId(): TerminalContent {
+  return {
+    meta: { id: 'srv-42', title: 'guida', public: true },
+    state: { local: {}, global: {} },
+    login: { users: [{ username: 'tecnico' }] },
+    nodes: { start: { text: 'hi' } },
+  } as TerminalContent;
+}
+
 function baseEnvelope(): TerminalDetailEnvelope {
   return {
     id: 't1',
@@ -68,5 +77,35 @@ describe('TerminalsApiService', () => {
     expect(result).toBeDefined();
     expect(result?.content).toEqual(envelope.content);
     expect(result?.fictionalUsers).toEqual(envelope.fictionalUsers);
+  });
+
+  it('create strips a server-owned meta.id from the posted body', () => {
+    service.create('c1', contentWithMetaId()).subscribe();
+
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/campaigns/c1/terminals`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.meta).not.toHaveProperty('id');
+    expect(req.request.body.meta.title).toBe('guida');
+    req.flush(baseEnvelope());
+  });
+
+  it('import strips a server-owned meta.id from the posted body', () => {
+    service.import('c1', contentWithMetaId()).subscribe();
+
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/campaigns/c1/terminals/import`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.meta).not.toHaveProperty('id');
+    expect(req.request.body.meta.title).toBe('guida');
+    req.flush(baseEnvelope());
+  });
+
+  it('update strips a server-owned meta.id from the put body', () => {
+    service.update('t1', contentWithMetaId()).subscribe();
+
+    const req = httpMock.expectOne(`${environment.apiBaseUrl}/terminals/t1`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body.meta).not.toHaveProperty('id');
+    expect(req.request.body.meta.title).toBe('guida');
+    req.flush(baseEnvelope());
   });
 });

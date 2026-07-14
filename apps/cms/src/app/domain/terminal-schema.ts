@@ -11,7 +11,9 @@ export const MetaSchema = z.object({
   // enforced when present). Round-trips on import/export and is the only id surfaced in the UI.
   hiddenId: z.string().optional(),
   title: z.string().min(1),
-  public: z.boolean(),
+  // Optional and server-aligned: an absent `public` means a hidden terminal, matching the
+  // API, which normalizes `meta.public` to `false` when omitted.
+  public: z.boolean().default(false),
 });
 
 // ── State variables ───────────────────────────────────────────────────────────
@@ -159,8 +161,10 @@ export const TerminalNodeSchema = z.object({
 
 export const TerminalContentSchema = z.object({
   meta: MetaSchema,
-  state: StateDeclarationSchema,
-  login: LoginBlockSchema,
+  // Optional with neutral defaults, matching the API, which treats an absent `state` as no
+  // declared variables and an absent `login` as no fictional users.
+  state: StateDeclarationSchema.default({ local: {}, global: {} }),
+  login: LoginBlockSchema.default({ users: [] }),
   nodes: z
     .record(z.string(), TerminalNodeSchema)
     .refine((map) => Object.keys(map).length > 0, {

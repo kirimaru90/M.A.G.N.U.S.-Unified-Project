@@ -63,3 +63,105 @@ describe('LoginBlockSchema gateOnBoot', () => {
     expect(parsed.login.users[0].username).toBe('Tecnico_Addetto');
   });
 });
+
+describe('TerminalContentSchema optional fields with neutral defaults', () => {
+  it('omitting state parses and yields { local: {}, global: {} }', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      login: { users: [] },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toEqual({ local: {}, global: {} });
+    }
+  });
+
+  it('omitting login parses and yields { users: [] }', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      state: { local: {}, global: {} },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.login).toEqual({ users: [] });
+    }
+  });
+
+  it('omitting meta.public parses and yields public: false', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      state: { local: {}, global: {} },
+      login: { users: [] },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.meta.public).toBe(false);
+    }
+  });
+
+  it('parses content omitting meta.id, and content including meta.id (id optional, not required)', () => {
+    const without = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      state: { local: {}, global: {} },
+      login: { users: [] },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(without.success).toBe(true);
+    if (without.success) {
+      expect(without.data.meta.id).toBeUndefined();
+    }
+
+    const withId = TerminalContentSchema.safeParse({
+      meta: { id: 'srv-1', title: 'T' },
+      state: { local: {}, global: {} },
+      login: { users: [] },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(withId.success).toBe(true);
+    if (withId.success) {
+      expect(withId.data.meta.id).toBe('srv-1');
+    }
+  });
+
+  it('minimal file (only meta.title + nodes.start) parses with all defaults applied and meta.id absent', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'Minimo' },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toEqual({ local: {}, global: {} });
+      expect(result.data.login).toEqual({ users: [] });
+      expect(result.data.meta.public).toBe(false);
+      expect(result.data.meta.id).toBeUndefined();
+    }
+  });
+
+  it('regression: a fully-populated file still parses to the same normalized shape', () => {
+    const full = {
+      meta: { id: 'srv-9', title: 'Completo', public: true },
+      state: { local: { flag: { type: 'boolean', default: true } }, global: {} },
+      login: { users: [{ username: 'alice', password: 'wonderland' }] },
+      nodes: { start: { text: 'hi', choices: [] } },
+    };
+    const result = TerminalContentSchema.safeParse(full);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual(full);
+    }
+  });
+
+  it('regression: empty meta.title is still rejected', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: '' },
+      nodes: { start: { text: 'x', choices: [] } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path.join('.') === 'meta.title')).toBe(true);
+    }
+  });
+});

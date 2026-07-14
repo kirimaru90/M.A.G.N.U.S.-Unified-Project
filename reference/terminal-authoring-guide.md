@@ -1,478 +1,549 @@
 ---
-version: 1.3
-date: 2026-07-12
+version: 2.0
+date: 2026-07-14
+audience: AI agent authoring terminal content
 ---
 
-# How to Write a Terminal JSON File
+# How to Write a Terminal (Guide for an AI Author)
 
-> **Purpose.** Step-by-step instructions for creating a JSON file that describes one
-> Terminal, conforming to the rules the MAGNUS API enforces. Written to be followed by
-> a human or an AI agent.
->
-> **Where this JSON is used.** The same JSON is the body for:
-> - `POST /campaigns/:id/terminals` (create)
-> - `POST /campaigns/:id/terminals/import` (import — identical handling to create)
-> - `PUT /terminals/:id` (update)
->
-> And it is the shape produced by `POST /terminals/:id/export`.
->
-> **Authoritative sources** (read these if something here is ambiguous):
-> [AUTHORING-TERMINALS.md](../apps/terminal/docs/AUTHORING-TERMINALS.md) (content schema,
-> condition/variant syntax, playback timing) and
-> [openapi.json](../apps/packages/api-spec/openapi.json) (the API spec).
-> Validation code: [terminal-content.dto.ts](../apps/api/api/src/terminals/dto/terminal-content.dto.ts)
-> (create/import/update body), [mutation.dto.ts](../apps/api/api/src/state/dto/mutation.dto.ts)
-> (state-endpoint mutations), and
-> [terminals.service.ts](../apps/api/api/src/terminals/terminals.service.ts) (`validateNodeGraph`,
-> the one `nodes`-level check done at create/update — see §1).
+> **You are writing the *content* of an in-game computer terminal.** Not code, not
+> styling, not engine internals — the branching script the terminal plays back. This guide
+> tells you the world it lives in, the voice it must speak in, and the exact JSON shape you
+> must produce to use every feature. If a rule here seems to be about servers, databases, or
+> endpoints, it has been left out on purpose: you don't need it. You need the story and the
+> structure.
 
 ---
 
-## 1. The big picture
+## 1. What you are making
 
-A Terminal JSON file has exactly **four top-level keys**:
+**MAGNUS** is a Fallout-themed, Italian-language tabletop RPG. Inside its fiction, players
+sit down at salvaged **RobCo Industries** computer terminals (in-universe: an *olonastro* /
+holotape) scattered through vaults, bunkers, shops, and ruins of the wasteland. Reading a
+terminal *is* a scene: the player boots it, maybe logs in, and walks a branching graph of
+screens — each printing text and offering buttons, a code prompt, or a dead end.
+
+Your job is to write **one such terminal** as a single JSON file. The game engine supplies
+the look and feel (green phosphor glow, scanlines, character-by-character typing, sound).
+**You supply the text, the branching, the logic, and the tone.**
+
+```
+ boot ─▶ [login?] ─▶ node "start"
+                         │
+        ┌────────────────┼─────────────────┐
+        ▼                ▼                  ▼
+    choices[]       input prompt         dead end
+  (label→target)  (type value→branch)  (system buttons only)
+        │                │
+        ▼                ▼
+   another node ◀────────┘
+```
+
+**The engine injects the system buttons itself** — `[ Torna al menu precedente ]` (back),
+`[ disconnetti terminale ]` (disconnect), `[ INVIA ]` (submit an input). **Never write these
+as choices.** They always appear on their own.
+
+---
+
+## 2. Two rules that override everything
+
+1. **Everything the player reads is in Italian.** Titles, screen text, button labels, code
+   prompts — all Italian. The surrounding system strings the engine shows are Italian too
+   (`ESTRAZIONE DATI IN CORSO...`, `Utente X connesso`), so your content has to match them.
+
+2. **The screen is a single-color CRT.** The whole terminal renders in one phosphor color
+   (green by default, sometimes amber or white — the *player* chooses). **Never make meaning
+   depend on color.** Don't write "the text in red is the warning." Carry emphasis with
+   words, `##` banners, UPPERCASE, `⚠`, and `---` rules instead.
+
+Break either of these and the terminal stops feeling like a terminal.
+
+---
+
+## 3. The style it must be written in
+
+You are writing into a retro-futurist **RobCo / Fallout** machine. The engine enforces the
+look; you match the voice and the constraints.
+
+- **Voice.** Terse, corporate/military log style. RobCo lore-accurate: "RobCo Industries",
+  Vault-Tec, in-universe dates around 2077, wasteland framing. UPPERCASE headings for system
+  banners (`## ACCESSO NEGATO`, `## PORTA BLINDATA`). Choices are short imperatives
+  (`Apri la porta`, `Ignora`, `Disconnetti`) — the engine prepends `> ` for you.
+- **Markdown text.** Node text is Markdown, then typed out on screen. Use `#`/`##`/`###`
+  headings (they render UPPERCASE — perfect for banners), `**bold**`, `*italic*`, lists,
+  `> blockquote`, and `---` rules. A blank line (`\n\n` in the JSON string) is a paragraph
+  break. **Avoid** images, colored HTML, and links — they break the illusion.
+- **Monospace layout.** The font is fixed-width, so ASCII boxes and tables line up. Use them
+  for RobCo flavor:
+  ```
+  +========================================+
+  |  ROBCO INDUSTRIES (TM) TERMLINK        |
+  |  STATO REATTORE.......... [ NOMINALE ] |
+  +========================================+
+  ```
+- **Typewriter economy.** First visit to a screen types out character-by-character with
+  sound — long bodies take real seconds. Revisits appear instantly. Keep each node to a
+  screen or two; break long lore across several nodes rather than one wall of text.
+- **Motion and sound are automatic.** Scanlines, flicker, hover/click sounds, reduced-motion
+  handling are all engine-side. Don't author them, and don't fight them (no "flashing" faked
+  with many near-duplicate nodes).
+
+---
+
+## 4. The file shape
+
+The file is one JSON object with up to four top-level keys. Do **not** wrap them in a
+`content` object, and do not add `localState` / `globalState` — those belong to the running
+engine, never to your file.
+
+```jsonc
+{
+  "meta":  { /* identity — §5 */ },
+  "state": { /* variables you read/write — §6 (optional) */ },
+  "login": { /* fictional credentials — §7 (optional) */ },
+  "nodes": { /* the screens — §8 (required) */ }
+}
+```
+
+| Key | Do you need it? | What it is |
+|---|---|---|
+| `meta` | **Required** | The terminal's title and visibility. Must include `title`. |
+| `nodes` | **Required** | The screens. Must contain a node whose id is `start`. |
+| `state` | Optional | Declares variables. Omit it and the terminal simply has none. |
+| `login` | Optional | Fictional logins. Omit it and nothing is gated. |
+
+> **On "optional".** `state` and `login` are genuinely optional — a terminal with neither is
+> valid. When you *do* include one, give it its neutral empty form rather than a half-filled
+> one: `"state": { "local": {}, "global": {} }` and `"login": { "users": [] }`. If you are
+> unsure, including both empty is always safe.
+
+**The smallest valid terminal:**
 
 ```json
 {
-  "meta":  { },
-  "state": { },
-  "login": { },
-  "nodes": { }
-}
-```
-
-| Key     | Required? | What it is                                                        |
-| ------- | --------- | ---------------------------------------------------------------- |
-| `meta`  | **Yes**   | Title + visibility flags.                                         |
-| `state` | No        | Declares the variables this terminal can read/write.             |
-| `login` | No        | Fictional (in-story) credentials that gate content.              |
-| `nodes` | **Yes**   | The screens of the terminal. Must contain a `start` node.        |
-
-> **What the API validates.** `meta`, `state`, and `login` are strictly validated on
-> create/import/update. The `nodes` object is stored almost as-is, with **one** structural
-> check: `validateNodeGraph` scans every `choices[].target` (including inside `variants[]`)
-> and rejects the whole request with **HTTP 400** if any points at a node id that doesn't
-> exist ("dangling choice targets"). Everything else inside `nodes` is **not** caught at
-> create time — input-component `branches[].target`, the presence of a `start` node, and the
-> shape/type-correctness of `on_enter`/`set` mutations all surface later, at playback or when
-> a mutation is sent to the state endpoints and rejected. Follow the `nodes` rules below
-> carefully; apart from choice targets, nobody will catch them for you up front.
-
----
-
-## 2. `meta` — required
-
-```json
-"meta": {
-  "title": "Super-Duper Mart - Terminale Amministrativo",
-  "public": true,
-  "hiddenId": "super-duper-admin"
-}
-```
-
-| Field      | Type    | Required | Rule                                                                                  |
-| ---------- | ------- | -------- | ------------------------------------------------------------------------------------- |
-| `title`    | string  | **Yes**  | Display name.                                                                          |
-| `public`   | boolean | No       | `true` = shown as a visible button. `false`/omitted = hidden, reachable only via `hiddenId`. |
-| `hiddenId` | string  | No       | Human-authored slug for hidden-terminal lookup. Must be **unique within the campaign** (only enforced when present). Omit it and the terminal cannot be resolved by slug. |
-
-**Do NOT include `meta.id`.** It is server-owned and injected on every read. Sending
-`meta.id` on create/import/update returns **HTTP 400**. (Exports also strip it, so an
-exported file re-imports cleanly.)
-
----
-
-## 3. `state` — optional, but declare every variable you use
-
-Every variable referenced anywhere in `nodes` (in a `when` condition, an `on_enter`,
-a choice `set`, or an input `set`) **must be declared here first**. The API rejects any
-mutation targeting an undeclared variable with **HTTP 400**.
-
-```json
-"state": {
-  "local": {
-    "bunker_code_seen": { "type": "boolean", "default": false },
-    "access_count":     { "type": "number",  "default": 0 },
-    "entered_code":     { "type": "string",  "default": "" },
-    "sullivan_mood":    { "type": "enum", "values": ["calm","paranoid","panicked"], "default": "calm" }
-  },
-  "global": {
-    "omega_activated":  { "type": "boolean", "default": false }
+  "meta":  { "title": "Terminale minimo" },
+  "nodes": {
+    "start": { "text": "Ciao, mondo.", "choices": [] }
   }
 }
 ```
 
-### Two scopes
-
-| Scope    | Lives where           | Use for                                                        |
-| -------- | --------------------- | ------------------------------------------------------------- |
-| `local`  | This terminal only    | Per-terminal progress (codes seen, counters, typed input).    |
-| `global` | The whole campaign    | World state shared across terminals (events, flags).          |
-
-`local.foo` and `global.foo` are **different variables**. In `nodes`, you always refer to
-a variable with its scope prefix: `local.access_count`, `global.omega_activated`.
-
-### Each variable declaration
-
-| Field     | Type           | Required          | Rule                                                                 |
-| --------- | -------------- | ----------------- | ------------------------------------------------------------------- |
-| `type`    | string         | **Yes**           | One of `boolean`, `number`, `enum`, `string`. Nothing else.         |
-| `default` | matches `type` | Recommended       | Initial value **and** the reset value. If omitted, it becomes `null`. |
-| `values`  | string[]       | **enum only**     | The allowed values. A `set` to anything outside this list is rejected (400). |
-
-> **Global state is first-declaration-wins.** The first terminal imported that declares a
-> given global variable sets its type and default. Later terminals re-declaring the same
-> global name do **not** overwrite the existing value — they just reuse it. Keep type and
-> default consistent across terminals to avoid confusion.
+**Never author `meta.id`.** It is owned by the system and filled in for you; putting it in
+your file is an error. (Exports strip it, so an exported terminal re-imports cleanly.)
 
 ---
 
-## 4. `login` — optional fictional credentials
+## 5. `meta` — identity
 
-In-story usernames/passwords used as narrative puzzles. These gate a node or the whole
-terminal.
+```jsonc
+"meta": {
+  "title":    "Terminale Sicurezza — Vault 88",  // required, Italian, shown in the list
+  "public":   true,                              // optional; omitted = hidden
+  "hiddenId": "vault88-admin"                    // optional; secret access code
+}
+```
 
-```json
+| Field | Need it? | Rule |
+|---|---|---|
+| `title` | **Yes** | Non-empty Italian display name. |
+| `public` | No | `true` = a visible button in the terminal list. Omitted or `false` = hidden; reachable only by someone who knows its `hiddenId`. |
+| `hiddenId` | No | Secret slug for hidden access, unique within the campaign. Omit the key entirely if unused — do not send `""`. |
+| `id` | **Never** | System-owned. Do not author it. |
+
+---
+
+## 6. `state` — variables (optional)
+
+If any screen reads or writes a variable, declare it here first. There are two scopes:
+
+- **`local`** — private to *this* terminal. Per-terminal flags, entered codes, counters.
+- **`global`** — shared across the whole *campaign*. Cross-terminal progress, world flags,
+  karma. `local.x` and `global.x` are different variables.
+
+```jsonc
+"state": {
+  "local": {
+    "access_count": { "type": "number",  "default": 0 },
+    "entered_code": { "type": "string",  "default": "" },
+    "alarm_active": { "type": "boolean", "default": false },
+    "door_state":   { "type": "enum", "values": ["locked", "open"], "default": "locked" }
+  },
+  "global": {
+    "karma": { "type": "number", "default": 0 }
+  }
+}
+```
+
+| `type` | `default` | extra | you change it with |
+|---|---|---|---|
+| `boolean` | `true` / `false` | — | `set`, `toggle` |
+| `number` | a number | — | `set`, `increment` |
+| `string` | a string | — | `set` (usually from an input prompt) |
+| `enum` | one of `values` | `values`: a non-empty string list | `set` (value must be a listed member) |
+
+Rules:
+- **`default` is optional** but recommended — it is both the starting value and the reset
+  value. Omit it and the variable starts empty (`null`).
+- An `enum`'s `default` must be one of its `values`.
+- Refer to a variable everywhere with its scope prefix: `local.access_count`,
+  `global.karma`.
+- **Global is first-declaration-wins.** The first terminal in a campaign to declare a global
+  variable fixes its type and default; later terminals reusing that name inherit the existing
+  value. Keep type and default consistent across terminals.
+- If you write to a variable you never declared, that write fails silently at play time —
+  declare everything you touch.
+
+---
+
+## 7. `login` — fictional credentials (optional)
+
+In-story usernames and passwords used as **narrative puzzles**, not real security (they are
+stored in the clear). Two independent jobs; both optional.
+
+### Terminal-wide login (top-level `login`)
+
+Holds the credential registry. If it has at least one user, by default it also forces a login
+prompt **before `start`**, gating the whole terminal.
+
+```jsonc
 "login": {
   "users": [
-    { "username": "Re_Del_Cram", "password": "58874645" }
+    { "username": "overseer", "password": "88" },
+    { "username": "ada",      "password": "lovelace" }
   ]
 }
 ```
 
-- `users` is an array of `{ "username": string, "password": string }`. On **create**, each
-  user needs a password. On **update** the password is optional: a blank/omitted password
-  **keeps** the existing stored password for a known username, while a brand-new username with
-  no password is rejected (**HTTP 400**).
-- Passwords are stored **separately and stripped from every read**. On `GET /terminals/:id/load`
-  the client still receives the **usernames** (`login.users: [ { "username": "..." } ]`, no
-  `password` field) — it is not emptied to `[]`. Players authenticate by POSTing to
-  `/terminals/:id/fictional-login`; the server checks. **Never** rely on the client seeing
-  the password.
-- To gate a node, reference these usernames from a node's `login` block (see §5.5).
+**Registry vs. boot prompt — `gateOnBoot`.** The root `login` does two things: it is the
+registry other gates draw usernames from, *and* it is the boot prompt. Separate them with
+`login.gateOnBoot` (optional boolean, default `true`):
 
-**Two roles, one block: registry vs. boot gate.** The top-level `login` block plays two
-independent parts:
+- `true` or omitted → a non-empty registry prompts before `start` (the usual behavior).
+- `false` → the registry still exists for per-node gates and the login dropdown, but the
+  terminal does **not** prompt at boot.
 
-1. **Credential registry** — the usernames/passwords the server validates. Per-node gates
-   (§5.5) and the login dropdown can only reference usernames declared here.
-2. **Boot gate** — historically, a non-empty root registry *also* forced a login prompt
-   before `start`, gating the whole terminal.
-
-`login.gateOnBoot` (optional boolean, default `true`) decouples the two:
-
-- `true` or **omitted** → a non-empty registry gates the terminal before `start` (the
-  historical behaviour; every existing terminal is unchanged).
-- `false` → the registry still exists (per-node gates and the dropdown keep working), but
-  the terminal does **not** prompt for login at boot.
-
-`gateOnBoot` is meaningful **only** on the root `login` block; on a node's `login` it is
-ignored (node gating always fires when the node is entered).
-
-**Credentials without a boot prompt** — declare users but gate only a sub-section:
-
-```json
+```jsonc
 "login": {
   "gateOnBoot": false,
   "users": [ { "username": "Tecnico_Addetto", "password": "robco123" } ]
 }
 ```
 
-Then reference `Tecnico_Addetto` from a per-node `login` block (§5.5). Readers reach `start`
-directly and only hit the login prompt when they enter the gated node.
+With `gateOnBoot: false`, players reach `start` directly and only meet the prompt when they
+enter a node that names `Tecnico_Addetto`. (`gateOnBoot` is meaningful only on the root
+`login`; on a node it is ignored. A boot prompt with no users is impossible to satisfy, so an
+empty registry is simply dropped.)
 
-> A boot gate with **no** credentials is unsatisfiable, so a `login` that has `gateOnBoot`
-> but an empty/absent `users` list is dropped entirely on read (no login is served).
+### Per-node login (a node's own `login`)
 
----
+Gates one screen. Its `users` is a list of **usernames** (strings) that must already exist in
+the top-level registry — no passwords here.
 
-## 5. `nodes` — required (the actual content)
-
-`nodes` is an object mapping a **node id** to a **node**. Node ids are your own slugs
-(`start`, `porta_bunker`, `codice_errato`, …).
-
-```json
-"nodes": {
-  "start": { },
-  "porta_bunker": { },
-  "codice_errato": { }
-}
-```
-
-**Rule: there must be a node with id `start`.** Playback always begins at `start`. There
-is no "resume"; per-player progress is not tracked.
-
-A node comes in one of **two shapes** — pick one per node:
-
-### 5.1 Simple node
-
-```json
-"start": {
-  "text": "Benvenuto nel terminale.",
-  "on_enter": [
-    { "key": "local.access_count", "op": "increment", "by": 1 }
-  ],
-  "choices": [
-    { "label": "[ Continua ]", "target": "menu" }
-  ]
-}
-```
-
-| Field        | Type     | Required | Meaning                                                          |
-| ------------ | -------- | -------- | --------------------------------------------------------------- |
-| `text`       | string   | Yes\*    | The screen text. Markdown is allowed (e.g. `**bold**`).         |
-| `on_enter`   | mutation[] | No     | Mutations applied when the player enters this node (§5.6).       |
-| `choices`    | choice[] | No       | Buttons to other nodes (§5.3).                                  |
-| `components` | component[] | No    | Input fields (§5.4).                                            |
-| `login`      | object   | No       | Gate this node behind fictional login (§5.5).                   |
-
-\* `text` is required unless the node uses `variants` instead (next).
-
-### 5.2 Variant node (conditional screen)
-
-Use `variants` when the screen should differ based on state. The Terminal evaluates each
-variant's `when` against the current state and renders the **first match**; if none match
-it uses the one marked `{ "default": true }`.
-
-```json
-"porta_bunker": {
-  "variants": [
-    {
-      "when": { "var": "local.bunker_code_seen", "op": "eq", "value": true },
-      "text": "Conosci il codice: **58874645**.",
-      "choices": [{ "label": "[ Entra ]", "target": "bunker_interno" }]
-    },
-    {
-      "default": true,
-      "text": "La porta è sigillata.",
-      "choices": []
-    }
-  ]
-}
-```
-
-Each variant carries its own `text`, `choices`, and `components`. **Always include a
-`{ "default": true }` variant last** as a fallback, or the node may render nothing.
-
-### 5.3 Choices
-
-A choice is a button that navigates to another node, optionally after writing state.
-
-```json
-{
-  "label": "[ Apri bunker ]",
-  "target": "bunker_open",
-  "when": {
-    "and": [
-      { "var": "local.bunker_code_seen", "op": "eq", "value": true },
-      { "var": "global.omega_activated", "op": "eq", "value": false }
-    ]
-  },
-  "set": [
-    { "key": "global.omega_activated", "op": "set", "value": true }
-  ]
-}
-```
-
-| Field    | Type       | Required | Meaning                                                                  |
-| -------- | ---------- | -------- | ----------------------------------------------------------------------- |
-| `label`  | string     | **Yes**  | Button text.                                                            |
-| `target` | string     | **Yes**  | Id of the node to go to. **Must be a real node id** — dangling choice targets are rejected with 400 at create/update (§1). |
-| `when`   | condition  | No       | If present and false, the choice is hidden (§6).                        |
-| `set`    | mutation[] | No       | Mutations applied **before** navigating; navigation waits for success (§5.6). |
-
-### 5.4 Input components
-
-An input component captures a typed value, stores it into a variable, then branches.
-
-```json
-"inserisci_codice": {
-  "text": "Inserire codice di accesso:",
-  "components": [
-    {
-      "type": "input",
-      "placeholder": "CODICE...",
-      "set": "local.entered_code",
-      "branches": [
-        { "when": { "var": "local.entered_code", "op": "eq", "value": "58874645" }, "target": "bunker_aperto" },
-        { "default": true, "target": "codice_errato" }
-      ]
-    }
-  ]
-}
-```
-
-| Field         | Type     | Required | Meaning                                                                       |
-| ------------- | -------- | -------- | --------------------------------------------------------------------------- |
-| `type`        | string   | **Yes**  | `"input"`.                                                                   |
-| `placeholder` | string   | No       | Hint text in the field.                                                      |
-| `set`         | string   | **Yes**  | Scope-prefixed variable to store the typed value into (usually a `string`).  |
-| `branches`    | branch[] | **Yes**  | Evaluated against the **updated** state. First matching `when` wins; `{ "default": true }` is the fallback. Each branch has a `target` node id. |
-
-### 5.5 Per-node login gate
-
-```json
-"area_riservata": {
-  "login": { "users": ["Re_Del_Cram"] },
-  "text": "Accesso amministrativo confermato.",
+```jsonc
+"war_room": {
+  "login": { "users": ["ada"] },
+  "text": "ACCESSO RISERVATO. Benvenuta, ada.",
   "choices": []
 }
 ```
 
-If a node has a `login` block listing usernames, the Terminal prompts for fictional login
-before rendering it. The usernames must correspond to entries in the top-level `login.users`
-(§4). A non-empty root `login` block can also gate the whole terminal before `start` — unless
-you set `login.gateOnBoot: false` (§4), which keeps the registry but skips the boot prompt so
-only your per-node gates fire.
-
-### 5.6 Mutations (the `op` rules) — used in `on_enter`, choice `set`
-
-A mutation object must follow the **exact** shape the state endpoints validate, because the
-Terminal forwards these to `POST /terminals/:id/state/mutate` (local) or
-`POST /campaigns/:id/state/mutate` (global):
-
-```json
-{ "key": "local.access_count", "op": "increment", "by": 1 }
-```
-
-| Field   | Required for      | Notes                                                            |
-| ------- | ----------------- | -------------------------------------------------------------- |
-| `key`   | always            | Scope-prefixed: `local.x` or `global.y`.                       |
-| `op`    | always            | One of `set`, `increment`, `toggle`.                          |
-| `value` | `op: "set"`       | Must match the variable's declared type.                       |
-| `by`    | `op: "increment"` | A number (negatives allowed). Defaults to 1 if omitted.        |
-
-**Operator rules (server-enforced, 400 on violation):**
-
-| `op`        | Allowed variable type | Constraint                                              |
-| ----------- | --------------------- | ------------------------------------------------------ |
-| `set`       | matching declared type | enum values must be one of the declared `values`.     |
-| `increment` | `number` only          | provide `by`.                                          |
-| `toggle`    | `boolean` only         | no `value`/`by`.                                       |
-
-> Always include an explicit `op`. Some older examples show a choice `set` without `op`;
-> the runtime mutation contract requires `op`, so write it every time.
-
-> **Scope batching rule.** Do not mix scopes in a single `set`/`on_enter` array unless you
-> understand the routing: the Terminal must split `local.*` and `global.*` into two separate
-> requests. Keeping each mutation array single-scope is the safe, simple choice.
+Once the player authenticates as `ada`, re-entering any node gated to `ada` shows
+`Utente ada connesso` and proceeds — no re-prompt. Omit the `login` key on nodes that aren't
+gated. Passwords are never sent back to the screen; the player types them into the prompt and
+the system checks.
 
 ---
 
-## 6. Condition syntax (`when`)
+## 8. `nodes` — the screens (required)
 
-Conditions are **structured JSON**, never expression strings.
+`nodes` maps a node **id** (your own `snake_case` slug) to a **node**. Playback always begins
+at the node with id **`start`** — if it's missing, the terminal fails to load
+(`Nodo 'start' mancante`). Every `target` you reference must be an id that exists in `nodes`.
 
-**Leaf predicate:**
+A node's full shape (every field except the id is optional):
 
-```json
+```jsonc
+"bunker_ingresso": {
+  "text": "## PORTA BLINDATA\n\nUn tastierino lampeggia in attesa di un codice.",
+  "on_enter":   [ /* mutations run on entry — §10 */ ],
+  "login":      { "users": ["ada"] },   // §7
+  "choices":    [ /* buttons — §8.2 */ ],
+  "components": [ /* input prompt — §8.3 */ ],
+  "variants":   [ /* conditional versions of this screen — §8.4 */ ]
+}
+```
+
+### 8.1 Two shapes: simple vs. variant
+
+Pick one per node. A **simple** node has `text` (plus optional `choices`/`components`). A
+**variant** node has `variants` and shows a different version depending on state (§8.4).
+
+### 8.2 `choices` — buttons
+
+An ordered array. Each button navigates to another node, optionally writing state first.
+
+```jsonc
+{
+  "label":  "Inserisci il codice",    // required, non-empty; engine prepends "> "
+  "target": "bunker_ingresso",        // required; must be an existing node id
+  "when":   { /* condition — §9 */ }, // optional: hide the button unless this is true
+  "set":    [ /* mutations — §10 */ ] // optional: state written when the button is chosen
+}
+```
+
+- **Empty or omitted `choices` = a dead end.** Only the system buttons show. This is how a
+  branch ends.
+- A `when` that evaluates false hides the button.
+- The destination key is **`target`** — not `next`.
+
+### 8.3 `components` — the code / text prompt
+
+An array with a single `input` component. When present it replaces the choice buttons with a
+text field and `[ INVIA ]`. On submit the engine writes the typed value, then picks the first
+`branch` whose `when` is true (else the `default: true` branch).
+
+```jsonc
+"components": [
+  {
+    "type": "input",
+    "placeholder": "Codice di accesso",
+    "set": "local.entered_code",        // scope-prefixed declared variable
+    "branches": [
+      { "when": { "var": "local.entered_code", "op": "eq", "value": "58874645" },
+        "target": "bunker_aperto" },
+      { "default": true, "target": "bunker_negato" }
+    ]
+  }
+]
+```
+
+The input prompt is **the only place a write is guaranteed visible to the very next screen**
+(see the timing rule in §10). Use it whenever the player's typed answer must immediately
+decide where they go.
+
+### 8.4 `variants` — conditional screens
+
+An ordered array of alternative renderings. The engine shows the **first** variant whose
+`when` is true; if none match it uses the one marked `{ "default": true }`; failing that it
+falls back to the node's own top-level `text`/`choices`.
+
+```jsonc
+"reattore": {
+  "variants": [
+    { "when": { "var": "local.alarm_active", "op": "eq", "value": true },
+      "text": "## ⚠ ALLARME\n\nTemperatura critica.",
+      "choices": [ { "label": "Spegni", "target": "shutdown" } ] },
+    { "default": true,
+      "text": "Reattore nominale. Nessuna anomalia.",
+      "choices": [ { "label": "Esci", "target": "start" } ] }
+  ]
+}
+```
+
+- Each variant carries its own `text`, `choices`, `components`. Omitted fields fall back to
+  the node's top-level fields (not to the previous variant).
+- **Always end with a `{ "default": true }` variant** (or top-level fallback fields), or the
+  screen may render nothing.
+- Variants cannot nest and cannot carry `on_enter` (that's a per-node concern — §10).
+
+---
+
+## 9. Conditions (`when`)
+
+Used by `choices[].when`, `variants[].when`, and input `branches[].when`. Always **structured
+JSON**, never an expression string.
+
+**Leaf — compare one variable:**
+
+```jsonc
 { "var": "local.access_count", "op": "gte", "value": 3 }
 ```
 
-Operators: `eq`, `neq`, `gt`, `lt`, `gte`, `lte`, `in`.
-(`in` takes an array: `{ "var": "local.sullivan_mood", "op": "in", "value": ["paranoid","panicked"] }`.)
+| `op` | meaning | note |
+|---|---|---|
+| `eq` / `neq` | equal / not equal | any scalar |
+| `gt` / `gte` / `lt` / `lte` | numeric ordering | an unset variable reads as "not matching"; never errors |
+| `in` | membership | `value` must be an **array**: `{ "var": "local.mood", "op": "in", "value": ["paranoid","panicked"] }` |
 
-**Combinators (nestable):**
+**Combinators — nest freely:**
 
-```json
-{ "and": [ {predicate}, {predicate} ] }
-{ "or":  [ {predicate}, {predicate} ] }
-{ "not": {predicate} }
+```jsonc
+{ "and": [ condA, condB ] }   // all true
+{ "or":  [ condA, condB ] }   // any true
+{ "not": condA }              // single child, inverted
 ```
 
-`not` is true iff the child condition is false.
+**Fallback marker** (variants and branches only): `{ "default": true }`.
 
-**Fallback marker** (for variants / branches only): `{ "default": true }`.
-
-### 6.1 Conditions vs. mutations — `var` vs `key`
-
-Two similar-looking shapes are **not** interchangeable. The common mistake is using
-`key` (or putting the operator name where the value goes) inside a `when`. Use this table:
-
-| Purpose | Where it appears                          | Variable field | Shape                                                          |
-| ------- | ----------------------------------------- | -------------- | ------------------------------------------------------------- |
-| **READ** a variable (condition) | variant `when`, choice `when`, input branch `when` | `var`  | `{ "var": "local.x", "op": "gte", "value": 3 }`               |
-| **WRITE** a variable (mutation) | `on_enter`, choice `set`                  | `key`          | `{ "key": "local.x", "op": "set", "value": 3 }`               |
-
-Both use `op` and `value`, but **conditions read via `var`, mutations write via `key`.**
-The condition `op` is a comparison (`eq`/`neq`/`gt`/`gte`/`lt`/`lte`/`in`); the mutation
-`op` is an action (`set`/`increment`/`toggle`). The operator is always the **value** of
-the `op` field — never a property name. Wrong:
-
-```json
-{ "key": "local.x", "gte": 3 }          // ❌ key in a condition; gte as a property
-```
-
-Right:
-
-```json
-{ "var": "local.x", "op": "gte", "value": 3 }   // ✅ condition
-```
+> **`var` reads, `key` writes.** A condition reads a variable with **`var`**; a mutation
+> (§10) writes one with **`key`**. Both use `op` and `value`, but a condition's `op` is a
+> comparison (`eq`/`gt`/…) and a mutation's `op` is an action (`set`/`increment`/`toggle`).
+> The operator is always the *value* of the `op` field — never a property name.
+> `{ "key": "local.x", "gte": 3 }` is wrong twice over; the right read is
+> `{ "var": "local.x", "op": "gte", "value": 3 }`.
 
 ---
 
-## 7. Copy-paste template
+## 10. Mutations (`on_enter`, choice `set`) — and the timing trap
+
+A mutation writes one declared variable. `key` is scope-prefixed and routes itself
+(`local.*` → this terminal, `global.*` → the campaign).
+
+```jsonc
+{ "op": "set",       "key": "local.entered_code", "value": "58874645" }
+{ "op": "increment", "key": "global.karma",        "by": 1 }   // negative "by" decrements
+{ "op": "toggle",    "key": "local.alarm_active" }             // no value / no by
+```
+
+| `op` | variable type | payload | note |
+|---|---|---|---|
+| `set` | any (matching) | `value` | value must match the declared type / be a declared enum member |
+| `increment` | `number` | `by` | there is no `decrement` — use a negative `by`. **Always write `by` explicitly.** |
+| `toggle` | `boolean` | none | carries neither `value` nor `by` |
+
+Where mutations live:
+- **`node.on_enter`** — fires **every time** the node is entered, including back-navigation
+  re-entries (no dedup). Ideal for `increment` access counters.
+- **`choice.set`** — fires when that button is chosen, before navigating.
+
+Keep each mutation array **single-scope** where you can (all `local.*` or all `global.*`);
+it's the simple, reliable choice.
+
+### ⚠ The read-after-write trap (the most common mistake)
+
+The engine renders a screen against the state **as it was on entry**, and runs that screen's
+`on_enter` *afterward*. So:
+
+- A node's own `on_enter` write is **not** visible to that same node's `variants`/`when` on
+  the entry that triggered it — it lands for *later* entries and nodes.
+- A `choice.set` write is **not** reliably visible on the target screen's first render.
+- **The only guaranteed read-after-write in one step is the input prompt (§8.3)** — it writes,
+  then branches on the new value.
+
+Works:
+```
+node A: on_enter increments global.karma      (records progress)
+   ⋯ several nodes later ⋯
+node F: variants read global.karma to shift tone     ✅ value is present by now
+```
+Silently fails:
+```
+node A: on_enter sets local.flag = true
+node A: variants read local.flag                     ❌ still false on this render
+```
+To branch *immediately* on a choice, don't use `set` + variant — just point two choices at
+two different `target` nodes.
+
+---
+
+## 11. Full annotated example
+
+A small, complete, valid terminal exercising every feature — top-level `meta`/`state`/
+`login`/`nodes`, no wrapper. Italian, monochrome-safe, RobCo-voiced.
 
 ```json
 {
-  "meta": {
-    "title": "TODO Terminal Title",
-    "public": true,
-    "hiddenId": "todo-unique-slug"
-  },
+  "meta": { "title": "Sicurezza — Vault 88", "public": true, "hiddenId": "vault88-admin" },
+
   "state": {
     "local": {
-      "example_flag":  { "type": "boolean", "default": false },
-      "example_count": { "type": "number",  "default": 0 },
-      "example_input": { "type": "string",  "default": "" }
+      "access_count": { "type": "number", "default": 0 },
+      "entered_code": { "type": "string", "default": "" },
+      "door_state":   { "type": "enum", "values": ["locked", "open"], "default": "locked" }
     },
-    "global": {
-      "example_world_flag": { "type": "boolean", "default": false }
-    }
+    "global": { "karma": { "type": "number", "default": 0 } }
   },
-  "login": {
-    "users": []
-  },
+
+  "login": { "users": [ { "username": "overseer", "password": "88" } ] },
+
   "nodes": {
     "start": {
-      "text": "TODO opening text. **Markdown** works.",
-      "on_enter": [
-        { "key": "local.example_count", "op": "increment", "by": 1 }
-      ],
+      "on_enter": [ { "op": "increment", "key": "local.access_count", "by": 1 } ],
+      "text": "## ROBCO TERMLINK\n\nBenvenuto nel terminale di sicurezza del Vault 88.",
       "choices": [
-        { "label": "[ Continua ]", "target": "menu" }
+        { "label": "Accedi alla porta blindata", "target": "porta" },
+        { "label": "Registro accessi", "target": "registro" }
       ]
     },
-    "menu": {
-      "text": "TODO menu text.",
-      "choices": [
+
+    "registro": {
+      "variants": [
+        { "when": { "var": "local.access_count", "op": "gt", "value": 3 },
+          "text": "Accessi rilevati: molti. Attivita' sospetta segnalata." },
+        { "default": true, "text": "Accessi rilevati: pochi. Tutto regolare." }
+      ],
+      "choices": [ { "label": "Indietro", "target": "start" } ]
+    },
+
+    "porta": {
+      "text": "## PORTA BLINDATA\n\nInserire il codice di sblocco.",
+      "components": [
         {
-          "label": "[ Azione condizionata ]",
-          "target": "start",
-          "when": { "var": "local.example_flag", "op": "eq", "value": true }
+          "type": "input",
+          "placeholder": "Codice",
+          "set": "local.entered_code",
+          "branches": [
+            { "when": { "var": "local.entered_code", "op": "eq", "value": "58874645" },
+              "target": "aperta" },
+            { "default": true, "target": "negata" }
+          ]
         }
       ]
+    },
+
+    "aperta": {
+      "on_enter": [
+        { "op": "set", "key": "local.door_state", "value": "open" },
+        { "op": "increment", "key": "global.karma", "by": 1 }
+      ],
+      "login": { "users": ["overseer"] },
+      "text": "## ACCESSO CONSENTITO\n\nLa porta si apre. Benvenuto, Overseer.",
+      "choices": []
+    },
+
+    "negata": {
+      "text": "## ACCESSO NEGATO\n\nCodice errato. Tentativo registrato.",
+      "choices": [ { "label": "Riprova", "target": "porta" } ]
     }
   }
 }
 ```
 
+Why it works: `start.on_enter` counts entries (read later by `registro` — correct timing);
+`registro` branches its text via `variants`; `porta` uses an input prompt so the typed code
+*immediately* decides the target (the read-after-write-safe path); `aperta` writes local +
+global state, sits behind a per-node login, and ends the branch with `"choices": []`.
+
 ---
 
-## 8. Final checklist (run through every item before submitting)
+## 12. Verification checklist (run through this before you're done)
 
-- [ ] Exactly four top-level keys: `meta`, `state`, `login`, `nodes` (`state`/`login` optional).
-- [ ] `meta.title` is a non-empty string.
-- [ ] **No `meta.id`** anywhere (would 400).
-- [ ] If hidden lookup is needed, `meta.hiddenId` is set and unique within the campaign.
-- [ ] Every `type` is one of `boolean` / `number` / `enum` / `string`.
-- [ ] Every `enum` variable has a `values` array; its `default` is one of those values.
-- [ ] Every variable used in `nodes` is **declared** in `state` with the correct scope.
+**Story & style**
+- [ ] Every word the player reads is **Italian** — titles, text, labels, prompts.
+- [ ] Nothing relies on **color**; emphasis is carried by words, `##` banners, UPPERCASE, `⚠`, `---`.
+- [ ] Voice is terse, RobCo/Fallout, in-universe; choices are short imperatives.
+- [ ] You did **not** author the system buttons (back / disconnect / INVIA).
+- [ ] Screens are scannable (a screen or two each), long lore split across nodes.
+
+**Shape**
+- [ ] Top level is `meta` + `nodes` (plus optional `state` / `login`) — **no `content` wrapper**, no `localState`/`globalState`.
+- [ ] `meta.title` is a non-empty Italian string; **no `meta.id`**; empty `hiddenId` is omitted, not `""`.
 - [ ] `nodes` contains a `start` node.
-- [ ] Every choice/branch `target` points to a node id that **exists**. (Choice targets are server-validated → 400; input `branch` targets are **not** — check them yourself.)
-- [ ] Every variant node ends with a `{ "default": true }` variant.
-- [ ] Every input component has `type: "input"`, a `set` target, and `branches` (with a default).
-- [ ] Every mutation has `key` (scope-prefixed) + `op`; `set` has `value` of the right type; `increment` is on a `number`; `toggle` is on a `boolean`.
-- [ ] `value` types match declared variable types (no string into a number, etc.).
-- [ ] If you only want a per-node / sub-section login (credentials but **no** boot prompt), set `login.gateOnBoot: false` on the root `login` block (§4).
-- [ ] The file is valid JSON (no trailing commas, all strings double-quoted).
+- [ ] If included, `state` uses `{ "local": {}, "global": {} }` form; `login` uses `{ "users": [] }` form. (Both may be omitted entirely if unused.)
+
+**Logic**
+- [ ] Every variable used in a `when` / `on_enter` / `set` / input `set` is **declared** in `state` with the right scope and `type`.
+- [ ] Every `enum` has a non-empty `values` list and its `default` is one of them.
+- [ ] Every `choice.target` **and** every input `branch.target` points at a node id that exists.
+- [ ] Every `variants` array and every input `branches` array has exactly one `{ "default": true }`.
+- [ ] Every dead end uses `"choices": []` (or omits `choices`) on purpose.
+- [ ] Conditions read with `var`; mutations write with `key`; the operator is always the value of `op`.
+- [ ] `set` value matches the variable's type; `increment` targets a `number` and includes an explicit `by`; `toggle` targets a `boolean` with no value/by.
+- [ ] No mutation is expected to be read back **on the same render** — except through an input prompt. Cross-node reads are timed correctly (§10).
+
+**Access**
+- [ ] Every per-node `login.users` name also exists in the top-level `login.users` registry.
+- [ ] Want a per-node gate but no prompt at boot? `login.gateOnBoot: false` on the root `login`.
+
+**Final**
+- [ ] The file is valid JSON — no trailing commas, all strings double-quoted, all `\n` inside strings.

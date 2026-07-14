@@ -3,9 +3,7 @@
 ## Purpose
 
 Terminal import dialog with JSON file/textarea and schema validation, a validate-only check action, list-refreshing import, and a detail-page export that downloads pretty-printed round-trippable JSON.
-
 ## Requirements
-
 ### Requirement: Import dialog accepts a .json file via PrimeNG file upload
 The terminals list page SHALL expose an "Importa terminale" button that opens a dialog containing a JSON textarea and a PrimeNG `<p-fileupload mode="basic">` restricted to `accept=".json,application/json"` with a 1 MB size limit. The textarea SHALL be the single source of truth for the content that gets imported. Selecting a file SHALL populate the textarea rather than triggering an import: when the file's contents parse as JSON the textarea SHALL be filled with the value re-serialized with a 2-space indent, and when they do not parse the textarea SHALL be filled with the raw file text unchanged. File selection SHALL NOT call the import API and SHALL NOT surface validation errors. The dialog SHALL show no destination-campaign picker — the upload target is always the campaign in the current route (`/campaigns/:campaignId/terminals`). The textarea SHALL use PrimeNG `pInputTextarea` and the dialog actions SHALL use the backoffice `bo-btn` button classes, consistent with the rest of the backoffice.
 
@@ -29,7 +27,7 @@ The terminals list page SHALL expose an "Importa terminale" button that opens a 
 - **AND** no error is shown and no import API call is made
 
 ### Requirement: Imported JSON is validated against TerminalContentSchema before upload
-Validation and import SHALL operate on the textarea content, triggered by dedicated buttons rather than on file selection. The dialog SHALL parse the textarea content with `JSON.parse` and validate the parsed value against `TerminalContentSchema` from `src/app/domain/terminal-schema.ts`. The dialog SHALL NOT call the import API until validation succeeds. The "Importa" button SHALL be disabled while the textarea is empty, and on activation SHALL validate first and abort the import if any parse or schema error is found.
+Validation and import SHALL operate on the textarea content, triggered by dedicated buttons rather than on file selection. The dialog SHALL parse the textarea content with `JSON.parse` and validate the parsed value against `TerminalContentSchema` from `src/app/domain/terminal-schema.ts`. The dialog SHALL NOT call the import API until validation succeeds. The "Importa" button SHALL be disabled while the textarea is empty, and on activation SHALL validate first and abort the import if any parse or schema error is found. Before the request body is sent, a server-owned `meta.id` SHALL be stripped from the content so that a file containing `meta.id` imports successfully instead of being rejected by the API.
 
 #### Scenario: Malformed JSON is reported with a generic message
 - **WHEN** the textarea content is not valid JSON (`JSON.parse` throws) and the admin activates validation or import
@@ -47,6 +45,11 @@ Validation and import SHALL operate on the textarea content, triggered by dedica
 #### Scenario: Valid content is forwarded to the API on import
 - **WHEN** the admin activates "Importa" and `TerminalContentSchema.safeParse` succeeds on the textarea content
 - **THEN** `POST /campaigns/:campaignId/terminals/import` is called with the parsed object as the request body
+
+#### Scenario: A server-owned meta.id is stripped before upload
+- **WHEN** the admin imports content whose `meta` includes an `id` (e.g. `meta: { id: "leftover-1", title: "Demo" }`) and validation succeeds
+- **THEN** the request body sent to `POST /campaigns/:campaignId/terminals/import` has no `meta.id`
+- **AND** the import succeeds instead of failing with an API 400
 
 ### Requirement: Dialog provides a validate-only "Controlla JSON" action
 The import dialog SHALL expose a "Controlla JSON" button that parses and validates the textarea content against `TerminalContentSchema` without calling the import API. When validation fails it SHALL surface the same parse/Zod errors as the import path. When validation succeeds it SHALL reformat the textarea by re-serializing the parsed value with a 2-space indent and SHALL indicate the content is valid.
@@ -89,3 +92,15 @@ A terminal JSON file produced by the export endpoint SHALL parse successfully ag
 #### Scenario: Round-trip validation
 - **WHEN** an admin exports terminal T to a file F, then immediately imports F into the same campaign
 - **THEN** the import passes Zod validation and the API responds 2xx, producing a new terminal in the campaign
+
+### Requirement: Terminal write requests strip server-owned meta.id
+Every CMS call that writes terminal content — create (`POST /campaigns/:id/terminals`), import (`POST /campaigns/:id/terminals/import`), and update (`PUT /terminals/:id`) — SHALL remove a server-owned `meta.id` from the request body before sending. `meta.id` is injected by the API on read; the client SHALL never send it back, because the API rejects a non-empty `meta.id` with HTTP 400.
+
+#### Scenario: Create strips meta.id
+- **WHEN** the CMS creates a terminal from content that carries a `meta.id`
+- **THEN** the posted body has no `meta.id`
+
+#### Scenario: Update strips a loaded meta.id
+- **WHEN** the CMS saves an edited terminal whose loaded content still carries the server-injected `meta.id`
+- **THEN** the `PUT` body has no `meta.id` and the save does not fail with an API 400
+
