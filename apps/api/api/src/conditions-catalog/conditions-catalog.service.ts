@@ -10,6 +10,7 @@ import {
   ConditionCatalogEntryDocument,
 } from './schemas/condition-catalog-entry.schema';
 import { ConditionsCatalogOpDto } from './dto/conditions-catalog-patch.dto';
+import { IT_COLLATION, parseOrderBy } from '../common/utils/order-by';
 
 export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
 
@@ -27,8 +28,12 @@ export class ConditionsCatalogService {
     private entryModel: Model<ConditionCatalogEntryDocument>,
   ) {}
 
-  async findAll() {
-    const entries = await this.entryModel.find().lean();
+  /** `orderBy=name` sorts alphabetically (Italian collation); else natural order. */
+  async findAll(orderBy?: string) {
+    const sort = parseOrderBy(orderBy, ['name']);
+    const query = this.entryModel.find();
+    if (sort) query.sort(sort).collation(IT_COLLATION);
+    const entries = await query.lean();
     return entries.map((e) => ({
       slug: e.slug,
       name: e.name,

@@ -1,5 +1,16 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { SkillsCatalogService } from './skills-catalog.service';
+import { IT_COLLATION } from '../common/utils/order-by';
+
+// A chainable query mock: find() → { sort, collation, lean }.
+function makeOrderedService(entries: unknown[] = []) {
+  const lean = jest.fn().mockResolvedValue(entries);
+  const collation = jest.fn().mockReturnThis();
+  const sort = jest.fn().mockReturnThis();
+  const find = jest.fn().mockReturnValue({ sort, collation, lean });
+  const service = new SkillsCatalogService({ find } as never);
+  return { service, find, sort, collation, lean };
+}
 
 function makeService(existing: Array<{ slug: string; name: string; description?: string }>) {
   const deleteOne = jest.fn().mockResolvedValue({});
@@ -127,5 +138,38 @@ describe('SkillsCatalogService.patchSchema', () => {
       { action: 'rename', slug: 'ghost', rename: 'ghost2' } as never,
     ]);
     expect(result.ignored).toEqual([{ slug: 'ghost', reason: 'unknown_slug' }]);
+  });
+});
+
+describe('SkillsCatalogService.findAll', () => {
+  it('returns entries as { slug, name, description }', async () => {
+    const { service } = makeOrderedService([
+      { slug: 'hacking', name: 'Hacking', description: 'd' },
+    ]);
+    const all = await service.findAll();
+    expect(all).toEqual([
+      { slug: 'hacking', name: 'Hacking', description: 'd' },
+    ]);
+  });
+
+  it('applies the name sort with Italian collation when orderBy=name', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll('name');
+    expect(sort).toHaveBeenCalledWith({ name: 1 });
+    expect(collation).toHaveBeenCalledWith(IT_COLLATION);
+  });
+
+  it('leaves natural order (no sort/collation) when orderBy is absent', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll();
+    expect(sort).not.toHaveBeenCalled();
+    expect(collation).not.toHaveBeenCalled();
+  });
+
+  it('leaves natural order for an unrecognised orderBy value', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll('bogus');
+    expect(sort).not.toHaveBeenCalled();
+    expect(collation).not.toHaveBeenCalled();
   });
 });

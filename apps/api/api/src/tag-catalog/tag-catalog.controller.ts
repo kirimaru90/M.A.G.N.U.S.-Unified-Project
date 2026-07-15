@@ -4,12 +4,14 @@ import {
   Get,
   HttpCode,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { TagCatalogService } from './tag-catalog.service';
@@ -27,8 +29,14 @@ export class TagCatalogController {
   @Get()
   @UseGuards(JwtRequiredGuard)
   @ApiOperation({ summary: 'Read the global tag catalog (authenticated)' })
-  list() {
-    return this.tagCatalogService.findAll();
+  @ApiQuery({
+    name: 'orderBy',
+    required: false,
+    description:
+      'When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.',
+  })
+  list(@Query('orderBy') orderBy?: string) {
+    return this.tagCatalogService.findAll(orderBy);
   }
 
   @Patch()

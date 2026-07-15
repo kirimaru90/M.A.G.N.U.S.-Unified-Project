@@ -145,4 +145,34 @@ describe('TagCatalogModule (e2e)', () => {
     );
     expect(res.statusCode).toBe(403);
   });
+
+  it('?orderBy=name returns entries alphabetically, folding case and accents', async () => {
+    await patchCatalog([
+      { action: 'add', slug: 'ord-z', entry: { name: 'Zulu' } },
+      { action: 'add', slug: 'ord-a', entry: { name: 'ananas' } },
+      { action: 'add', slug: 'ord-e', entry: { name: 'èlite' } },
+    ]);
+    const ordered = await app.inject({
+      method: 'GET',
+      url: '/tag-catalog?orderBy=name',
+      headers: auth(adminToken),
+    });
+    const mine = (JSON.parse(ordered.body) as CatalogEntry[])
+      .filter((e) => e.slug.startsWith('ord-'))
+      .map((e) => e.name);
+    expect(mine).toEqual(['ananas', 'èlite', 'Zulu']);
+  });
+
+  it('an unrecognised ?orderBy value falls back to natural order (no error)', async () => {
+    const natural = await listTags();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/tag-catalog?orderBy=bogus',
+      headers: auth(adminToken),
+    });
+    expect(res.statusCode).toBe(200);
+    expect((JSON.parse(res.body) as CatalogEntry[]).map((e) => e.slug)).toEqual(
+      natural.map((e) => e.slug),
+    );
+  });
 });

@@ -6,7 +6,7 @@ import { apiGet } from './client.js';
  * wizard *copies* a chosen template onto the character rather than linking it.
  */
 export function getStarterEquipment() {
-    return apiGet('/equipment-catalog?starter=true');
+    return apiGet('/equipment-catalog?starter=true&orderBy=name');
 }
 
 /**
@@ -15,5 +15,5 @@ export function getStarterEquipment() {
  * semantics as the starter list.
  */
 export function getEquipmentCatalog() {
-    return apiGet('/equipment-catalog');
+    return apiGet('/equipment-catalog?orderBy=name');
 }

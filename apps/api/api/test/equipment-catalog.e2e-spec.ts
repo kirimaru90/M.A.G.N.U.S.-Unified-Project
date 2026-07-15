@@ -500,4 +500,36 @@ describe('EquipmentCatalogModule (e2e)', () => {
       'Alfa',
     ]);
   });
+
+  // --- orderBy=name: Italian collation (case- and accent-insensitive) ---
+
+  it('?orderBy=name returns entries alphabetically, folding case and accents', async () => {
+    // Names chosen so byte-order (E,Z,à,m) differs from the expected
+    // collation order (àncora, Elmo, martello, Zaino): proves accents fold to
+    // their base letter and lowercase interleaves with uppercase.
+    await patchCatalog([
+      { action: 'add', slug: 'ord-anc', entry: { name: 'àncora', kind: 'weapon' } },
+      { action: 'add', slug: 'ord-elmo', entry: { name: 'Elmo', kind: 'armor' } },
+      { action: 'add', slug: 'ord-mart', entry: { name: 'martello', kind: 'weapon' } },
+      { action: 'add', slug: 'ord-zaino', entry: { name: 'Zaino', kind: 'misc' } },
+    ]);
+
+    const ordered = await listEquipment('?orderBy=name');
+    const mine = ordered
+      .filter((e) => e.slug.startsWith('ord-'))
+      .map((e) => e.name);
+    expect(mine).toEqual(['àncora', 'Elmo', 'martello', 'Zaino']);
+  });
+
+  it('an unrecognised ?orderBy value falls back to natural order (no error)', async () => {
+    const natural = await listEquipment();
+    const res = await app.inject({
+      method: 'GET',
+      url: '/equipment-catalog?orderBy=bogus',
+      headers: auth(adminToken),
+    });
+    expect(res.statusCode).toBe(200);
+    const bogus = JSON.parse(res.body) as CatalogEntry[];
+    expect(bogus.map((e) => e.slug)).toEqual(natural.map((e) => e.slug));
+  });
 });

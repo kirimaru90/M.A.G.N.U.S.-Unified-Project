@@ -148,3 +148,85 @@ test('a freely-typed non-catalog tag is still accepted via the picker', async ({
     },
   });
 });
+
+// ── weapon/armor tags on a second line + alphabetical ordering ──────
+
+test('weapon picker rows show tags on a second line as unlabeled core/extra chips', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('[data-add-open]').click();
+  await page.locator('#pb-popup-existing').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+
+  // Pistola 10mm carries a core tag (PROIETTILI) and an extra tag (AFFIDABILE);
+  // both render as chips on a second line (.pb-picker-sub) below the name.
+  const pistola = page.locator('.pb-picker-row', { hasText: 'Pistola 10mm' });
+  const sub = pistola.locator('.pb-picker-sub');
+  await expect(sub).toBeVisible();
+  await expect(sub.locator('.pb-chip--core')).toHaveText('PROIETTILI');
+  await expect(sub.locator('.pb-chip--extra')).toHaveText('AFFIDABILE');
+  // Differentiation is by background/border only — no CORE/EXTRA text label.
+  await expect(sub).not.toContainText('CORE');
+  await expect(sub).not.toContainText('EXTRA');
+});
+
+test('a weapon template with no tags renders name-only in the picker', async ({ page }) => {
+  await openSheet(page, {
+    character: ownedCharacter(),
+    // Single tagless weapon so the Armi picker lists exactly one, unstacked row.
+    starterEquipment: [
+      { slug: 'coltello', name: 'Coltello', kind: 'weapon', isStarter: true, tags: [] },
+    ],
+  });
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('[data-add-open]').click();
+  await page.locator('#pb-popup-existing').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+
+  const coltello = page.locator('.pb-picker-row', { hasText: 'Coltello' });
+  await expect(coltello).toBeVisible();
+  await expect(coltello.locator('.pb-picker-sub')).toHaveCount(0);
+  await expect(coltello).not.toHaveClass(/pb-picker-row--stacked/);
+});
+
+test('weapon picker rows are alphabetical even when the catalog arrives unsorted', async ({ page }) => {
+  // The stub returns weapons in the order [Pistola 10mm, Mazza Chiodata]; the
+  // picker's defensive sort must present them alphabetically (Mazza first).
+  await openSheet(page, { character: ownedCharacter() });
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('[data-add-open]').click();
+  await page.locator('#pb-popup-existing').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+
+  const names = await page.locator('.pb-picker-name').allInnerTexts();
+  expect(names).toEqual(['Mazza Chiodata', 'Pistola 10mm']);
+});
+
+test('conditions picker is alphabetical even on the fallback presets when the catalog fetch fails', async ({ page }) => {
+  await stubEnvironment(page, {
+    role: 'player',
+    userId: 'user-player',
+    lastCampaignId: 'camp-1',
+    lastCharacterId: 'char-1',
+    character: ownedCharacter(),
+  });
+  // Fail the conditions catalog so the client falls back to its hardcoded presets
+  // (registered after stubEnvironment, so this route wins).
+  await page.route('**/conditions-catalog*', (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json', body: '{}' }),
+  );
+  await login(page);
+  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
+
+  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-existing').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+
+  const names = await page.locator('.pb-picker-name').allInnerTexts();
+  expect(names.length).toBeGreaterThan(1); // fallback presets are present
+  const collator = new Intl.Collator('it', { sensitivity: 'base' });
+  const sortedCopy = [...names].sort((a, b) => collator.compare(a, b));
+  expect(names).toEqual(sortedCopy);
+  expect(names[0]).toBe('CIECO'); // alphabetically first fallback preset
+});

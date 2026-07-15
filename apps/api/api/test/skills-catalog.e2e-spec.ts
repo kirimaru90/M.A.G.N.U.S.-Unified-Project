@@ -267,4 +267,49 @@ describe('SkillsCatalogModule (e2e)', () => {
     });
     expect(res.statusCode).toBe(400);
   });
+
+  it('?orderBy=name returns entries alphabetically, folding case and accents', async () => {
+    await app.inject({
+      method: 'PATCH',
+      url: '/skills-catalog',
+      headers: auth(adminToken),
+      payload: {
+        ops: [
+          { action: 'add', slug: 'ord-z', entry: { name: 'Zulu' } },
+          { action: 'add', slug: 'ord-a', entry: { name: 'ananas' } },
+          { action: 'add', slug: 'ord-e', entry: { name: 'èlite' } },
+        ],
+      },
+    });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/skills-catalog?orderBy=name',
+      headers: auth(adminToken),
+    });
+    const mine = (JSON.parse(res.body) as Array<{ slug: string; name: string }>)
+      .filter((e) => e.slug.startsWith('ord-'))
+      .map((e) => e.name);
+    expect(mine).toEqual(['ananas', 'èlite', 'Zulu']);
+  });
+
+  it('an unrecognised ?orderBy value falls back to natural order (no error)', async () => {
+    const natural = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/skills-catalog',
+          headers: auth(adminToken),
+        })
+      ).body,
+    ) as Array<{ slug: string }>;
+    const res = await app.inject({
+      method: 'GET',
+      url: '/skills-catalog?orderBy=bogus',
+      headers: auth(adminToken),
+    });
+    expect(res.statusCode).toBe(200);
+    expect(
+      (JSON.parse(res.body) as Array<{ slug: string }>).map((e) => e.slug),
+    ).toEqual(natural.map((e) => e.slug));
+  });
 });

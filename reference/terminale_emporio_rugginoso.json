@@ -1,0 +1,57 @@
+{
+  "meta": { "title": "Terminale — Emporio del Rottame", "public": true },
+  "state": {
+    "local": {
+      "visite": { "type": "number", "default": 0 },
+      "codice_scorta": { "type": "string", "default": "" }
+    }
+  },
+  "nodes": {
+    "start": {
+      "on_enter": [ { "op": "increment", "key": "local.visite", "by": 1 } ],
+      "text": "+========================================+\n|  ROBCO INDUSTRIES (TM) TERMLINK        |\n|  EMPORIO DEL ROTTAME — GESTIONE (TM)   |\n+========================================+\n\nBenvenuto/a. Sono l'unico modulo di gestione ancora funzionante di questo esercizio. Il proprietario e' assente da 47 anni. Le scorte sono, tecnicamente, ancora in vendita.",
+      "choices": [
+        { "label": "Consulta inventario", "target": "inventario" },
+        { "label": "Accedi al deposito blindato", "target": "deposito" },
+        { "label": "Chiedi del proprietario", "target": "proprietario" }
+      ]
+    },
+    "inventario": {
+      "variants": [
+        { "when": { "var": "local.visite", "op": "gt", "value": 2 },
+          "text": "## INVENTARIO\n\nHai gia' controllato piu' volte. Nulla e' cambiato. Nulla cambiera' mai. Questo e' un negozio, non un ecosistema.",
+          "choices": [ { "label": "Indietro", "target": "start" } ] },
+        { "default": true,
+          "text": "## INVENTARIO\n\n- 3x Scatolette di carne misteriosa (scadute nel 2081)\n- 1x Fucile a pompa (funzionante, forse)\n- 12x Tappi (accettiamo solo tappi, mai capito perche')\n\n*Nota del sistema: i prezzi sono fissati dal 2077 e non sono aggiornabili.*",
+          "choices": [ { "label": "Indietro", "target": "start" } ] }
+      ]
+    },
+    "proprietario": {
+      "text": "## REGISTRO PERSONALE\n\n\"Torno tra cinque minuti.\" — nota lasciata dal proprietario, priva di data.\n\nAnalisi del sistema: sono trascorsi 17.155 giorni. Il modulo di gestione consiglia di non aspettare in piedi.",
+      "choices": [ { "label": "Indietro", "target": "start" } ]
+    },
+    "deposito": {
+      "text": "## DEPOSITO BLINDATO\n\nServe il codice di scorta per accedere.",
+      "components": [
+        {
+          "type": "input",
+          "placeholder": "Codice",
+          "set": "local.codice_scorta",
+          "branches": [
+            { "when": { "var": "local.codice_scorta", "op": "eq", "value": "77451" },
+              "target": "deposito_aperto" },
+            { "default": true, "target": "deposito_negato" }
+          ]
+        }
+      ]
+    },
+    "deposito_aperto": {
+      "text": "## ACCESSO CONSENTITO\n\nLa serratura scatta. All'interno: una cassa di attrezzi ancora sigillata e un disco magnetico etichettato \"NON RIPRODURRE\". Il modulo di gestione non fara' domande se non lo farai nemmeno tu.",
+      "choices": []
+    },
+    "deposito_negato": {
+      "text": "## ACCESSO NEGATO\n\nCodice non valido. Il modulo di gestione registra il tentativo con enfasi puramente burocratica, senza reali conseguenze.",
+      "choices": [ { "label": "Riprova", "target": "deposito" } ]
+    }
+  }
+}

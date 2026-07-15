@@ -1,8 +1,17 @@
-import { Body, Controller, Get, HttpCode, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { ConditionsCatalogService } from './conditions-catalog.service';
@@ -24,8 +33,14 @@ export class ConditionsCatalogController {
   @ApiOperation({
     summary: 'Read the global conditions catalog (authenticated)',
   })
-  list() {
-    return this.conditionsCatalogService.findAll();
+  @ApiQuery({
+    name: 'orderBy',
+    required: false,
+    description:
+      'When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.',
+  })
+  list(@Query('orderBy') orderBy?: string) {
+    return this.conditionsCatalogService.findAll(orderBy);
   }
 
   @Patch()

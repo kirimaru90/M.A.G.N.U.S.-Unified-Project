@@ -864,6 +864,22 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-picker-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .pb-picker-meta { flex: none; margin-left: auto; font-size: 10px; opacity: 0.75; letter-spacing: 1px; }
 
+/* Stacked rows (a `renderSub` hook was supplied): the name (+ trailing meta) sit
+   on the first line, the sub content (e.g. tag chips) wraps onto a second line
+   beneath it. Overrides the rich-row's row layout to a column. */
+.pb-picker-row--stacked { flex-direction: column; align-items: stretch; gap: 6px; }
+.pb-picker-row--stacked .pb-picker-row-line { display: flex; align-items: center; gap: 8px; }
+.pb-picker-sub { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Tag chips shown in the picker are display-only — differentiate core/extra by
+   background/border alone (no CORE/EXTRA label), reusing pb-chip--core/--extra. */
+.pb-picker-sub .pb-chip {
+    cursor: default;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+}
+
 .pb-preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .pb-preset { font-size: 10px; padding: 6px 8px; }
 

@@ -12,6 +12,7 @@ import { ConditionsCatalogModule } from './conditions-catalog/conditions-catalog
 import { SpeciesCatalogModule } from './species-catalog/species-catalog.module';
 import { EquipmentCatalogModule } from './equipment-catalog/equipment-catalog.module';
 import { TagCatalogModule } from './tag-catalog/tag-catalog.module';
+import { TalentsCatalogModule } from './talents-catalog/talents-catalog.module';
 import { HealthModule } from './health/health.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
@@ -34,6 +35,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     SpeciesCatalogModule,
     EquipmentCatalogModule,
     TagCatalogModule,
+    TalentsCatalogModule,
     HealthModule,
   ],
 })

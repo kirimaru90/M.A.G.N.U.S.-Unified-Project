@@ -14,11 +14,22 @@ import { esc } from '../engine/render.js';
 //       `{ name: <typed text> }` — so tag inputs stay open to names not in the
 //       catalog (the catalog is a convenience, never a constraint).
 //     - renderMeta?(entry): optional — returns trailing per-row HTML (e.g. a
-//       weight abbreviation). Omitted → rows show the name only.
+//       weight abbreviation) shown on the name's line. Omitted → no trailing meta.
+//     - renderSub?(entry): optional — returns HTML rendered on a new line *below*
+//       the name (e.g. a row of tag chips). Omitted → no second line.
 //     - rowAccent?(entry): optional — returns a colour-accent class for the row.
 //     - onPick(entry): called with the chosen (or free-typed) entry, then closes
+//
+//   Entries are always presented in ascending alphabetical order of `name`
+//   (case- and accent-insensitive), regardless of the order supplied — a
+//   defensive safety net so client-only/fallback lists are ordered even when the
+//   API did not sort them. Any free-text commit row stays first, ahead of matches.
 
-export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, renderMeta, rowAccent, onPick }) {
+// Italian, case/accent-insensitive comparison — mirrors the API's collation so
+// client and server orderings agree.
+const nameCollator = new Intl.Collator('it', { sensitivity: 'base' });
+
+export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, renderMeta, renderSub, rowAccent, onPick }) {
     const list = Array.isArray(entries) ? entries : [];
 
     const overlay = document.createElement('div');
@@ -47,17 +58,30 @@ export function openCatalogPicker({ title, entries, query = '', allowFreeText = 
             ? list.filter((e) => String(e.name ?? '').toLowerCase().includes(q))
             : list;
 
+        // Defensive alphabetical order by display name (case/accent-insensitive),
+        // on a copy so the caller's array is never mutated.
+        const sorted = [...matches].sort((a, b) =>
+            nameCollator.compare(String(a.name ?? ''), String(b.name ?? '')));
+
         const rows = [];
         // A free-text commit row appears when the typed name is not already an
         // exact catalog match, so a brand-new tag can be entered from the sheet.
+        // It stays first, ahead of the alphabetical matches.
         const exact = list.some((e) => String(e.name ?? '').toLowerCase() === q);
         if (allowFreeText && typed && !exact) {
             rows.push(`<button class="pb-picker-row pb-picker-freetext" data-freetext>＋ Usa «${esc(typed)}»</button>`);
         }
-        rows.push(...matches.map((e) => {
+        rows.push(...sorted.map((e) => {
             const accent = rowAccent ? rowAccent(e) : '';
             const meta = renderMeta ? renderMeta(e) : '';
-            // Name-only rows (no meta/accent) render the name as a bare text node,
+            const sub = renderSub ? renderSub(e) : '';
+            // A `renderSub` row stacks: name (+ optional trailing meta) on the first
+            // line, the sub content (e.g. tag chips) on a second line beneath it.
+            if (sub) {
+                const cls = `pb-picker-row pb-picker-row--rich pb-picker-row--stacked${accent ? ` ${accent}` : ''}`;
+                return `<button class="${cls}" data-pick="${esc(e.name)}"><span class="pb-picker-row-line"><span class="pb-picker-name">${esc(e.name)}</span>${meta}</span><span class="pb-picker-sub">${sub}</span></button>`;
+            }
+            // Name-only rows (no meta/accent/sub) render the name as a bare text node,
             // exactly as before. When there is trailing meta or an accent, wrap the
             // name in `.pb-picker-name` so it can shrink and wrap independently while
             // the meta stays right-aligned.

@@ -14,6 +14,7 @@ import {
 import { EquipmentCatalogOpDto } from './dto/equipment-catalog-patch.dto';
 import { definedOnly } from '../common/utils/defined-only';
 import { sortTags } from '../common/utils/sort-tags';
+import { IT_COLLATION, parseOrderBy } from '../common/utils/order-by';
 
 export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
 
@@ -75,10 +76,17 @@ export class EquipmentCatalogService {
     private entryModel: Model<EquipmentCatalogEntryDocument>,
   ) {}
 
-  /** `starterOnly` backs the wizard's `GET /equipment-catalog?starter=true`. */
-  async findAll(starterOnly = false) {
+  /**
+   * `starterOnly` backs the wizard's `GET /equipment-catalog?starter=true`.
+   * `orderBy=name` sorts alphabetically (Italian collation); the filter is
+   * applied first, then the ordering. Any other `orderBy` value → natural order.
+   */
+  async findAll(starterOnly = false, orderBy?: string) {
     const filter = starterOnly ? { isStarter: true } : {};
-    const entries = await this.entryModel.find(filter).lean();
+    const sort = parseOrderBy(orderBy, ['name']);
+    const query = this.entryModel.find(filter);
+    if (sort) query.sort(sort).collation(IT_COLLATION);
+    const entries = await query.lean();
     return entries.map((e) => ({
       slug: e.slug,
       name: e.name,

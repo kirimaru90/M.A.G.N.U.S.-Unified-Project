@@ -55,8 +55,9 @@ test('a custom skill adds with a client-derived slug and the chosen maestria', a
 
 test('the talents catalog 400 degrades to an empty selection tab with no error; custom add still works', async ({ page }) => {
   await openSheetAsOwner(page);
-  // The talents catalog endpoint does not exist yet: respond 400.
-  await page.route('**/talents-catalog', (route) =>
+  // The talents catalog endpoint exists but may fail/be unavailable: respond 400
+  // and assert the client still degrades to an empty selection tab with no error.
+  await page.route('**/talents-catalog*', (route) =>
     route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"not available"}' }));
 
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();

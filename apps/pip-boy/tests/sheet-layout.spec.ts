@@ -228,7 +228,7 @@ test('a conditions-catalog fetch failure falls back to the hardcoded presets', a
     lastCharacterId: 'char-1',
     character: ownedCharacter(),
   });
-  await page.route('**/conditions-catalog', (route) => route.fulfill({ status: 500, body: '{}' }));
+  await page.route('**/conditions-catalog*', (route) => route.fulfill({ status: 500, body: '{}' }));
 
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();

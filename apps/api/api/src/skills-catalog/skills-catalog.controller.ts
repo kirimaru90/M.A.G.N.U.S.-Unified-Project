@@ -1,8 +1,17 @@
-import { Body, Controller, Get, HttpCode, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
 } from '@nestjs/swagger';
 import { SkillsCatalogService } from './skills-catalog.service';
@@ -20,8 +29,14 @@ export class SkillsCatalogController {
   @Get()
   @UseGuards(JwtRequiredGuard)
   @ApiOperation({ summary: 'Read the global skills catalog (authenticated)' })
-  list() {
-    return this.skillsCatalogService.findAll();
+  @ApiQuery({
+    name: 'orderBy',
+    required: false,
+    description:
+      'When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.',
+  })
+  list(@Query('orderBy') orderBy?: string) {
+    return this.skillsCatalogService.findAll(orderBy);
   }
 
   @Patch()

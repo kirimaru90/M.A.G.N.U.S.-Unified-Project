@@ -29,6 +29,22 @@ export function openAddItemPopup({ kind, label, catalog, tagCatalog, onAdd }) {
             entries,
             kindNoun: KIND_NOUN[kind] ?? 'oggetto',
             fieldId: 'pb-popup-existing',
+            // Weapons/armor show their tags on a second line in the picker as
+            // unlabeled chips — `core` filled/solid, `extra` transparent/dashed —
+            // so a template's tags are visible at the moment of choice. Tags are
+            // rendered core-first then extra (the order the catalog persists);
+            // a template with no tags yields no second line (name-only row).
+            renderSub: tagShaped
+                ? (entry) => {
+                    const tags = Array.isArray(entry.tags) ? entry.tags : [];
+                    if (!tags.length) return '';
+                    const chip = (t) =>
+                        `<span class="pb-chip pb-chip--${t.type === 'core' ? 'core' : 'extra'}">${esc(t.name)}</span>`;
+                    const core = tags.filter((t) => t.type === 'core').map(chip);
+                    const extra = tags.filter((t) => t.type !== 'core').map(chip);
+                    return [...core, ...extra].join('');
+                }
+                : undefined,
             toItem: (entry) => {
                 if (entry.kind === 'consumable' || entry.kind === 'misc') {
                     // Templates carry no default quantity; instantiating adds one.

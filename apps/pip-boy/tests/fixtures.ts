@@ -45,6 +45,10 @@ export const DEFAULT_TAG_CATALOG = [
   { slug: 'pesante', name: 'PESANTE' },
 ];
 
+// The talents catalog is now a real backend endpoint but ships empty; specs that
+// need entries pass their own via `talentsCatalog`.
+export const DEFAULT_TALENTS_CATALOG: Array<{ slug: string; name: string; description?: string }> = [];
+
 export const DEFAULT_PLAYERS = [
   { id: 'user-player', username: 'player1', role: 'player' },
   { id: 'user-player-2', username: 'player2', role: 'player' },
@@ -90,6 +94,7 @@ export interface StubOptions {
   skillsCatalog?: typeof DEFAULT_SKILLS_CATALOG;
   conditionsCatalog?: typeof DEFAULT_CONDITIONS_CATALOG;
   tagCatalog?: typeof DEFAULT_TAG_CATALOG;
+  talentsCatalog?: typeof DEFAULT_TALENTS_CATALOG;
   speciesCatalog?: typeof DEFAULT_SPECIES_CATALOG;
   starterEquipment?: typeof DEFAULT_STARTER_EQUIPMENT;
   miscCatalog?: typeof DEFAULT_MISC_CATALOG;
@@ -113,6 +118,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
   const skillsCatalog = opts.skillsCatalog ?? DEFAULT_SKILLS_CATALOG;
   const conditionsCatalog = opts.conditionsCatalog ?? DEFAULT_CONDITIONS_CATALOG;
   const tagCatalog = opts.tagCatalog ?? DEFAULT_TAG_CATALOG;
+  const talentsCatalog = opts.talentsCatalog ?? DEFAULT_TALENTS_CATALOG;
   const speciesCatalog = opts.speciesCatalog ?? DEFAULT_SPECIES_CATALOG;
   const starterEquipment = opts.starterEquipment ?? DEFAULT_STARTER_EQUIPMENT;
   const miscCatalog = opts.miscCatalog ?? DEFAULT_MISC_CATALOG;
@@ -293,16 +299,21 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ background }) });
   });
 
-  await page.route('**/skills-catalog', (route) =>
+  // Trailing `*` so the stub also matches the `?orderBy=name` query the client
+  // now appends to every catalog read.
+  await page.route('**/skills-catalog*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(skillsCatalog) }),
   );
-  await page.route('**/conditions-catalog', (route) =>
+  await page.route('**/conditions-catalog*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(conditionsCatalog) }),
   );
-  await page.route('**/tag-catalog', (route) =>
+  await page.route('**/tag-catalog*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(tagCatalog) }),
   );
-  await page.route('**/species-catalog', (route) =>
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(talentsCatalog) }),
+  );
+  await page.route('**/species-catalog*', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(speciesCatalog) }),
   );
   // The wizard requests only starter templates (`?starter=true`); the inventory
@@ -333,7 +344,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     await page.route('**/sw.js*', (route) => route.abort());
   }
 
-  return { character, characters, campaigns, players, skillsCatalog, conditionsCatalog, tagCatalog };
+  return { character, characters, campaigns, players, skillsCatalog, conditionsCatalog, tagCatalog, talentsCatalog };
 }
 
 /**

@@ -1,5 +1,18 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EquipmentCatalogService } from './equipment-catalog.service';
+import { IT_COLLATION } from '../common/utils/order-by';
+
+// A chainable query mock: find() → { sort, collation, lean }, so we can assert
+// whether the ordering chain is applied for a given `orderBy` value.
+function makeOrderedService(entries: unknown[] = []) {
+  const lean = jest.fn().mockResolvedValue(entries);
+  const collation = jest.fn().mockReturnThis();
+  const sort = jest.fn().mockReturnThis();
+  const query = { sort, collation, lean };
+  const find = jest.fn().mockReturnValue(query);
+  const service = new EquipmentCatalogService({ find } as never);
+  return { service, find, sort, collation, lean };
+}
 
 type Entry = {
   slug: string;
@@ -460,5 +473,26 @@ describe('EquipmentCatalogService.findAll', () => {
       { name: 'Zeta', type: 'core' },
       { name: 'Alfa', type: 'extra' },
     ]);
+  });
+
+  it('applies the name sort with Italian collation when orderBy=name', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll(false, 'name');
+    expect(sort).toHaveBeenCalledWith({ name: 1 });
+    expect(collation).toHaveBeenCalledWith(IT_COLLATION);
+  });
+
+  it('leaves natural order (no sort/collation) when orderBy is absent', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll();
+    expect(sort).not.toHaveBeenCalled();
+    expect(collation).not.toHaveBeenCalled();
+  });
+
+  it('leaves natural order for an unrecognised orderBy value', async () => {
+    const { service, sort, collation } = makeOrderedService([]);
+    await service.findAll(false, 'bogus');
+    expect(sort).not.toHaveBeenCalled();
+    expect(collation).not.toHaveBeenCalled();
   });
 });

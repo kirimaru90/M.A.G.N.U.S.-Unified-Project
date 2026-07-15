@@ -38,8 +38,17 @@ export class EquipmentCatalogController {
     required: false,
     description: 'When "true", return only templates flagged isStarter',
   })
-  list(@Query('starter') starter?: string) {
-    return this.equipmentCatalogService.findAll(starter === 'true');
+  @ApiQuery({
+    name: 'orderBy',
+    required: false,
+    description:
+      'When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.',
+  })
+  list(
+    @Query('starter') starter?: string,
+    @Query('orderBy') orderBy?: string,
+  ) {
+    return this.equipmentCatalogService.findAll(starter === 'true', orderBy);
   }
 
   @Patch()

@@ -87,6 +87,7 @@ export function openAddPopup({ title, catalog, custom, onAdd }) {
                 title: `Scegli ${kindNoun}`,
                 entries,
                 renderMeta: catalog.renderMeta,
+                renderSub: catalog.renderSub,
                 rowAccent: catalog.rowAccent,
                 onPick: (entry) => {
                     selectedEntry = entry;
