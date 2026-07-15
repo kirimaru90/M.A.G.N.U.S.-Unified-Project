@@ -1,4 +1,4 @@
-import type { CollationOptions, SortOrder } from 'mongoose';
+import type { SortOrder, mongo } from 'mongoose';
 
 /**
  * Italian, case- and accent-insensitive collation for alphabetical sorting.
@@ -9,7 +9,7 @@ import type { CollationOptions, SortOrder } from 'mongoose';
  * (`àncora` < `Pistola` < `pistola` < `Zaino`), matching the client's
  * `localeCompare`.
  */
-export const IT_COLLATION: CollationOptions = { locale: 'it', strength: 1 };
+export const IT_COLLATION: mongo.CollationOptions = { locale: 'it', strength: 1 };
 
 /**
  * Parse an optional `?orderBy` query value into a Mongoose sort spec.

@@ -7,7 +7,7 @@ import {
 } from '../engine/typewriter.js';
 import { typingSound, clickSound, selectionSound, hoverSound } from '../engine/sounds.js';
 import { pushHistory, popHistory, peekHistory, getHistoryLength, clearHistory } from '../engine/back-history.js';
-import { getLoggedInUser } from '../engine/login-fictional.js';
+import { getLoggedInUser, getRememberedPassword, clearLogins } from '../engine/login-fictional.js';
 import { getSnapshot } from '../state/store.js';
 import { evaluate } from '../state/conditions.js';
 import { resolveNode, dispatchOnEnter, dispatchChoiceSet, RERENDER_REQUIRED, INLINE_ERROR } from '../engine/node-resolver.js';
@@ -33,6 +33,18 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
     function getLoginForNode(nodeId) {
         const node = terminalData[nodeId];
         return (node && node.login) ? node.login : null;
+    }
+
+    // Pick the first user in this gate that has a remembered password for the
+    // current terminal, so the login overlay can pre-fill on reconnect. Returns
+    // null when nothing is remembered (overlay renders with an empty password).
+    function computeLoginPrefill(loginBlock) {
+        for (const u of loginBlock.users) {
+            const name = typeof u === 'string' ? u : u.username;
+            const password = getRememberedPassword(currentTerminalId, name);
+            if (password !== undefined) return { username: name, password };
+        }
+        return null;
     }
 
     function showAlreadyLoggedIn(username, onDone) {
@@ -144,7 +156,7 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
 
         const loginBlock = getLoginForNode(nodeId);
         if (loginBlock) {
-            const loggedUser = getLoggedInUser(loginBlock);
+            const loggedUser = getLoggedInUser(currentTerminalId, loginBlock);
             if (!loggedUser) {
                 onRequestLogin(loginBlock, currentTerminalId, (username) => {
                     if (!isBack) pushHistory(nodeId);
@@ -161,7 +173,7 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
                         clearHistory();
                         onDisconnect();
                     }
-                });
+                }, computeLoginPrefill(loginBlock));
                 return;
             }
             if (!isBack) pushHistory(nodeId);
@@ -196,6 +208,9 @@ export function mountTerminal(contentEl, choicesEl, terminalEl, { onDisconnect, 
 
     function disconnectTerminal() {
         abortCurrentTyping();
+        // Logout: clear this terminal's authenticated logins so reconnecting
+        // re-presents its gates. Remembered credentials are kept for prefill.
+        if (currentTerminalId) clearLogins(currentTerminalId);
         terminalData = {};
         seenNodes = new Set();
         clearHistory();

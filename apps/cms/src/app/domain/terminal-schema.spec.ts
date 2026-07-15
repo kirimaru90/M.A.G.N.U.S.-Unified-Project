@@ -64,6 +64,34 @@ describe('LoginBlockSchema gateOnBoot', () => {
   });
 });
 
+describe('TerminalNodeSchema per-node login', () => {
+  it('preserves node.login.users on parse (not stripped)', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      login: { users: [] },
+      nodes: { deposito: { text: 'riservato', login: { users: ['tecnico'] } } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(
+        (result.data.nodes['deposito'] as { login?: { users: string[] } }).login?.users,
+      ).toEqual(['tecnico']);
+    }
+  });
+
+  it('parses a node without login unchanged (no login field on the parsed node)', () => {
+    const result = TerminalContentSchema.safeParse({
+      meta: { title: 'T' },
+      login: { users: [] },
+      nodes: { start: { text: 'hi', choices: [] } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect('login' in result.data.nodes['start']).toBe(false);
+    }
+  });
+});
+
 describe('TerminalContentSchema optional fields with neutral defaults', () => {
   it('omitting state parses and yields { local: {}, global: {} }', () => {
     const result = TerminalContentSchema.safeParse({

@@ -349,11 +349,10 @@ function serializeComponents(rows: ComponentRow[]): NodeComponent[] {
 // ── Node helpers ──────────────────────────────────────────────────────────────
 
 function makeNodeGroup(id: string, node?: TerminalNode): FormGroup {
-  const nodeAny = node as (TerminalNode & { login?: { users?: string[] } }) | undefined;
   return new FormGroup({
     id: new FormControl(id),
     text: new FormControl(node?.text ?? ''),
-    loginUsers: new FormControl<string[]>(nodeAny?.login?.users ?? []),
+    loginUsers: new FormControl<string[]>(node?.login?.users ?? []),
     on_enter: loadMutationArray(node?.on_enter),
     choices: new FormArray<FormGroup>((node?.choices ?? []).map((c) => makeChoiceGroup(c))),
     variants: new FormArray<FormGroup>(
@@ -434,6 +433,9 @@ export function toForm(content: TerminalContent, fictionalUsers: FictionalUserCr
     stateLocal: new FormArray<FormGroup>(localVars, [uniqueNamesValidator]),
     stateGlobal: new FormArray<FormGroup>(globalVars, [uniqueNamesValidator]),
     users: new FormArray<FormGroup>(users),
+    // Boot login gate: checked (the default) means "gate at boot". Hydrated true when
+    // gateOnBoot is true or absent, false only when explicitly false.
+    loginGateOnBoot: new FormControl<boolean>(content.login.gateOnBoot !== false),
     nodes: new FormArray<FormGroup>(nodes, [uniqueNodeIdsValidator]),
   });
 }
@@ -459,18 +461,23 @@ export function toContent(raw: ReturnType<FormGroup['getRawValue']>): unknown {
   const hiddenId = typeof raw.meta.hiddenId === 'string' ? raw.meta.hiddenId.trim() : '';
   if (hiddenId) meta['hiddenId'] = hiddenId;
 
+  const login: Record<string, unknown> = {
+    users: (raw.users as UserRow[]).map((u) => {
+      const password = u.password?.trim();
+      return password ? { username: u.username, password: u.password } : { username: u.username };
+    }),
+  };
+  // Emit gateOnBoot: false only when the toggle is unchecked; omit it when checked so
+  // absence continues to mean "gate at boot" (the historical default).
+  if (raw.loginGateOnBoot === false) login['gateOnBoot'] = false;
+
   return {
     meta,
     state: {
       local: serializeStateScope(raw.stateLocal as StateVarRow[]),
       global: serializeStateScope(raw.stateGlobal as StateVarRow[]),
     },
-    login: {
-      users: (raw.users as UserRow[]).map((u) => {
-        const password = u.password?.trim();
-        return password ? { username: u.username, password: u.password } : { username: u.username };
-      }),
-    },
+    login,
     nodes,
   };
 }

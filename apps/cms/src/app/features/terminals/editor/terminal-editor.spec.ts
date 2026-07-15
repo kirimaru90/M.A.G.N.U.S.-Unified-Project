@@ -74,4 +74,67 @@ describe('TerminalEditorComponent', () => {
     expect(component.dirty()).toBe(true);
     expect(component.apiError).toBe('Boom');
   });
+
+  describe('boot login gate toggle', () => {
+    function findGateCheckbox(): HTMLInputElement | null {
+      const host = fixture.nativeElement as HTMLElement;
+      return host.querySelector('.boot-gate input[type="checkbox"]');
+    }
+
+    it('renders the "Richiedi accesso all\'avvio" checkbox next to the user rows', () => {
+      const host = fixture.nativeElement as HTMLElement;
+      const label = host.querySelector('.boot-gate');
+      expect(label?.textContent).toContain("Richiedi accesso all'avvio");
+      expect(findGateCheckbox()).not.toBeNull();
+    });
+
+    it('hydrates checked when gateOnBoot is absent', () => {
+      // baseContent() omits gateOnBoot
+      expect(component.gateOnBootControl.value).toBe(true);
+      expect(findGateCheckbox()?.checked).toBe(true);
+    });
+
+    it('hydrates unchecked when gateOnBoot is explicitly false', () => {
+      component.content = {
+        ...baseContent(),
+        login: { users: [{ username: 'tecnico' }], gateOnBoot: false },
+      } as TerminalContent;
+      component.ngOnInit();
+      fixture.detectChanges();
+
+      expect(component.gateOnBootControl.value).toBe(false);
+      expect(findGateCheckbox()?.checked).toBe(false);
+    });
+
+    it('unchecking serializes login.gateOnBoot false on save', () => {
+      updateSpy.mockReturnValue(of({ ...baseEnvelope(), content: baseContent() }));
+      component.gateOnBootControl.setValue(false);
+
+      component.save();
+
+      const serialized = updateSpy.mock.calls[0][1] as { login: { gateOnBoot?: boolean } };
+      expect(serialized.login.gateOnBoot).toBe(false);
+    });
+
+    it('leaving it checked omits gateOnBoot on save', () => {
+      updateSpy.mockReturnValue(of({ ...baseEnvelope(), content: baseContent() }));
+      // default (checked)
+      component.save();
+
+      const serialized = updateSpy.mock.calls[0][1] as { login: Record<string, unknown> };
+      expect('gateOnBoot' in serialized.login).toBe(false);
+    });
+  });
 });
+
+function baseEnvelope(): TerminalDetailEnvelope {
+  return {
+    id: 't1',
+    campaignId: 'c1',
+    title: 'Terminal',
+    content: baseContent(),
+    state: {},
+    fictionalUsers: [{ username: 'tecnico', password: 'robco123' }],
+    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+}

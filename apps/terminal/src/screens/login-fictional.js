@@ -14,7 +14,7 @@ export function mountLoginFictional(loginEl, { setKeyHandler }) {
         if (e.key === 'Enter') loginEl.querySelector('#login-submit').click();
     });
 
-    function showLogin(loginBlock, terminalId, onSuccess, onBack) {
+    function showLogin(loginBlock, terminalId, onSuccess, onBack, prefill = null) {
         loginUsernameEl.innerHTML = '';
         loginBlock.users.forEach(u => {
             const name = typeof u === 'string' ? u : u.username;
@@ -23,7 +23,15 @@ export function mountLoginFictional(loginEl, { setKeyHandler }) {
             opt.textContent = name;
             loginUsernameEl.appendChild(opt);
         });
-        loginPasswordEl.value = '';
+        // Reconnect prefill: pre-select the remembered username and pre-fill its
+        // password. It is a convenience only — [ ACCEDI ] still re-validates
+        // against the server, so a rotated/removed password fails on submit.
+        if (prefill && prefill.username) {
+            loginUsernameEl.value = prefill.username;
+            loginPasswordEl.value = prefill.password ?? '';
+        } else {
+            loginPasswordEl.value = '';
+        }
         loginErrorEl.style.display = 'none';
         loginEl.style.display = 'flex';
 
@@ -50,7 +58,7 @@ export function mountLoginFictional(loginEl, { setKeyHandler }) {
             newSubmit.disabled = true;
             try {
                 const username = await submitFictionalLogin(terminalId, loginUsernameEl.value, loginPasswordEl.value);
-                recordLogin(username);
+                recordLogin(terminalId, username, loginPasswordEl.value);
                 loginEl.style.display = 'none';
                 onSuccess(username);
             } catch (err) {

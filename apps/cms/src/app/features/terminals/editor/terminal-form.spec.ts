@@ -1,6 +1,7 @@
 import { FormArray } from '@angular/forms';
 import { describe, it, expect } from 'vitest';
 import { toForm, toContent } from './terminal-form';
+import { TerminalContentSchema } from '../../../domain/terminal-schema';
 import type { TerminalContent } from '../../../domain/terminal-schema';
 
 function baseContent(): TerminalContent {
@@ -54,6 +55,101 @@ describe('terminal-form', () => {
 
       const content = toContent(form.getRawValue()) as { login: { users: { username: string; password?: string }[] } };
       expect(content.login.users[0]).toEqual({ username: 'tecnico' });
+    });
+  });
+
+  describe('rich round-trip through toForm → toContent → schema', () => {
+    // Exercises the full serialization surface (mutations, conditions, choices,
+    // variants, input components with branches, all state-var kinds) so the real
+    // save path is covered end-to-end, not just the login fields.
+    function richContent(): TerminalContent {
+      return {
+        meta: { title: 'Rich', public: true },
+        state: {
+          local: {
+            flag: { type: 'boolean', default: true },
+            count: { type: 'number', default: 3 },
+            name: { type: 'string', default: 'ada' },
+            tier: { type: 'enum', values: ['a', 'b'], default: 'a' },
+          },
+          global: {},
+        },
+        login: { users: [{ username: 'tecnico' }] },
+        nodes: {
+          start: {
+            text: 'hi',
+            on_enter: [{ key: 'local.count', op: 'increment', by: 1 }],
+            choices: [
+              {
+                label: 'go',
+                target: 'n2',
+                when: { var: 'local.flag', op: 'eq', value: true },
+                set: [{ key: 'local.name', op: 'set', value: 'grace' }],
+              },
+              { label: 'toggle', target: 'start', set: [{ key: 'local.flag', op: 'toggle' }] },
+            ],
+          },
+          n2: {
+            variants: [
+              { default: true, text: 'default variant', choices: [] },
+              { when: { var: 'local.count', op: 'gt', value: 2 }, text: 'many' },
+            ],
+          },
+          n3: {
+            components: [
+              {
+                type: 'input',
+                placeholder: 'code?',
+                set: 'local.name',
+                branches: [
+                  { when: { var: 'local.name', op: 'eq', value: 'ada' }, target: 'start' },
+                  { default: true, target: 'n2' },
+                ],
+              },
+            ],
+          },
+          deposito: { text: 'x', login: { users: ['tecnico'] } },
+        },
+      } as TerminalContent;
+    }
+
+    it('serializes back to schema-valid content preserving the salient fields', () => {
+      const form = toForm(richContent(), [{ username: 'tecnico', password: 'robco123' }]);
+      const serialized = toContent(form.getRawValue());
+      const parsed = TerminalContentSchema.safeParse(serialized);
+
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) return;
+      const nodes = parsed.data.nodes as Record<string, any>;
+
+      expect(nodes['start'].on_enter[0]).toEqual({ key: 'local.count', op: 'increment', by: 1 });
+      expect(nodes['start'].choices[0].when).toEqual({ var: 'local.flag', op: 'eq', value: true });
+      expect(nodes['start'].choices[1].set[0]).toEqual({ key: 'local.flag', op: 'toggle' });
+      expect(nodes['n2'].variants.some((v: any) => v.default === true)).toBe(true);
+      expect(nodes['n3'].components[0].branches.some((b: any) => b.default === true)).toBe(true);
+      expect(nodes['deposito'].login.users).toEqual(['tecnico']);
+      expect(parsed.data.state.local['tier']).toEqual({ type: 'enum', values: ['a', 'b'], default: 'a' });
+    });
+  });
+
+  describe('save order (toContent then safeParse) preserves node login', () => {
+    it('keeps nodes.<id>.login.users through the real save path', () => {
+      const content = {
+        ...baseContent(),
+        nodes: { deposito: { text: 'riservato', login: { users: ['tecnico'] } } },
+      } as TerminalContent;
+      const form = toForm(content, []);
+
+      // The real save() runs toContent then TerminalContentSchema.safeParse on the result.
+      const serialized = toContent(form.getRawValue());
+      const parsed = TerminalContentSchema.safeParse(serialized);
+
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(
+          (parsed.data.nodes['deposito'] as { login?: { users: string[] } }).login?.users,
+        ).toEqual(['tecnico']);
+      }
     });
   });
 });

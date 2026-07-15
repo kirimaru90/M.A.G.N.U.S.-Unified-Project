@@ -1,7 +1,7 @@
 import { abortCurrentTyping } from './engine/typewriter.js';
 import { dataTerminalSound } from './engine/sounds.js';
 import { makeNavHandler } from './engine/keynav.js';
-import { getLoggedInUser } from './engine/login-fictional.js';
+import { getLoggedInUser, getRememberedPassword } from './engine/login-fictional.js';
 import { apiGet } from './api/client.js';
 import { rehydrate, logout as sessionLogout, getUser } from './api/session.js';
 import { mountCampaignSelect } from './screens/campaign-select.js';
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const terminal = mountTerminal(contentEl, choicesEl, terminalEl, {
         onDisconnect: showTerminalList,
-        onRequestLogin(loginBlock, terminalId, onSuccess, onBack) {
+        onRequestLogin(loginBlock, terminalId, onSuccess, onBack, prefill = null) {
             loginEl.style.display = 'flex';
             terminalEl.style.display = 'none';
             login.showLogin(loginBlock, terminalId, (username) => {
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loginEl.style.display = 'none';
                 terminalEl.style.display = 'block';
                 onBack();
-            });
+            }, prefill);
         },
         setKeyHandler,
     });
@@ -222,6 +222,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Boot-gate reconnect prefill: pick the first registry user with a remembered
+    // password for this terminal so the boot login overlay can pre-fill.
+    function computeBootPrefill(terminalId, loginBlock) {
+        for (const u of loginBlock.users) {
+            const name = typeof u === 'string' ? u : u.username;
+            const password = getRememberedPassword(terminalId, name);
+            if (password !== undefined) return { username: name, password };
+        }
+        return null;
+    }
+
     function playTerminalData(rawData) {
         bootEl.innerHTML = '<p>ESTRAZIONE DATI IN CORSO...</p><span class="cursor">_</span>';
         bootEl.style.display = 'flex';
@@ -239,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             setTimeout(() => {
                 if (globalLogin && globalLogin.users && globalLogin.users.length > 0 && globalLogin.gateOnBoot !== false) {
-                    const loggedUser = getLoggedInUser(globalLogin);
+                    const loggedUser = getLoggedInUser(terminalId, globalLogin);
                     if (!loggedUser) {
                         loginEl.style.display = 'flex';
                         bootEl.style.display = 'none';
@@ -251,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             loginEl.style.display = 'none';
                             abortCurrentTyping();
                             showTerminalList();
-                        });
+                        }, computeBootPrefill(terminalId, globalLogin));
                         return;
                     }
                 }

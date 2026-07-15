@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
-import { FormArray, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { merge } from 'rxjs';
 import { startWith } from 'rxjs/operators';
 import { MessageService } from 'primeng/api';
@@ -48,7 +48,7 @@ import { NodesSectionComponent } from './nodes-section';
 
       <app-metadata-section [metaGroup]="metaGroup" />
       <app-state-schema-section [localVars]="localVarsArray" [globalVars]="globalVarsArray" [campaignGlobalSchema]="campaignGlobalSchema()" />
-      <app-fictional-users-section [users]="usersArray" />
+      <app-fictional-users-section [users]="usersArray" [gateOnBoot]="gateOnBootControl" />
       <app-nodes-section [nodes]="nodesArray" [availableUsernames]="availableUsernames" [availableKeys]="availableKeys" />
     </div>
   `,
@@ -155,6 +155,10 @@ export class TerminalEditorComponent implements OnInit {
 
   get usersArray(): FormArray<FormGroup> {
     return this.form.get('users') as FormArray<FormGroup>;
+  }
+
+  get gateOnBootControl(): FormControl<boolean> {
+    return this.form.get('loginGateOnBoot') as FormControl<boolean>;
   }
 
   get nodesArray(): FormArray<FormGroup> {

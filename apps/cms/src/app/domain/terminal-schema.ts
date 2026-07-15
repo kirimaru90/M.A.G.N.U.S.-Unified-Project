@@ -155,6 +155,10 @@ export const TerminalNodeSchema = z.object({
   choices: z.array(NodeChoiceSchema).optional(),
   variants: z.array(NodeVariantSchema).optional(),
   components: z.array(NodeComponentSchema).optional(),
+  // Per-node login gate. Usernames only (no passwords): node-level gates reference
+  // credentials declared in the root registry and validated server-side per terminal.
+  // Preserved on parse so the node editor's login selection round-trips through save.
+  login: z.object({ users: z.array(z.string()) }).optional(),
 });
 
 // ── Top-level schema ──────────────────────────────────────────────────────────

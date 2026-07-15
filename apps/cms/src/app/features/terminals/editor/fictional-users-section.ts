@@ -21,6 +21,18 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular
       }
 
       <button type="button" class="bo-btn ghost sm" (click)="add()">+ Aggiungi utente</button>
+
+      <label class="boot-gate" [class.disabled]="!hasUsers">
+        <input
+          type="checkbox"
+          [formControl]="gateOnBoot"
+          [attr.disabled]="hasUsers ? null : true"
+        />
+        Richiedi accesso all'avvio
+        @if (!hasUsers) {
+          <span class="boot-gate-hint">(disponibile con almeno un utente fittizio)</span>
+        }
+      </label>
     </div>
   `,
   styles: [`
@@ -30,10 +42,18 @@ import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular
     .bo-input.sm { padding: 4px 8px; font-size: 13px; }
     .bo-btn.sm { padding: 4px 10px; font-size: 13px; }
     .danger { color: var(--bo-danger, #c0392b); }
+    .boot-gate { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; }
+    .boot-gate.disabled { color: var(--bo-text-faint); }
+    .boot-gate-hint { color: var(--bo-text-faint); }
   `],
 })
 export class FictionalUsersSectionComponent {
   @Input({ required: true }) users!: FormArray<FormGroup>;
+  @Input({ required: true }) gateOnBoot!: FormControl<boolean>;
+
+  get hasUsers(): boolean {
+    return this.users.length > 0;
+  }
 
   add(): void {
     this.users.push(new FormGroup({
