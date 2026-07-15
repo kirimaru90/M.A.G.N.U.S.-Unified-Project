@@ -41,8 +41,8 @@ export const StateVariableSchema = z.discriminatedUnion('type', [
 ]);
 
 export const StateDeclarationSchema = z.object({
-  local: z.record(z.string(), StateVariableSchema),
-  global: z.record(z.string(), StateVariableSchema),
+  local: z.record(z.string(), StateVariableSchema).default({}),
+  global: z.record(z.string(), StateVariableSchema).default({}),
 });
 
 // ── Login block ───────────────────────────────────────────────────────────────

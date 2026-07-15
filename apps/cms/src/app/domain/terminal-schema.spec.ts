@@ -165,3 +165,76 @@ describe('TerminalContentSchema optional fields with neutral defaults', () => {
     }
   });
 });
+
+describe('TerminalContentSchema partial state (inner sides optional with {} default)', () => {
+  const base = {
+    meta: { title: 'T' },
+    login: { users: [] },
+    nodes: { start: { text: 'x', choices: [] } },
+  };
+
+  it('state with only local defaults global to {}', () => {
+    const result = TerminalContentSchema.safeParse({
+      ...base,
+      state: { local: { flag: { type: 'boolean', default: false } } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state.global).toEqual({});
+      expect(result.data.state.local).toEqual({ flag: { type: 'boolean', default: false } });
+    }
+  });
+
+  it('state with only global defaults local to {}', () => {
+    const result = TerminalContentSchema.safeParse({
+      ...base,
+      state: { global: { tier: { type: 'string', default: '' } } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state.local).toEqual({});
+      expect(result.data.state.global).toEqual({ tier: { type: 'string', default: '' } });
+    }
+  });
+
+  it('empty state object defaults both sides to {}', () => {
+    const result = TerminalContentSchema.safeParse({ ...base, state: {} });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toEqual({ local: {}, global: {} });
+    }
+  });
+
+  it('regression: omitting state entirely still yields { local: {}, global: {} }', () => {
+    const result = TerminalContentSchema.safeParse(base);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toEqual({ local: {}, global: {} });
+    }
+  });
+
+  it('regression: a fully-populated state with both sides parses to the same normalized shape', () => {
+    const state = {
+      local: { flag: { type: 'boolean', default: true } },
+      global: { tier: { type: 'string', default: 'gold' } },
+    };
+    const result = TerminalContentSchema.safeParse({ ...base, state });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.state).toEqual(state);
+    }
+  });
+
+  it('regression: an invalid variable shape inside a declared side is still rejected', () => {
+    const result = TerminalContentSchema.safeParse({
+      ...base,
+      state: { local: { flag: { type: 'boolean', default: 0 } } },
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path.join('.').startsWith('state.local')),
+      ).toBe(true);
+    }
+  });
+});
