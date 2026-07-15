@@ -3,9 +3,7 @@
 ## Purpose
 
 Form-based terminal content editor sourcing the campaign schema from cache, mirroring the canonical schema in a reactive form tree, with serialize/validate/PUT save, inline validation, dirty/discard handling, and null-scope tolerance.
-
 ## Requirements
-
 ### Requirement: Editor sources the campaign global schema from the cached current campaign
 The terminal editor SHALL build its campaign global-variable schema (`campaignGlobalSchema` — the set of declarable global variables offered to the author) from `CurrentCampaignService.currentCampaign()?.state`, NOT by issuing its own `GET /campaigns/:id` on mount. When `currentCampaign()` is `null` (e.g. a deep link before rehydration completes), the editor SHALL render with an empty global schema and SHALL recompute once the signal is populated. After a global-schema write (`PATCH /campaigns/:id/state/schema`, which returns the updated `{ state }`), the cached `currentCampaign().state` SHALL be updated when the patched campaign is current, so the editor reflects the new declarations without a page reload.
 
@@ -127,3 +125,19 @@ The `toForm(content)` mapper in `editor/terminal-form.ts` SHALL treat `content.s
 #### Scenario: Detail page mounts the editor for a terminal with no state declared
 - **WHEN** the admin opens `/terminals/t1` and the API returns content with `state.local === null` and `state.global === null`
 - **THEN** the editor mounts with empty state sections and the page does not surface a `Object.entries of null` runtime error
+
+### Requirement: Editor hosts the flow-graph preview wired to the nodes list
+The terminal editor SHALL render the flow-graph preview panel between the fictional-users section and the nodes section. The graph SHALL be fed from the same reactive form the sections edit (derived from the form content, recomputed on relevant form changes), so it stays consistent with unsaved edits. The editor SHALL connect the graph's node-selection to the nodes editor's `openNode(id)`, and SHALL reflect the currently-open node card back to the graph as its active node.
+
+#### Scenario: Graph panel is positioned between users and nodes
+- **WHEN** the editor renders for an existing terminal
+- **THEN** the flow-graph panel appears after `app-fictional-users-section` and before `app-nodes-section`
+
+#### Scenario: Clicking a graph node opens its card
+- **WHEN** the author clicks a node in the flow-graph preview
+- **THEN** the editor calls the nodes editor's `openNode` for that id and the matching node card expands
+
+#### Scenario: Graph reflects unsaved edits
+- **WHEN** the author adds a node or edits a choice `target` without saving
+- **THEN** the flow-graph preview updates to reflect the current, unsaved form content
+

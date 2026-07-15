@@ -1,9 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormArray, FormGroup } from '@angular/forms';
 import { of, throwError } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MessageService } from 'primeng/api';
 import { provideMarkdown } from 'ngx-markdown';
 import { TerminalEditorComponent } from './terminal-editor';
+import { makeChoiceGroup } from './terminal-form';
 import { TerminalsApiService } from '../../../core/terminal/terminals-api.service';
 import { CurrentCampaignService } from '../../../core/campaign/current-campaign.service';
 import type { TerminalContent } from '../../../domain/terminal-schema';
@@ -123,6 +125,42 @@ describe('TerminalEditorComponent', () => {
 
       const serialized = updateSpy.mock.calls[0][1] as { login: Record<string, unknown> };
       expect('gateOnBoot' in serialized.login).toBe(false);
+    });
+  });
+
+  describe('flow-graph preview wiring', () => {
+    it('renders the flow-graph panel between the users and nodes sections', () => {
+      const host = fixture.nativeElement as HTMLElement;
+      const tags = Array.from(
+        host.querySelectorAll('app-fictional-users-section, app-terminal-flow-graph, app-nodes-section'),
+      ).map((el) => el.tagName.toLowerCase());
+      expect(tags).toEqual(['app-fictional-users-section', 'app-terminal-flow-graph', 'app-nodes-section']);
+    });
+
+    it('clicking a graph node opens the matching accordion card', () => {
+      const host = fixture.nativeElement as HTMLElement;
+      const startBox = Array.from(host.querySelectorAll('.fg-node')).find((el) =>
+        el.textContent?.includes('start'),
+      ) as SVGGElement;
+      startBox.dispatchEvent(new MouseEvent('click'));
+      fixture.detectChanges();
+
+      const activeCard = host.querySelector('.node-card.active');
+      expect(activeCard?.getAttribute('data-node-id')).toBe('start');
+      expect(activeCard?.querySelector('.node-body')).not.toBeNull();
+    });
+
+    it('reflects unsaved edits: a new broken target surfaces on the source node card', () => {
+      const host = fixture.nativeElement as HTMLElement;
+      const startNode = component.nodesArray.at(0) as FormGroup;
+      const choices = startNode.get('choices') as FormArray;
+      choices.push(makeChoiceGroup({ label: 'Go', target: 'ghost_node' }));
+      // Debounced recompute; trigger it directly for the test.
+      (component as unknown as { recomputeGraph: () => void }).recomputeGraph();
+      fixture.detectChanges();
+
+      const startCard = host.querySelector('.node-card[data-node-id="start"]');
+      expect(startCard?.querySelector('.broken-pill')).not.toBeNull();
     });
   });
 });

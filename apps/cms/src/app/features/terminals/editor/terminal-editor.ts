@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { merge } from 'rxjs';
-import { startWith } from 'rxjs/operators';
+import { debounceTime, startWith } from 'rxjs/operators';
 import { MessageService } from 'primeng/api';
 import { TerminalsApiService } from '../../../core/terminal/terminals-api.service';
 import { CurrentCampaignService } from '../../../core/campaign/current-campaign.service';
@@ -10,10 +10,15 @@ import { TerminalContentSchema } from '../../../domain/terminal-schema';
 import type { FictionalUserCredential } from '../../../core/terminal/terminal.types';
 import type { StateEntryShape } from '../../../core/state/state.types';
 import { resolveControlByPath, toContent, toForm } from './terminal-form';
+import { deriveFlowGraph, type FlowGraph } from './flow-graph.model';
 import { MetadataSectionComponent } from './metadata-section';
 import { StateSchemaSectionComponent } from './state-schema-section';
 import { FictionalUsersSectionComponent } from './fictional-users-section';
 import { NodesSectionComponent } from './nodes-section';
+import { TerminalFlowGraphComponent } from './terminal-flow-graph';
+
+const EMPTY_GRAPH: FlowGraph = { nodes: [], edges: [], entryId: null, unreachable: [], broken: [] };
+const GRAPH_DEBOUNCE_MS = 150;
 
 @Component({
   selector: 'app-terminal-editor',
@@ -23,6 +28,7 @@ import { NodesSectionComponent } from './nodes-section';
     MetadataSectionComponent,
     StateSchemaSectionComponent,
     FictionalUsersSectionComponent,
+    TerminalFlowGraphComponent,
     NodesSectionComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,7 +55,19 @@ import { NodesSectionComponent } from './nodes-section';
       <app-metadata-section [metaGroup]="metaGroup" />
       <app-state-schema-section [localVars]="localVarsArray" [globalVars]="globalVarsArray" [campaignGlobalSchema]="campaignGlobalSchema()" />
       <app-fictional-users-section [users]="usersArray" [gateOnBoot]="gateOnBootControl" />
-      <app-nodes-section [nodes]="nodesArray" [availableUsernames]="availableUsernames" [availableKeys]="availableKeys" />
+      <app-terminal-flow-graph
+        [graph]="graph()"
+        [activeNodeId]="graphActiveId()"
+        (nodeSelected)="nodesSection.openNode($event)"
+      />
+      <app-nodes-section
+        #nodesSection
+        [nodes]="nodesArray"
+        [availableUsernames]="availableUsernames"
+        [availableKeys]="availableKeys"
+        [brokenNodeIds]="brokenNodeIds()"
+        (activeNodeChange)="graphActiveId.set($event)"
+      />
     </div>
   `,
   styles: [`
@@ -88,6 +106,15 @@ export class TerminalEditorComponent implements OnInit {
   protected availableUsernames: string[] = [];
   protected availableKeys: string[] = [];
 
+  /** Flow graph derived from the current (unsaved) form content. */
+  protected readonly graph = signal<FlowGraph>(EMPTY_GRAPH);
+  /** The node whose card is currently open, reflected as the graph's active node. */
+  protected readonly graphActiveId = signal<string | null>(null);
+  /** Node ids with a broken outgoing target, surfaced as pills on the node cards. */
+  protected readonly brokenNodeIds = computed(() =>
+    Array.from(new Set(this.graph().broken.map((b) => b.from))),
+  );
+
   private baseline!: TerminalContent;
 
   ngOnInit(): void {
@@ -102,6 +129,13 @@ export class TerminalEditorComponent implements OnInit {
     this.form.valueChanges.subscribe(() => {
       this.dirty.set(true);
     });
+    // Derive the flow graph now and on every relevant form change (add/remove a
+    // node or edit a target both surface as valueChanges), debounced per D7.
+    this.graphActiveId.set(null);
+    this.recomputeGraph();
+    this.form.valueChanges.pipe(debounceTime(GRAPH_DEBOUNCE_MS)).subscribe(() => {
+      this.recomputeGraph();
+    });
     this.computeAvailableUsernames();
     this.computeAvailableKeys();
     this.usersArray.valueChanges.pipe(startWith(null)).subscribe(() => {
@@ -114,6 +148,11 @@ export class TerminalEditorComponent implements OnInit {
         this.computeAvailableKeys();
         this.cdr.markForCheck();
       });
+  }
+
+  private recomputeGraph(): void {
+    const content = toContent(this.form.getRawValue()) as TerminalContent;
+    this.graph.set(deriveFlowGraph(content));
   }
 
   private computeAvailableUsernames(): void {
