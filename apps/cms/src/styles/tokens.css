@@ -719,3 +719,20 @@
   background: var(--bo-ol-accent-soft);
   color: var(--bo-ol-accent);
 }
+
+/* ===== Dialog / confirm overlays (PrimeNG) — app UI font =====
+   ConfirmDialog and modal p-dialog are portaled to <body>, OUTSIDE .bo-frame,
+   so --bo-font-ui (scoped to .bo-frame) never resolves and they fall back to the
+   PrimeNG default font. Apply the Inter UI stack literally on the overlay parts
+   so confirmation/modal popups match the rest of the backoffice. */
+.p-dialog,
+.p-confirmdialog,
+.p-dialog .p-dialog-header,
+.p-dialog .p-dialog-content,
+.p-dialog .p-dialog-footer,
+.p-confirmdialog .p-dialog-header,
+.p-confirmdialog .p-dialog-content,
+.p-confirmdialog .p-dialog-footer,
+.p-confirmdialog .p-confirmdialog-message {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}

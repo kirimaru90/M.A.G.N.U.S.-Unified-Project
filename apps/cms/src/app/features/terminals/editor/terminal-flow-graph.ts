@@ -1,11 +1,37 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import type { FlowGraph, FlowNode } from './flow-graph.model';
-import { layoutFlowGraph, NODE_HEIGHT, NODE_WIDTH, type PositionedEdge } from './flow-graph.layout';
+import {
+  fitToWidthZoom,
+  layoutFlowGraph,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+  scaleLayout,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  ZOOM_WHEEL_STEP,
+  type PositionedEdge,
+} from './flow-graph.layout';
 
 interface Badge {
   letter: string;
   title: string;
 }
+
+/** Additive step applied by the +/- header buttons. */
+const ZOOM_BUTTON_STEP = 0.25;
 
 @Component({
   selector: 'app-terminal-flow-graph',
@@ -16,9 +42,27 @@ interface Badge {
     <div class="bo-card section flow-panel">
       <div class="flow-header" (click)="toggleCollapsed()">
         <h3 class="bo-card-section-title">Mappa del flusso</h3>
-        <button type="button" class="bo-btn ghost sm" [attr.aria-expanded]="!collapsed()">
-          {{ collapsed() ? 'Espandi' : 'Comprimi' }}
-        </button>
+        <div class="flow-header-actions">
+          @if (!collapsed()) {
+            <div class="flow-zoom" (click)="$event.stopPropagation()">
+              <button
+                type="button" class="bo-btn ghost sm" (click)="zoomOut()"
+                [disabled]="zoom() <= zoomMin" aria-label="Riduci zoom"
+              >−</button>
+              <button
+                type="button" class="bo-btn ghost sm" (click)="resetZoom()"
+                aria-label="Adatta alla larghezza"
+              >Adatta</button>
+              <button
+                type="button" class="bo-btn ghost sm" (click)="zoomIn()"
+                [disabled]="zoom() >= zoomMax" aria-label="Aumenta zoom"
+              >+</button>
+            </div>
+          }
+          <button type="button" class="bo-btn ghost sm" [attr.aria-expanded]="!collapsed()">
+            {{ collapsed() ? 'Espandi' : 'Comprimi' }}
+          </button>
+        </div>
       </div>
 
       @if (!collapsed()) {
@@ -28,7 +72,7 @@ interface Badge {
           </div>
         }
 
-        <div class="flow-canvas-wrap">
+        <div class="flow-canvas-wrap" #canvasWrap>
           <svg
             class="flow-canvas"
             [attr.width]="layout().width"
@@ -42,13 +86,16 @@ interface Badge {
               <marker id="fg-arrow-broken" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
                 <path d="M0,0 L8,4 L0,8 Z" class="fg-arrow-head broken" />
               </marker>
+              <marker id="fg-arrow-hl" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+                <path d="M0,0 L8,4 L0,8 Z" class="fg-arrow-head hl" />
+              </marker>
             </defs>
 
             <!-- Edges -->
             @for (edge of layout().edges; track $index) {
-              <g class="fg-edge" [class.dim]="isEdgeDimmed(edge)" [class]="edge.kind">
+              <g class="fg-edge" [class.hl]="isEdgeHighlighted(edge)" [class]="edge.kind">
                 <path [attr.d]="edgePath(edge)" class="fg-edge-line"
-                  [attr.marker-end]="edge.kind === 'broken' ? 'url(#fg-arrow-broken)' : 'url(#fg-arrow)'" />
+                  [attr.marker-end]="edgeMarker(edge)" />
                 @if (edge.label) {
                   <text [attr.x]="edge.labelX" [attr.y]="edge.labelY - 4" class="fg-edge-label" text-anchor="middle">
                     {{ truncateLabel(edge.label) }}
@@ -65,7 +112,7 @@ interface Badge {
                 [class.entry]="!n.ghost && n.id === graph().entryId"
                 [class.unreachable]="!n.ghost && isUnreachable(n.id)"
                 [class.active]="!n.ghost && n.id === activeNodeId()"
-                [class.dim]="isNodeDimmed(n.id)"
+                [class.hovered]="!n.ghost && n.id === hoveredId()"
                 [attr.transform]="'translate(' + n.x + ',' + n.y + ')'"
                 (click)="onNodeClick(n.id, n.ghost)"
                 (mouseenter)="hoveredId.set(n.id)"
@@ -104,6 +151,9 @@ interface Badge {
     .section { margin-bottom: 16px; }
     .flow-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
     .flow-header .bo-card-section-title { margin: 0; }
+    .flow-header-actions { display: flex; align-items: center; gap: 8px; }
+    .flow-zoom { display: flex; align-items: center; gap: 4px; }
+    .flow-zoom .bo-btn.sm { min-width: 28px; }
     .bo-btn.sm { padding: 4px 10px; font-size: 13px; }
     .flow-warning {
       margin: 10px 0 4px; padding: 8px 12px; font-size: 13px;
@@ -111,7 +161,7 @@ interface Badge {
       border: 1px solid var(--bo-warn); border-radius: var(--bo-radius-sm, 6px);
     }
     .flow-warning code { font-family: var(--bo-font-mono, monospace); }
-    .flow-canvas-wrap { overflow-x: auto; margin-top: 12px; }
+    .flow-canvas-wrap { overflow: auto; margin-top: 12px; }
     .flow-canvas { display: block; font-family: var(--bo-font-ui, sans-serif); }
 
     /* Edges */
@@ -119,22 +169,22 @@ interface Badge {
     .fg-edge.cond .fg-edge-line { stroke-dasharray: 5 4; }
     .fg-edge.back .fg-edge-line { stroke-dasharray: 2 4; opacity: 0.6; }
     .fg-edge.broken .fg-edge-line { stroke: var(--bo-danger, #c0392b); stroke-dasharray: 4 3; }
+    .fg-edge.hl:not(.broken) .fg-edge-line { stroke: var(--bo-accent, #2d7); stroke-width: 2; }
     .fg-arrow-head { fill: var(--bo-border-strong, #999); }
     .fg-arrow-head.broken { fill: var(--bo-danger, #c0392b); }
+    .fg-arrow-head.hl { fill: var(--bo-accent, #2d7); }
     .fg-edge-label { fill: var(--bo-text-muted, #666); font-size: 10px; }
-    .fg-edge.dim { opacity: 0.15; }
 
     /* Nodes */
     .fg-node { cursor: pointer; }
     .fg-node-box { fill: var(--bo-panel, #fff); stroke: var(--bo-border, #ddd); stroke-width: 1.5; }
     .fg-node-id { fill: var(--bo-text, #222); font-size: 13px; font-weight: 600; font-family: var(--bo-font-mono, monospace); }
-    .fg-node.entry .fg-node-box { stroke: var(--bo-accent, #2d7); stroke-width: 2.5; }
+    .fg-node.hovered:not(.active) .fg-node-box { stroke: var(--bo-accent, #2d7); stroke-width: 2.5; }
     .fg-node.active .fg-node-box { fill: var(--bo-accent-soft, #eef); stroke: var(--bo-accent, #2d7); stroke-width: 2.5; }
     .fg-node.unreachable .fg-node-box { stroke-dasharray: 4 3; opacity: 0.6; }
     .fg-node.unreachable .fg-node-id { opacity: 0.6; }
     .fg-node.ghost .fg-node-box { fill: var(--bo-danger-soft, #fdecea); stroke: var(--bo-danger, #c0392b); stroke-dasharray: 4 3; }
     .fg-node.ghost .fg-node-id { fill: var(--bo-danger, #c0392b); }
-    .fg-node.dim { opacity: 0.25; }
     .fg-entry-tag { fill: var(--bo-accent, #2d7); font-size: 10px; font-weight: 600; }
     .fg-unreachable-tag { fill: var(--bo-text-faint, #999); font-size: 10px; }
     .fg-ghost-tag { fill: var(--bo-danger, #c0392b); font-size: 10px; font-weight: 600; }
@@ -154,13 +204,104 @@ export class TerminalFlowGraphComponent {
 
   protected readonly nodeWidth = NODE_WIDTH;
   protected readonly nodeHeight = NODE_HEIGHT;
+  protected readonly zoomMin = ZOOM_MIN;
+  protected readonly zoomMax = ZOOM_MAX;
 
-  protected readonly layout = computed(() => layoutFlowGraph(this.graph()));
+  private readonly injector = inject(Injector);
+  private readonly canvasWrap = viewChild<ElementRef<HTMLElement>>('canvasWrap');
+
+  /** Measured width of the scroll container; drives the fit-to-width default. */
+  private readonly containerWidth = signal(0);
+  /** Manual override; `null` means "follow the fit-to-width default". */
+  private readonly manualZoom = signal<number | null>(null);
+
+  private readonly baseLayout = computed(() => layoutFlowGraph(this.graph()));
+  private readonly fitZoom = computed(() =>
+    fitToWidthZoom(this.baseLayout().width, this.containerWidth(), ZOOM_MAX),
+  );
+  protected readonly zoom = computed(() => this.manualZoom() ?? this.fitZoom());
+  protected readonly layout = computed(() => scaleLayout(this.baseLayout(), this.zoom()));
+
   private readonly unreachableSet = computed(() => new Set(this.graph().unreachable));
   private readonly nodeById = computed(() => new Map(this.graph().nodes.map((n) => [n.id, n])));
 
+  constructor() {
+    // Observe the scroll container (it only exists while expanded). Writing the
+    // width signal triggers OnPush change detection so the fit-to-width default
+    // recomputes; a non-passive wheel listener lets us preventDefault the zoom.
+    effect((onCleanup) => {
+      const ref = this.canvasWrap();
+      if (!ref) return;
+      const el = ref.nativeElement;
+      this.containerWidth.set(el.clientWidth);
+
+      let ro: ResizeObserver | undefined;
+      if (typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver((entries) => {
+          const width = entries[0]?.contentRect.width ?? el.clientWidth;
+          this.containerWidth.set(Math.round(width));
+        });
+        ro.observe(el);
+      }
+
+      const wheelHandler = (ev: WheelEvent): void => this.handleWheel(ev, el);
+      el.addEventListener('wheel', wheelHandler, { passive: false });
+
+      onCleanup(() => {
+        ro?.disconnect();
+        el.removeEventListener('wheel', wheelHandler);
+      });
+    });
+  }
+
   protected toggleCollapsed(): void {
+    const willExpand = this.collapsed();
     this.collapsed.update((v) => !v);
+    // Reset to fit-to-width whenever the panel is (re)opened.
+    if (willExpand) this.manualZoom.set(null);
+  }
+
+  protected zoomIn(): void {
+    this.manualZoom.set(this.clampZoom(this.zoom() + ZOOM_BUTTON_STEP));
+  }
+
+  protected zoomOut(): void {
+    this.manualZoom.set(this.clampZoom(this.zoom() - ZOOM_BUTTON_STEP));
+  }
+
+  protected resetZoom(): void {
+    this.manualZoom.set(null);
+  }
+
+  private clampZoom(z: number): number {
+    return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  }
+
+  private handleWheel(ev: WheelEvent, el: HTMLElement): void {
+    ev.preventDefault();
+    const oldZoom = this.zoom();
+    const factor = ev.deltaY < 0 ? ZOOM_WHEEL_STEP : 1 / ZOOM_WHEEL_STEP;
+    const newZoom = this.clampZoom(oldZoom * factor);
+    if (newZoom === oldZoom) return;
+
+    // Content point under the pointer, in scaled canvas coordinates.
+    const rect = el.getBoundingClientRect();
+    const offsetX = ev.clientX - rect.left;
+    const offsetY = ev.clientY - rect.top;
+    const contentX = el.scrollLeft + offsetX;
+    const contentY = el.scrollTop + offsetY;
+    const ratio = newZoom / oldZoom;
+
+    this.manualZoom.set(newZoom);
+
+    // Re-anchor the pointer after the SVG re-renders at the new size.
+    afterNextRender(
+      () => {
+        el.scrollLeft = contentX * ratio - offsetX;
+        el.scrollTop = contentY * ratio - offsetY;
+      },
+      { injector: this.injector },
+    );
   }
 
   protected onNodeClick(id: string, ghost: boolean): void {
@@ -172,15 +313,15 @@ export class TerminalFlowGraphComponent {
     return this.unreachableSet().has(id);
   }
 
-  protected isNodeDimmed(id: string): boolean {
+  protected isEdgeHighlighted(edge: PositionedEdge): boolean {
     const hovered = this.hoveredId();
-    return hovered !== null && hovered !== id;
+    return hovered !== null && (edge.from === hovered || edge.to === hovered);
   }
 
-  protected isEdgeDimmed(edge: PositionedEdge): boolean {
-    const hovered = this.hoveredId();
-    if (hovered === null) return false;
-    return edge.from !== hovered && edge.to !== hovered;
+  protected edgeMarker(edge: PositionedEdge): string {
+    if (edge.kind === 'broken') return 'url(#fg-arrow-broken)';
+    if (this.isEdgeHighlighted(edge)) return 'url(#fg-arrow-hl)';
+    return 'url(#fg-arrow)';
   }
 
   protected edgePath(edge: PositionedEdge): string {
