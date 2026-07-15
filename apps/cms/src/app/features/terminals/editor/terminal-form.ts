@@ -414,7 +414,7 @@ export function toForm(content: TerminalContent, fictionalUsers: FictionalUserCr
     makeStateVarGroup(name, v as { type: string; default: unknown; values?: string[] }),
   );
   const passwordByUsername = new Map(fictionalUsers.map((u) => [u.username, u.password]));
-  const users = (content.login.users ?? []).map((u) =>
+  const users = (content.login?.users ?? []).map((u) =>
     new FormGroup({
       username: new FormControl(u.username),
       password: new FormControl(passwordByUsername.get(u.username) ?? ''),
@@ -435,7 +435,7 @@ export function toForm(content: TerminalContent, fictionalUsers: FictionalUserCr
     users: new FormArray<FormGroup>(users),
     // Boot login gate: checked (the default) means "gate at boot". Hydrated true when
     // gateOnBoot is true or absent, false only when explicitly false.
-    loginGateOnBoot: new FormControl<boolean>(content.login.gateOnBoot !== false),
+    loginGateOnBoot: new FormControl<boolean>(content.login?.gateOnBoot !== false),
     nodes: new FormArray<FormGroup>(nodes, [uniqueNodeIdsValidator]),
   });
 }

@@ -26,6 +26,22 @@ describe('terminal-form', () => {
       expect(users.at(1).get('password')?.value).toBe('');
     });
 
+    it('hydrates content with no login block (API strips login for user-less terminals)', () => {
+      // The API's stripContent deletes content.login when a terminal has no
+      // fictional users, so the served content omits the key entirely.
+      const { login, ...rest } = baseContent();
+      void login;
+      const content = rest as TerminalContent;
+
+      let form!: ReturnType<typeof toForm>;
+      expect(() => {
+        form = toForm(content, []);
+      }).not.toThrow();
+
+      expect((form.get('users') as FormArray).length).toBe(0);
+      expect(form.get('loginGateOnBoot')?.value).toBe(true);
+    });
+
     it('does not read passwords from content.login.users', () => {
       const content = {
         ...baseContent(),
