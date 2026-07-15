@@ -78,6 +78,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/tag-catalog/tag-catalog-page').then((m) => m.TagCatalogPage),
       },
+      {
+        path: 'talents-catalog',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/talents-catalog/talents-catalog-page').then(
+            (m) => m.TalentsCatalogPage,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: 'login' },
