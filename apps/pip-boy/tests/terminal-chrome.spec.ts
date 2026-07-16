@@ -319,8 +319,8 @@ test('the owner sees ◄ DOSSIER and ESCI in the status bar, and the ✎ toggle 
   await expect(page.locator('.pb-bezel #pb-editor-led')).toBeVisible();
   await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
 
-  // The tab bar returns to exactly five content tabs and carries no toggle.
-  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
+  // The tab bar returns to exactly six content tabs and carries no toggle.
+  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(6);
   await expect(page.locator('#pb-tabs #pb-editor-toggle')).toHaveCount(0);
 });
 

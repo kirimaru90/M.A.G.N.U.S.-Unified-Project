@@ -19,6 +19,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Vendored, never a CDN: an offline-first PWA cannot have its map library
+         (or its stylesheet) behind one. Loaded before pipboy.css so the map
+         styles there win over Leaflet's defaults. -->
+    <link rel="stylesheet" href="src/vendor/leaflet/leaflet.css">
     <link rel="stylesheet" href="src/styles/pipboy.css">
 </head>
 <body>

@@ -41,6 +41,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/terminals/terminal-detail').then((m) => m.TerminalDetailPage),
       },
+      // Authoring the map exposes non-public places, which the API only ships to
+      // an admin — so the screen is admin-only for the same reason the catalogs are.
+      {
+        path: 'campaign-map',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/campaign-map/campaign-map-page').then((m) => m.CampaignMapPage),
+      },
       // Game-data catalogs are admin-only: the API rejects a non-admin PATCH with 403.
       {
         path: 'skills-catalog',

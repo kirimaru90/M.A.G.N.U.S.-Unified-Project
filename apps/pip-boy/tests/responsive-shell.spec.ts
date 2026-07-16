@@ -82,9 +82,11 @@ test('the status bar, tab nav and footer stay visible and hit-testable in landsc
     await expect(page.locator(sel)).toBeInViewport();
   }
 
+  // Six since the MAPPA tab landed — the point of the assertion is that every
+  // one of them stays in the viewport in landscape, not the specific number.
   const tabs = page.locator('#pb-tabs-top .pb-tab');
-  await expect(tabs).toHaveCount(5);
-  for (let i = 0; i < 5; i++) await expect(tabs.nth(i)).toBeInViewport();
+  await expect(tabs).toHaveCount(6);
+  for (let i = 0; i < 6; i++) await expect(tabs.nth(i)).toBeInViewport();
 
   // Hit-testable, not merely painted: a tap must actually reach the control.
   await tabs.filter({ hasText: 'DADI' }).click();

@@ -1508,3 +1508,159 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-popup-picker-field { text-align: left; cursor: pointer; }
 .pb-popup-picker-field:disabled { opacity: 0.5; cursor: default; }
 .pb-popup-picker-value[data-empty] { color: rgba(51, 255, 102, 0.4); }
+
+/* ── MAPPA tab ─────────────────────────────────────────────────────────────
+   The map is a third-party surface dropped into the CRT, so it needs three
+   corrections the rest of the app never does. See design.md. */
+
+.pb-map-screen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.pb-map-canvas {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background: var(--screen-bg);
+    /* The swipe handler opts out of this surface (data-pb-no-swipe), so a
+       horizontal drag has to reach Leaflet rather than being eaten as a
+       vertical-only gesture. */
+    touch-action: none;
+}
+
+/* 1. The Fallout filter. These values are a design token of pipboy-map-tab,
+      authored by eye against the live prototype — not a tuning knob. */
+.pb-map-canvas .leaflet-tile-pane {
+    filter: grayscale(1) invert(0) sepia(1) hue-rotate(90deg) saturate(8) brightness(2) contrast(1);
+}
+
+/* 2. `.pb-screen * { text-shadow: inherit }` force-inherits the phosphor glow
+      onto every descendant. Free on labels; it smears the tiles. */
+.pb-map-canvas .leaflet-tile-pane,
+.pb-map-canvas .leaflet-tile-pane * {
+    text-shadow: none;
+}
+
+/* 3. Leaflet's own chrome, restyled to the existing tokens. Note the compound
+      selector: Leaflet puts `leaflet-container` on the element it mounts into,
+      so the canvas *is* the container — a descendant selector matches nothing. */
+.pb-map-canvas.leaflet-container {
+    background: var(--screen-bg);
+    font-family: inherit;
+    outline: none;
+}
+.pb-map-canvas .leaflet-popup-content-wrapper,
+.pb-map-canvas .leaflet-popup-tip {
+    background: var(--screen-bg);
+    color: var(--phosphor);
+    border: 1px solid var(--green-border);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* divIcon already anchors at iconSize/2 with its own negative margin. A margin
+   here would double it and sit every marker half its size up-and-left of its
+   real coordinate. Do not add one. */
+.pb-map-marker {
+    color: var(--phosphor);
+    background: none;
+    border: none;
+}
+.pb-map-marker-inner {
+    display: block;
+    width: 26px;
+    height: 26px;
+    will-change: transform, opacity;
+}
+.pb-map-marker svg {
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: var(--phosphor);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 3px rgba(51, 255, 102, 0.55));
+}
+.pb-map-marker-label {
+    position: absolute;
+    top: 27px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--phosphor);
+    pointer-events: none;
+}
+
+/* The zone indicator: the chain of places the viewport is inside. */
+.pb-map-zone {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--green-hairline);
+    background: var(--green-fill);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(51, 255, 102, 0.7);
+}
+/* Truncated from the LEFT: where you are matters more than distant ancestry, so
+   the deepest entries survive. `direction: rtl` puts the ellipsis at the start;
+   the <bdi> keeps the text itself running left-to-right. */
+.pb-map-chain {
+    display: block;
+    direction: rtl;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pb-map-chain > bdi {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+.pb-map-chain-here {
+    color: var(--phosphor-bright);
+    font-weight: normal;
+}
+
+/* The basemap attribution: shown on entering the tab, gone after five seconds.
+   `pointer-events: none` so it can never intercept a pan beneath it. */
+.pb-map-attr {
+    position: absolute;
+    right: 6px;
+    bottom: 4px;
+    z-index: 500;
+    padding: 1px 5px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    color: rgba(51, 255, 102, 0.55);
+    background: rgba(6, 17, 10, 0.6);
+    border: 1px solid var(--green-hairline-faint);
+    pointer-events: none;
+}
+
+.pb-map-skeleton {
+    padding: 12px;
+}
+
+/* CREDITI — an action below the four preference rows, deliberately not a fifth
+   pb-toggle-row: the pipboy-settings capability requires exactly four rows, and
+   this is not a pick-one preference. It persists nothing. */
+.pb-settings-action {
+    width: 100%;
+    margin-top: 4px;
+    border-top: 1px solid var(--green-hairline);
+    padding-top: 8px;
+    letter-spacing: 0.08em;
+}
+.pb-credits-block { margin-bottom: 10px; }
+.pb-credits-text {
+    margin: 4px 0 0;
+    font-size: 11px;
+    line-height: 1.5;
+    color: rgba(51, 255, 102, 0.75);
+}

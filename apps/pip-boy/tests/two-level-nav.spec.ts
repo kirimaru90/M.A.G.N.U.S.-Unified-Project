@@ -40,14 +40,29 @@ async function swipe(page: Page, dx: number, dy = 0, startSelector?: string) {
 
 // ── two-level layout + conditional subtab row ───────────────────────
 
+test('the first level is exactly the six tabs, in the flattened traversal order', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+
+  // Exhaustive on purpose: FLAT derives from TAB_TREE, so this order is also the
+  // prev/next and swipe order. MAPPA sits between DADI and NOTES.
+  await expect(page.locator('.pb-tab')).toHaveText([
+    'STATS',
+    'SALUTE',
+    'INV',
+    'DADI',
+    'MAPPA',
+    'NOTES',
+  ]);
+});
+
 test('the subtab row appears only for tabs that define subtabs', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
   // STATS (default) → three subtabs.
   await expect(page.locator('.pb-subtab')).toHaveText(['S.P.E.C.I.A.L.', 'Abilità', 'Talents']);
 
-  // SALUTE / DADI / NOTES → no subtab row.
-  for (const label of ['SALUTE', 'DADI', 'NOTES']) {
+  // SALUTE / DADI / MAPPA / NOTES → no subtab row.
+  for (const label of ['SALUTE', 'DADI', 'MAPPA', 'NOTES']) {
     await page.locator('.pb-tab', { hasText: label }).click();
     await expect(page.locator('.pb-subtabs')).toBeHidden();
     await expect(page.locator('.pb-subtab')).toHaveCount(0);

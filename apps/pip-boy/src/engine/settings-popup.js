@@ -62,6 +62,55 @@ const ROWS = [
     },
 ];
 
+/**
+ * The credits view. This is where the app discharges the other half of its
+ * basemap licence obligation: the map tab shows attribution for five seconds and
+ * then collapses it, which the OSM Foundation's Attribution Guidelines permit
+ * only if the licence information stays findable — "for example ... an 'About'
+ * option in a menu". This is that menu option. It is not decoration.
+ *
+ * Leaflet is named as a courtesy rather than an obligation: its BSD-2 notice
+ * lives in the vendored source, but the app suppresses its on-screen prefix, so
+ * this becomes the only place it is acknowledged.
+ *
+ * An action, not a preference: it touches nothing in prefs.js and persists
+ * nothing.
+ */
+function openCreditsPopup() {
+    const overlay = document.createElement('div');
+    overlay.className = 'pb-popup-overlay';
+    overlay.innerHTML = `
+        <div class="pb-popup" role="dialog" aria-modal="true" id="pb-credits-popup">
+            <button class="pb-popup-close" data-close aria-label="Chiudi">✕</button>
+            <div class="pb-popup-title">CREDITI</div>
+            <div class="pb-popup-body">
+                <div class="pb-credits-block">
+                    <div class="pb-label">CARTOGRAFIA</div>
+                    <p class="pb-credits-text">
+                        Dati cartografici © <b>OpenStreetMap</b>, disponibili con licenza ODbL.
+                    </p>
+                    <p class="pb-credits-text">
+                        Mappe di base © <b>CARTO</b>.
+                    </p>
+                </div>
+                <div class="pb-credits-block">
+                    <div class="pb-label">LIBRERIE</div>
+                    <p class="pb-credits-text">
+                        Mappe interattive con <b>Leaflet</b> — © Vladimir Agafonkin,
+                        © CloudMade. Licenza BSD-2-Clause.
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Dismissing returns to the settings popup, which is still mounted beneath.
+    const close = () => overlay.remove();
+    overlay.querySelector('[data-close]').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
 export function openSettingsPopup() {
     const prefs = getPrefs();
 
@@ -86,6 +135,7 @@ export function openSettingsPopup() {
                         </div>
                     </div>
                 `).join('')}
+                <button class="pb-btn pb-settings-action" data-credits>CREDITI</button>
             </div>
         </div>
     `;
@@ -94,6 +144,7 @@ export function openSettingsPopup() {
     const close = () => overlay.remove();
     overlay.querySelector('[data-close]').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('[data-credits]').addEventListener('click', openCreditsPopup);
 
     for (const row of ROWS) {
         if (row.disabled) continue;

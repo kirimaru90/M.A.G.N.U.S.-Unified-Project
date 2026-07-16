@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
 
-const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'NOTES'];
+const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'MAPPA', 'NOTES'];
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {
@@ -20,10 +20,10 @@ const ownedCharacter = (overrides: Record<string, unknown> = {}) =>
 
 // ── 5.T.1 tabs, underline, footer ───────────────────────────────────
 
-test('exactly five tabs plus one ✎ toggle, with the active tab underlined', async ({ page }) => {
+test('exactly six tabs plus one ✎ toggle, with the active tab underlined', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
-  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
+  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(TAB_LABELS.length);
   await expect(page.locator('.pb-tab[data-top]')).toHaveText(TAB_LABELS);
   await expect(page.locator('#pb-editor-toggle')).toHaveCount(1);
 

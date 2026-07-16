@@ -82,6 +82,28 @@ export const DEFAULT_MISC_CATALOG = [
   { slug: 'chiave-inglese', name: 'Chiave inglese', kind: 'misc', isStarter: false, tags: [], description: 'Attrezzo' },
 ];
 
+export const DEFAULT_MAP_CONFIG = {
+  startLat: 41.9,
+  startLng: 12.5,
+  startZoom: 13,
+  minZoom: 3,
+  maxZoom: 18,
+  bounds: { south: 35, west: 6, north: 48, east: 19 },
+};
+
+/** A campaign with no authored map — what most specs get. */
+export const DEFAULT_CAMPAIGN_MAP = { config: DEFAULT_MAP_CONFIG, places: [] };
+
+/**
+ * A 1×1 transparent PNG. Basemap tiles are fulfilled with this so the suite
+ * never reaches CARTO: hermetic, and it keeps us off a third party's servers on
+ * every run.
+ */
+export const TRANSPARENT_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
 export interface StubOptions {
   role?: 'player' | 'admin';
   userId?: string;
@@ -100,6 +122,8 @@ export interface StubOptions {
   miscCatalog?: typeof DEFAULT_MISC_CATALOG;
   notes?: Array<{ id: string; title: string; note: string; createdAt: string; updatedAt: string }>;
   background?: string | null;
+  /** What `GET /campaigns/:id/map` returns — already projected, as the API would. */
+  campaignMap?: { config: typeof DEFAULT_MAP_CONFIG; places: Array<Record<string, unknown>> };
   /** When true the notes/background endpoints 404 (the non-owner case). */
   notesForbidden?: boolean;
   allowServiceWorker?: boolean;
@@ -168,6 +192,23 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
 
   await page.route(/\/campaigns\/[^/]+\/players$/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(players) }),
+  );
+
+  // The campaign map. The body stands in for what the API has *already*
+  // projected for this caller — the isPublic cascade is a server-side rule, and
+  // it is asserted against a real server in the API's campaign-map.e2e-spec.ts,
+  // which is the only place it can be proven. Here it is a given.
+  await page.route(/\/campaigns\/[^/]+\/map$/, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(opts.campaignMap ?? DEFAULT_CAMPAIGN_MAP),
+    }),
+  );
+
+  // Basemap tiles never leave the test runner.
+  await page.route(/basemaps\.cartocdn\.com/, (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: TRANSPARENT_PNG }),
   );
 
   await page.route(/\/campaigns\/[^/]+\/characters$/, (route) => {

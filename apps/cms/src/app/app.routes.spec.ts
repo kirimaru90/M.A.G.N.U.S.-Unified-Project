@@ -30,4 +30,23 @@ describe('app routes', () => {
     const campaigns = shellChildren().find((r) => r.path === 'campaigns');
     expect(campaigns?.canMatch ?? []).not.toContain(adminGuard);
   });
+
+  describe('campaign-map', () => {
+    const route = () => shellChildren().find((r) => r.path === 'campaign-map');
+
+    it('is registered', () => {
+      expect(route()).toBeDefined();
+    });
+
+    it('is guarded by adminGuard', () => {
+      // Authoring the map exposes non-public places, which the API only ships to
+      // an admin. Without this guard the screen would render an empty map for a
+      // player and silently drop their edits at the PUT.
+      expect(route()?.canMatch).toContain(adminGuard);
+    });
+
+    it('lazily loads the page', () => {
+      expect(route()?.loadComponent).toBeTypeOf('function');
+    });
+  });
 });

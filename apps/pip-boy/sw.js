@@ -4,6 +4,21 @@
 // dirties this file. A build with no BUILD_ID falls back to `pipboy-dev`.
 const CACHE_VERSION = 'pipboy-__BUILD_ID__';
 
+// Basemap tiles live in their own cache, deliberately unversioned: they are
+// public third-party assets that do not change with a deploy, so re-downloading
+// them on every release would be pure waste. Kept out of CACHE_VERSION so the
+// activate sweep and the logout flush both leave them alone.
+const TILE_CACHE = 'pipboy-tiles-v1';
+
+// The basemap host used by pipboy-map-tab. Coupled to the tile URL in
+// src/tabs/map.js — change one and you must change the other, along with the
+// attribution, or the new provider's terms are unmet.
+const TILE_HOST_SUFFIX = '.basemaps.cartocdn.com';
+
+function isTileHost(url) {
+  return url.hostname.endsWith(TILE_HOST_SUFFIX);
+}
+
 const FONT_CDN_URLS = [
   'https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap',
 ];
@@ -46,11 +61,19 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/health.js',
   './src/tabs/gear.js',
   './src/tabs/dice.js',
+  './src/tabs/map.js',
+  './src/tabs/map-geometry.js',
   './src/tabs/notes.js',
   './src/tabs/note-editor.js',
   './src/tabs/confirm-dialog.js',
+  './src/api/campaign-map.js',
   './src/api/notes.js',
   './src/sheet/markdown.js',
+  // Vendored Leaflet — without it the map tab cannot render offline. The
+  // stylesheet's images/ are deliberately absent: the tab uses divIcon only and
+  // mounts no layers control, so nothing requests them (see the vendor README).
+  './src/vendor/leaflet/leaflet.esm.js',
+  './src/vendor/leaflet/leaflet.css',
 ];
 
 // Optional shell assets — cached individually (best-effort) so a single failed
@@ -76,15 +99,18 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 <body><div><h2>SEGNALE PIP-BOY NON DISPONIBILE</h2><p>RICONNETTERSI ALLA RETE</p></div></body>
 </html>`;
 
-// Unlike the terminal emulator, pip-boy has no anonymous/public content — every
-// API call (catalogs included) requires a login. So the fetch handler only
-// needs two classes: 'shell' (precached same-origin/CDN shell assets) and
-// everything else, which is always treated as authenticated API traffic and
-// never cached, regardless of method, path, or headers.
+// Apart from basemap tiles, pip-boy has no anonymous/public content — every API
+// call (catalogs included) requires a login. So the fetch handler needs three
+// classes: 'shell' (precached same-origin/CDN shell assets), 'tile' (basemap
+// tiles, which are public third-party assets), and everything else, which is
+// always treated as authenticated API traffic and never cached.
 function classify(request) {
   const url = new URL(request.url);
   if (request.method === 'GET' && SHELL_URL_SET.has(request.url)) {
     return 'shell';
+  }
+  if (request.method === 'GET' && isTileHost(url)) {
+    return 'tile';
   }
   if (API_ORIGIN && url.origin !== API_ORIGIN && url.origin !== self.location.origin) {
     return null; // unrelated cross-origin request — let the browser handle it
@@ -105,19 +131,27 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// Caches that survive a sweep: the current shell, and the tiles. Tiles are
+// public and session-independent, so neither a new deploy nor a logout is a
+// reason to make the player re-download them.
+const isKeeper = (key) => key === CACHE_VERSION || key === TILE_CACHE;
+
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => !isKeeper(k)).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'FLUSH_CONTENT_CACHES') {
+    // Logout: drop every non-shell cache except the tiles. They carry no player
+    // or campaign data, so discarding them would force a full re-download on the
+    // next login for no privacy benefit.
     event.waitUntil(
       caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+        Promise.all(keys.filter((k) => !isKeeper(k)).map((k) => caches.delete(k)))
       )
     );
   }
@@ -139,11 +173,42 @@ async function cacheFirstWithOfflineFallback(request) {
   }
 }
 
+/**
+ * Cache-on-visit: serve a tile from cache, else fetch it and keep it. Tiles are
+ * never pre-seeded — bulk-downloading a region violates the basemap provider's
+ * terms, whereas retaining tiles a user actually browsed does not. Because the
+ * map clamps zoom and pan bounds, the reachable tile set is finite, so a map the
+ * player has visited keeps working offline.
+ *
+ * A miss on both cache and network fails quietly: the marker layer stays
+ * rendered over empty tiles rather than the tab breaking.
+ */
+async function tileCacheFirst(request) {
+  const cache = await caches.open(TILE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    // Opaque cross-origin responses are still worth keeping: they render fine.
+    if (response.ok || response.type === 'opaque') {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (_) {
+    return Response.error();
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const cls = classify(event.request);
 
   if (cls === 'shell') {
     event.respondWith(cacheFirstWithOfflineFallback(event.request));
+    return;
+  }
+
+  if (cls === 'tile') {
+    event.respondWith(tileCacheFirst(event.request));
     return;
   }
 

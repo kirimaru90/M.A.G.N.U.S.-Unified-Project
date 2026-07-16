@@ -11,6 +11,7 @@ import { renderHealthTab } from '../tabs/health.js';
 import { renderInvSubtab } from '../tabs/gear.js';
 import { renderDiceTab, newDiceState } from '../tabs/dice.js';
 import { renderNotesTab } from '../tabs/notes.js';
+import { renderMapTab } from '../tabs/map.js';
 import { getPrefs } from '../state/prefs.js';
 import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
 
@@ -33,6 +34,7 @@ const TAB_TREE = [
         { key: 'misc', label: 'Vari', invKey: 'misc', invKind: 'misc', render: renderInvSubtab },
     ] },
     { key: 'dice', label: 'DADI', render: renderDiceTab },
+    { key: 'map', label: 'MAPPA', render: renderMapTab },
     { key: 'notes', label: 'NOTES', render: renderNotesTab },
 ];
 
@@ -440,8 +442,21 @@ export function renderSheet(root, opts) {
         contentEl.addEventListener('click', clickSuppressor, true);
     }
 
+    // A surface can opt out of swipe navigation by marking itself (or an
+    // ancestor) `data-pb-no-swipe`. The map does: Leaflet wants exactly the
+    // horizontal drags this handler eats, and on that tab the map wins. Framed
+    // as a property of the surface rather than a check against the active tab's
+    // name, so the next surface with the same problem needs no change here.
+    // Leaving such a tab stays possible via the always-visible tab bar.
+    const optsOutOfSwipe = (target) =>
+        target instanceof Element && !!target.closest('[data-pb-no-swipe]');
+
     contentEl.addEventListener('pointerdown', (e) => {
         disarmClickSuppression();
+        if (optsOutOfSwipe(e.target)) {
+            swipeActive = false;
+            return;
+        }
         swipeActive = true;
         swipeStartX = e.clientX;
         swipeStartY = e.clientY;
