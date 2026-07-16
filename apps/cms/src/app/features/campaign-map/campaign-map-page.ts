@@ -20,7 +20,6 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 import { Toast } from 'primeng/toast';
 import * as L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import {
@@ -549,7 +548,9 @@ type Mode = 'idle' | 'placing' | 'bounds';
         border-radius: 4px;
       }
       /* The exact token from pipboy-map-tab — a design token, not a tuning knob. */
-      .cm-filtered .leaflet-tile-pane {
+      /* ::ng-deep because Leaflet builds the tile pane at runtime, without the
+         component's scoping attribute — a scoped selector never matches it. */
+      :host ::ng-deep .cm-filtered .leaflet-tile-pane {
         filter: grayscale(1) invert(0) sepia(1) hue-rotate(90deg) saturate(8) brightness(2)
           contrast(1);
       }

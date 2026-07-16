@@ -121,10 +121,34 @@ This diverges from the house pattern on purpose. `condition-popup.js:30-33` reso
 
 ### Leaflet twice, two honest answers
 
-- **CMS:** `npm i leaflet`. It has Vite and a normal dependency tree. Unremarkable.
+- **CMS:** `npm i leaflet`, with the stylesheet registered in `angular.json` rather than imported. A normal dependency tree, and — see the next section — the opposite of unremarkable.
 - **Pip-Boy:** vendored into `src/vendor/leaflet/` and committed. No bundler, and an offline-first PWA cannot have its map library behind a CDN. This is the app's first runtime dependency and it breaks the no-dependencies posture — knowingly. Hand-rolling pan/zoom/pinch over real tile pyramids is not the same class of problem as hand-rolling markdown.
 
 Same library, two constraints, two answers. That is not duplication.
+
+### The CMS Leaflet stylesheet goes in `angular.json` — an `import` in TypeScript ships a dead map
+
+`@angular/build:application` runs two esbuild passes, and only one of them can resolve a `url()`:
+
+- **The stylesheet pipeline** — `angular.json`'s `styles`, and component `styles`/`styleUrls`. It registers `createCssResourcePlugin` (`stylesheets/bundle-options.js:36`), which routes every `url()` target through esbuild's `file` loader, emits it to `media/`, and rewrites the reference.
+- **The code pipeline** — anything reached from a `.ts` file. Its loader map comes solely from `angular.json`'s `loader` option (`builders/application/options.js:93-110`), and is empty unless that key exists.
+
+So `import 'leaflet/dist/leaflet.css'` inside `campaign-map-page.ts` routes the stylesheet through the *code* pipeline, where Leaflet's three `url()` references meet no loader and the build dies with `No loader is configured for ".png"`. This is not a container problem — `ng build` fails identically on a workstation. The Docker build was simply the first thing to run it.
+
+**The obvious fix is a trap, and it was measured, not assumed.** Setting `"loader": { ".png": "file" }` makes the build pass and produces a broken map: esbuild emits the PNGs and a `main-*.css`/`chunk-*.css` pair carrying the whole of Leaflet's stylesheet, and then nothing in the output references either file. `index-html-generator.js:81` links only `initialFiles`; the map is lazy (`app.routes.ts:50`); Angular has no mechanism to load a lazy chunk's CSS. A green build with an unstyled map is strictly worse than a red one — the failing build is the only thing that caught this.
+
+Hence the `styles` array, vendor entry **first** so our own CSS still wins on ties. Leaflet lands un-layered, which is correct rather than sloppy: `styles.css` layers our CSS so Tailwind utilities resolve predictably, and folding Leaflet into that system would let a stray utility beat the map's own internals. Leaflet owns the `.leaflet-*` namespace; nothing competes for it.
+
+The costs are real and accepted:
+
+- **~11 kB of CSS on initial load** for a route most users never open (measured: initial budget 545.77 kB → 556.84 kB). There is no lazy alternative — that is precisely what the `loader` route disproves. The bundle was already 45 kB over its 500 kB *warning* before any of this; that overrun predates the map and is not this change's to fix.
+- **Three unused PNGs.** `layers.png`/`layers-2x.png` serve `L.control.layers` and `marker-icon.png` serves `L.Icon.Default` path detection. This map uses neither — `L.divIcon` only (`campaign-map-page.ts:1136`), no layers control. They ship anyway: forking a vendor stylesheet to strip three references is worse than three dead images.
+
+### Emulated encapsulation cannot reach Leaflet's runtime DOM
+
+The same trap as the `divIcon` margin, one layer up. Component styles are scoped by attribute — `.cm-filtered .leaflet-tile-pane` compiles to `.cm-filtered[_ngcontent-%COMP%] .leaflet-tile-pane[_ngcontent-%COMP%]` — but Leaflet builds the tile pane at runtime, and it never carries the attribute. The selector compiles clean, passes every test, and silently never matches.
+
+**Any selector reaching into Leaflet-built DOM needs `:host ::ng-deep`**, as the `.cm-marker` rules already do. This is invisible until someone looks at a real screen, which is why it survived the CMS test suite intact.
 
 ### Pip-Boy integration: three collisions with existing chrome
 

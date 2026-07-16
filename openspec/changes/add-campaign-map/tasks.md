@@ -23,7 +23,7 @@ Order matters: the API lands first so the CMS has something to author against, a
 
 ## 3. CMS: dependency, core, routing
 
-- [x] 3.1 `npm i leaflet` and `npm i -D @types/leaflet` in `apps/cms`. Import `leaflet/dist/leaflet.css` in the map feature's styles.
+- [x] 3.1 `npm i leaflet` and `npm i -D @types/leaflet` in `apps/cms`. Import `leaflet/dist/leaflet.css` in the map feature's styles. **Landed as a TypeScript `import`, which cannot work — the build fails on the stylesheet's `url()` references. Corrected in §10; read design.md before touching it, because the obvious fix is worse than the bug.**
 - [x] 3.2 Create `apps/cms/src/app/core/campaign-map/campaign-map.types.ts` — `MapConfig`, `MapPlace`, `PlaceType`, `CampaignMapDto`, plus `PLACE_TYPE_OPTIONS` (`{ value, label, defaultIcon }`) following `KIND_OPTIONS` in `equipment-catalog-page.ts:48-56`. Carry a `TODO(openapi-gap)` comment as `talents-catalog.types.ts` does.
 - [x] 3.3 Create `apps/cms/src/app/core/campaign-map/campaign-map-api.service.ts`: `get(campaignId)` → `GET /campaigns/:id/map`, `replace(campaignId, map)` → `PUT /campaigns/:id/map`. Components never touch `HttpClient`.
 - [x] 3.4 Add an admin-guarded `campaign-map` route to `apps/cms/src/app/app.routes.ts` (`canMatch: [adminGuard]`), sourcing the campaign from the current-campaign service, following the terminals route.
@@ -84,10 +84,22 @@ Order matters: the API lands first so the CMS has something to author against, a
 - [x] 9.5 Add `apps/pip-boy/tests/settings-credits.spec.ts`: `CREDITI` renders below the four preference rows; activating it names OpenStreetMap, CARTO, and the vendored map library; activating it changes no preference and persists nothing.
 - [x] 9.6 Run `npx playwright test` from `apps/pip-boy`; confirm green.
 
-## 10. Verify
+## 10. CMS: the Leaflet stylesheet has to reach the browser
 
-- [ ] 10.1 Drive the real flow end-to-end (see the `verify` skill): as admin, author a nested map in the CMS — place a zone, place a child inside it, set a radius by dragging, hide the zone — save, then open the Pip-Boy as that campaign's player and confirm the zone and its subtree are absent from the network response, not merely unrendered.
-- [ ] 10.2 As a player, confirm zooming opens the zone with the bloom animation, the breadcrumb tracks the centre, and a horizontal drag pans rather than changing tab. Check on a touch device if one is available — the swipe collision is the one thing a desktop cannot show.
-- [ ] 10.3 Confirm the filter renders as intended against `dark_nolabels` on a real screen. This is the one acceptance criterion no test covers.
-- [ ] 10.4 Load the map online, go offline, and reload: tiles come from the tile cache and the tab still renders.
-- [ ] 10.5 Confirm the attribution line reads as CRT chrome rather than a legal notice bolted on, and that it is gone by the time you have finished reading it. Then confirm the credits are reachable from the settings popup on the same sheet — the obligation and its discharge must live at the same reachability.
+The CMS does not build. `npm run build` fails on `No loader is configured for ".png"` for Leaflet's three `url()` references — on a workstation exactly as in Docker. This blocks §11 entirely: there is no CMS to verify against until it lands.
+
+Both routes below were measured against a real build, not reasoned about. design.md carries the full account, including why `"loader": { ".png": "file" }` looks like the fix, passes the build, and ships a map with no stylesheet.
+
+- [x] 10.1 Remove `import 'leaflet/dist/leaflet.css';` from `apps/cms/src/app/features/campaign-map/campaign-map-page.ts:23`.
+- [x] 10.2 Add `"node_modules/leaflet/dist/leaflet.css"` to `styles` in `apps/cms/angular.json`, **before** `"src/styles.css"` so our own CSS still wins on ties. **Do not reach for the `loader` option instead** — it turns a red build into a green build with a dead map (design.md).
+- [x] 10.3 Fix `.cm-filtered .leaflet-tile-pane` (`campaign-map-page.ts:552`) to reach through emulated encapsulation with `:host ::ng-deep`, as the `.cm-marker` rules at `:658` already do. As authored it compiles to `.leaflet-tile-pane[_ngcontent-%COMP%]`, Leaflet builds that pane at runtime without the attribute, and the rule has never matched — the filter preview from 5.2 has been dead since it was written. Audit the rest of the component's styles for the same shape while you are in there.
+- [x] 10.4 Run `npm run build` from `apps/cms` and confirm all four: no `.png` loader error; `index.html` links exactly one `styles-*.css`; that file contains `.leaflet-container` with its `url()`s rewritten to `./media/*.png`; and **no unreferenced `main-*.css` or `chunk-*.css` is emitted** — an orphan there is the silent-failure mode, and it is the only signal that distinguishes it from success. Then confirm the Docker build passes.
+- [x] 10.5 Expect the initial-bundle budget warning to grow by ~11 kB (545.77 → 556.84 kB against a 500 kB warning). That is the accepted cost of a global vendor stylesheet and there is no lazy alternative (design.md). **Do not silence the budget to make it quiet** — the bundle was already 45 kB over before this change, and that predates the map.
+
+## 11. Verify
+
+- [ ] 11.1 Drive the real flow end-to-end (see the `verify` skill): as admin, author a nested map in the CMS — place a zone, place a child inside it, set a radius by dragging, hide the zone — save, then open the Pip-Boy as that campaign's player and confirm the zone and its subtree are absent from the network response, not merely unrendered.
+- [ ] 11.2 As a player, confirm zooming opens the zone with the bloom animation, the breadcrumb tracks the centre, and a horizontal drag pans rather than changing tab. Check on a touch device if one is available — the swipe collision is the one thing a desktop cannot show.
+- [ ] 11.3 Confirm the filter renders as intended against `dark_nolabels` on a real screen. This is the one acceptance criterion no test covers.
+- [ ] 11.4 Load the map online, go offline, and reload: tiles come from the tile cache and the tab still renders.
+- [ ] 11.5 Confirm the attribution line reads as CRT chrome rather than a legal notice bolted on, and that it is gone by the time you have finished reading it. Then confirm the credits are reachable from the settings popup on the same sheet — the obligation and its discharge must live at the same reachability.
