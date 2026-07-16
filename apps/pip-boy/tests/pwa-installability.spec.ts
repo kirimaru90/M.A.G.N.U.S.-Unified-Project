@@ -16,6 +16,10 @@ test('manifest is linked and parses as a valid web app manifest', async ({ page 
   expect(manifest.name).toBe('M.A.G.N.U.S. Pip-Boy');
   expect(manifest.start_url).toBe('./');
   expect(manifest.display).toBe('standalone');
+  expect(manifest.display_override).toEqual(['fullscreen', 'standalone']);
+  // Declared explicitly rather than omitted: a manifest lock is install-time and
+  // static, and would override the runtime ORIENTAMENTO lock (pipboy-settings).
+  expect(manifest.orientation).toBe('any');
   const sizes = manifest.icons.map((i: { sizes: string }) => i.sizes);
   expect(sizes).toContain('192x192');
   expect(sizes).toContain('512x512');

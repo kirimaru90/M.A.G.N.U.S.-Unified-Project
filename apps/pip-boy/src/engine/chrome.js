@@ -2,6 +2,8 @@
 // label, sheet-only nav, OS label) and the amber critical ring overlay. Screens
 // mount into `#app` and cannot reach these, so they drive them through here.
 
+import { openSettingsPopup } from './settings-popup.js';
+
 const statusbar = () => document.getElementById('pb-statusbar');
 const screenEl = () => document.getElementById('pb-screen');
 const navEl = () => document.getElementById('pb-statusbar-nav');
@@ -16,12 +18,13 @@ const editorLedEl = () => document.getElementById('pb-editor-led');
 let boundBack = null;
 let boundLogout = null;
 let boundToggleEdit = null;
+let boundSettings = null;
 // The amber critical ring takes precedence over the green editor ring, so
 // setEditorChrome must know the current critical state to decide which shows.
 let criticalActive = false;
 
 /**
- * Show the `[◄ DOSSIER][ESCI]` controls, which appear only while the sheet is
+ * Show the `[◄ DOSSIER][⚙][ESCI]` controls, which appear only while the sheet is
  * mounted, plus the `✎` editor toggle for a user who may write the character.
  * Call `hideSheetNav()` on every other screen.
  */
@@ -31,17 +34,27 @@ export function showSheetNav({ onBack, onLogout, onToggleEdit, canEdit }) {
 
     const backBtn = document.getElementById('pb-nav-dossier');
     const logoutBtn = document.getElementById('pb-nav-logout');
+    const settingsBtn = document.getElementById('pb-nav-settings');
     const toggleBtn = editorToggleEl();
 
     // Re-mounting the sheet re-binds these, so drop the previous handlers first.
     if (boundBack) backBtn.removeEventListener('click', boundBack);
     if (boundLogout) logoutBtn.removeEventListener('click', boundLogout);
+    if (boundSettings && settingsBtn) settingsBtn.removeEventListener('click', boundSettings);
     if (boundToggleEdit && toggleBtn) toggleBtn.removeEventListener('click', boundToggleEdit);
 
     boundBack = onBack;
     boundLogout = onLogout;
     backBtn.addEventListener('click', boundBack);
     logoutBtn.addEventListener('click', boundLogout);
+
+    // Settings need nothing from the screen, so — unlike the nav's other controls
+    // — this one is wired here rather than handed down. It is deliberately not
+    // gated on canEdit: device prefs are the viewer's, not the character's.
+    if (settingsBtn) {
+        boundSettings = openSettingsPopup;
+        settingsBtn.addEventListener('click', boundSettings);
+    }
 
     // The toggle (and its LED) are hidden entirely for a viewer who may not write
     // the character, and the toggle's active state is reset each mount (editor

@@ -11,6 +11,8 @@ import { renderHealthTab } from '../tabs/health.js';
 import { renderInvSubtab } from '../tabs/gear.js';
 import { renderDiceTab, newDiceState } from '../tabs/dice.js';
 import { renderNotesTab } from '../tabs/notes.js';
+import { getPrefs } from '../state/prefs.js';
+import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
 
 // Two-level tab tree. A first-level node either renders directly (`render`) or
 // carries `subtabs`. Inventory leaves also carry `invKey` (the character
@@ -63,6 +65,41 @@ function clock() {
 }
 
 const topNode = (key) => TAB_TREE.find((t) => t.key === key);
+
+// --- wake lock, scoped to the mounted sheet ---------------------------------
+// Held only while a sheet is mounted, which bounds the battery cost of a
+// four-hour unplugged session to the time the sheet is actually being read.
+//
+// Module scope, following chrome.js's bind/unbind-on-remount pattern: a remount
+// tears the previous sheet's listener down rather than stacking a second one.
+let wakeTeardown = null;
+
+/** Called whenever a non-sheet screen mounts — see main.js's resetChrome(). */
+export function stopSheetWakeLock() {
+    const teardown = wakeTeardown;
+    wakeTeardown = null;
+    teardown?.();
+}
+
+function startSheetWakeLock() {
+    stopSheetWakeLock();
+
+    // The load-bearing half of the feature: the browser silently releases the
+    // lock whenever the page is hidden and never restores it on its own. Without
+    // this the screen stays awake until the first call or app switch and then
+    // quietly stops — a failure that passes every casual test. The preference is
+    // re-read per event so a mid-session toggle is honoured.
+    const onVisibility = () => {
+        if (document.visibilityState === 'visible' && getPrefs().wakeLock) void requestWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    wakeTeardown = () => {
+        document.removeEventListener('visibilitychange', onVisibility);
+        void releaseWakeLock();
+    };
+
+    if (getPrefs().wakeLock) void requestWakeLock();
+}
 
 export function renderSheet(root, opts) {
     // Changing campaign stays on the dossier screen, keeping the sheet's status
@@ -421,6 +458,8 @@ export function renderSheet(root, opts) {
         else prev();
     });
     contentEl.addEventListener('pointercancel', () => { swipeActive = false; });
+
+    startSheetWakeLock();
 
     renderHeader();
     renderTabs();

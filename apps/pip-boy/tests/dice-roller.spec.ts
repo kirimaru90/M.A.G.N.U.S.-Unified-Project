@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, seedDice } from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice, stubDeviceApis, readDevice, seedPrefs } from './fixtures';
 
 const SETTLE_MS = 900; // tumble is 9 ticks × 60ms ≈ 540ms
 
@@ -12,7 +12,7 @@ async function openDice(
   { faces, character = {} }: { faces: number[]; character?: Record<string, unknown> },
 ) {
   await seedDice(page, faces);
-  await stubEnvironment(page, {
+  const stub = await stubEnvironment(page, {
     role: 'player',
     userId: 'user-player',
     lastCampaignId: 'camp-1',
@@ -29,6 +29,7 @@ async function openDice(
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
+  return stub;
 }
 
 const rollAndSettle = async (page: Page) => {
@@ -413,6 +414,149 @@ test('a reroll animates only the selected die; the kept dice hold steady and the
   await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });
 
+// ── haptic feedback while the dice tumble ───────────────────────────
+// The vibration motor cannot be driven from a desktop browser, so these assert
+// what the app *asks the platform to do*: navigator.vibrate is stubbed to record
+// its calls. Whether the motor spins is a hardware fact no harness can observe.
+
+const TUMBLE_PULSES = 9; // one per tumble tick
+
+/** `openDice` seeds before boot, so the device stub and prefs must precede it. */
+async function openDiceWithHaptics(
+  page: Page,
+  { faces, vibration = true, character = {} }: { faces: number[]; vibration?: boolean; character?: Record<string, unknown> },
+) {
+  await stubDeviceApis(page);
+  await seedPrefs(page, { orientation: 'auto', vibration, wakeLock: false });
+  return openDice(page, { faces, character });
+}
+
+const vibrations = async (page: Page) => (await readDevice(page)).vibrate;
+
+test('a roll pulses once per tumble tick, and not after settling', async ({ page }) => {
+  await openDiceWithHaptics(page, { faces: [1, 2, 3] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await rollAndSettle(page);
+
+  expect(await vibrations(page)).toHaveLength(TUMBLE_PULSES);
+
+  // The rumble stops when the dice do: settling emits nothing further.
+  await page.waitForTimeout(300);
+  expect(await vibrations(page)).toHaveLength(TUMBLE_PULSES);
+});
+
+test('a larger pool rattles more strongly but for no longer', async ({ page }) => {
+  await openDiceWithHaptics(page, { faces: [1, 2, 3, 4, 5] });
+
+  // strength 3, −1 → 2d6
+  await page.locator('[data-approach="strength"]').click();
+  await page.locator('#pb-dice-mod button[data-dir="-1"]').click();
+  await expect(page.locator('#pb-dice-pool')).toHaveText('2d6');
+  await rollAndSettle(page);
+  const twoDie = await vibrations(page);
+
+  // +2 from there → 5d6
+  for (let i = 0; i < 3; i++) await page.locator('#pb-dice-mod button[data-dir="1"]').click();
+  await expect(page.locator('#pb-dice-pool')).toHaveText('5d6');
+  await rollAndSettle(page);
+  const fiveDie = (await vibrations(page)).slice(twoDie.length);
+
+  // Duration is the only lever the API exposes — there is no amplitude control.
+  expect(fiveDie[0]).toBeGreaterThan(twoDie[0]);
+  // The tumble is nine ticks whatever the pool, so pool size varies the strength
+  // of each pulse and never the length of the rattle.
+  expect(twoDie).toHaveLength(TUMBLE_PULSES);
+  expect(fiveDie).toHaveLength(TUMBLE_PULSES);
+});
+
+test('every pulse fits inside its 60ms tick, so consecutive pulses never cancel', async ({ page }) => {
+  // A ten-die pool sits past the cap: 8 + 3×10 = 38, clamped at 40.
+  await openDiceWithHaptics(page, { faces: [1] });
+  await page.locator('[data-approach="strength"]').click();
+  for (let i = 0; i < 6; i++) await page.locator('#pb-dice-mod button[data-dir="1"]').click();
+  await expect(page.locator('#pb-dice-pool')).toHaveText('9d6');
+  await rollAndSettle(page);
+
+  for (const ms of await vibrations(page)) expect(ms).toBeLessThan(60);
+});
+
+test('a reroll pulses for the dice in flight, not for the whole pool', async ({ page }) => {
+  // five initial dice, then the sixth and seventh draws feed the two rerolled dice
+  await openDiceWithHaptics(page, { faces: [1, 2, 3, 4, 5, 6, 6] });
+  await page.locator('[data-approach="strength"]').click();
+  await page.locator('#pb-dice-mod button[data-dir="1"]').click();
+  await page.locator('#pb-dice-mod button[data-dir="1"]').click();
+  await expect(page.locator('#pb-dice-pool')).toHaveText('5d6');
+  await rollAndSettle(page);
+  const rollPulses = await vibrations(page);
+  expect(rollPulses).toHaveLength(TUMBLE_PULSES);
+
+  await page.locator('button[data-die="0"]').click();
+  await page.locator('button[data-die="1"]').click();
+  await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  await page.locator('#pb-dice-reroll').click();
+  await page.waitForTimeout(SETTLE_MS);
+
+  const rerollPulses = (await vibrations(page)).slice(rollPulses.length);
+  expect(rerollPulses).toHaveLength(TUMBLE_PULSES);
+  // Two dice in flight out of five: the rumble reports the reroll, not the pool.
+  expect(rerollPulses[0]).toBeLessThan(rollPulses[0]);
+});
+
+test('vibration off issues no vibration request from a roll or a reroll', async ({ page }) => {
+  await openDiceWithHaptics(page, { faces: [1, 2, 3, 6], vibration: false });
+  await page.locator('[data-approach="strength"]').click();
+  await rollAndSettle(page);
+  expect(await vibrations(page)).toEqual([]);
+
+  await page.locator('button[data-die="0"]').click();
+  await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  await page.locator('#pb-dice-reroll').click();
+  await page.waitForTimeout(SETTLE_MS);
+
+  // Not "a request that does nothing" — no request at all.
+  expect(await vibrations(page)).toEqual([]);
+});
+
+test('a seeded roll resolves identically with vibration on and off', async ({ page }) => {
+  const readRoll = async (p: Page) => ({
+    faces: await p.locator('.pb-dice-grid .pb-die').allTextContents(),
+    order: await p.locator('.pb-dice-grid .pb-die').evaluateAll((els) => els.map((e) => e.getAttribute('data-die'))),
+    outcome: await p.locator('#pb-dice-result').textContent(),
+  });
+
+  const patches: Array<Record<string, unknown>> = [];
+  page.on('request', (r) => {
+    if (r.method() === 'PATCH' && r.url().includes('/action-points')) patches.push(r.postDataJSON());
+  });
+
+  // Haptics are a side effect only: they must not perturb resolution, refunds or ordering.
+  const { character } = await openDiceWithHaptics(page, { faces: [6, 2, 6], vibration: true });
+  await page.locator('[data-approach="strength"]').click();
+  await rollAndSettle(page);
+  const withHaptics = await readRoll(page);
+  expect((await vibrations(page)).length).toBe(TUMBLE_PULSES);
+  const patchesWithHaptics = [...patches];
+
+  // Replay the same seeded roll with vibration off. The stub character carries
+  // the first roll's refund, so reset its PA — otherwise the second run starts
+  // from a different paCurrent and the refunds are incomparable.
+  patches.length = 0;
+  (character as Record<string, unknown>).actionPoints = { paMax: 5, paCurrent: 3, paTrackedBy: 'agility' };
+  // A later addInitScript applies from the next navigation on, so this overrides
+  // the vibration-on seed installed by openDiceWithHaptics.
+  await seedPrefs(page, { orientation: 'auto', vibration: false, wakeLock: false });
+  await page.reload();
+  await page.locator('.pb-tab', { hasText: 'DADI' }).click();
+  await page.locator('[data-approach="strength"]').click();
+  await rollAndSettle(page);
+  const withoutHaptics = await readRoll(page);
+
+  expect(await vibrations(page)).toEqual([]);
+  expect(withoutHaptics).toEqual(withHaptics);
+  expect(patches).toEqual(patchesWithHaptics);
+});
+
 test('a reroll holds every die in its settled cell during the tumble and re-sorts only after settling', async ({ page }) => {
   // initial four dice, then the fifth draw feeds the reroll a 6
   await openDice(page, { faces: [1, 2, 3, 4, 6] });
@@ -438,10 +582,20 @@ test('a reroll holds every die in its settled cell during the tumble and re-sort
   // matchers would race past the ~540ms animation). Every mid-tumble sample must
   // equal the pre-reroll order: no die shifts cell, and the incoming 6 has NOT
   // jumped to the front, so the pool is not re-sorted mid-animation.
+  //
+  // Read the rolling flag and the order in ONE evaluate: split across two
+  // round-trips the tumble can settle and re-sort between them, and the sample
+  // then reads the post-settle order while still believing it is mid-tumble.
+  const sample = () => page.evaluate(() => ({
+    rolling: (document.querySelector('#pb-dice-roll') as HTMLButtonElement).disabled,
+    order: [...document.querySelectorAll('.pb-dice-grid .pb-die')].map((e) => e.getAttribute('data-die')),
+  }));
+
   const samples: (string | null)[][] = [];
   for (let i = 0; i < 120; i++) {
-    if (await page.locator('#pb-dice-roll').isDisabled()) {
-      samples.push(await cellOrder());
+    const { rolling, order } = await sample();
+    if (rolling) {
+      samples.push(order);
     } else if (samples.length > 0) {
       break; // settled, after we captured the tumble
     }

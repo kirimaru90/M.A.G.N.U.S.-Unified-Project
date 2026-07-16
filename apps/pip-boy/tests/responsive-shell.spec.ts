@@ -65,6 +65,35 @@ test('.pb-case widens beyond the portrait 460px cap in landscape', async ({ page
   expect(box!.width).toBeGreaterThan(460 + 100);
 });
 
+// The test above is a width regression guard, not a usability check. Unlocking
+// rotation (manifest `orientation: "any"` + the runtime ORIENTAMENTO lock) makes
+// this 390px-tall layout reachable on a real device for the first time, where the
+// statusbar, header, tab nav, content pane and footer all compete for the height.
+// So assert the chrome a player needs is actually there and tappable, rather than
+// discovering it at the table.
+test('the status bar, tab nav and footer stay visible and hit-testable in landscape', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS.mobileLandscape);
+  await stubEnvironment(page);
+  await login(page);
+  await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
+  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
+
+  for (const sel of ['#pb-statusbar', '#pb-nav-dossier', '#pb-nav-settings', '#pb-nav-logout', '.pb-footer']) {
+    await expect(page.locator(sel)).toBeInViewport();
+  }
+
+  const tabs = page.locator('#pb-tabs-top .pb-tab');
+  await expect(tabs).toHaveCount(5);
+  for (let i = 0; i < 5; i++) await expect(tabs.nth(i)).toBeInViewport();
+
+  // Hit-testable, not merely painted: a tap must actually reach the control.
+  await tabs.filter({ hasText: 'DADI' }).click();
+  await expect(page.locator('#pb-dice-roll')).toBeVisible();
+  await expect(page.locator('#pb-footer-tab')).toHaveText('DADI');
+
+  await assertNoPageScroll(page);
+});
+
 test('on a wide desktop viewport .pb-case fills the viewport minus the small margin and exceeds the old 900px cap', async ({ page }) => {
   // The `body` padding is the "small uniform margin"; the case fills the rest.
   const MARGIN = 12;

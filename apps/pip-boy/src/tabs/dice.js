@@ -1,4 +1,6 @@
 import { esc } from '../engine/render.js';
+import { pulse } from '../engine/device.js';
+import { getPrefs } from '../state/prefs.js';
 import { patchActionPoints } from '../api/characters.js';
 import { APPROACHES, SKILL_LEVEL_LABELS, clamp } from '../sheet/model.js';
 import {
@@ -247,6 +249,10 @@ export function renderDiceTab(container, ctx) {
         s.rolling = true;
         s.selected = new Set();
         let tick = 0;
+        // The dice actually in flight: the whole pool on a roll, only the
+        // selected dice on a reroll. Pulse duration scales with this, so a reroll
+        // of two of five rattles like two dice, not five.
+        const inFlight = animating ? animating.size : finalFaces.length;
 
         const spin = () => {
             if (tick >= TUMBLE_TICKS) {
@@ -259,6 +265,13 @@ export function renderDiceTab(container, ctx) {
             s.faces = finalFaces.map((v, i) =>
                 (!animating || animating.has(i)) ? tumbleFace() : v);
             tick += 1;
+            // One pulse per tick, from inside this loop rather than as a single
+            // up-front vibrate([...]) pattern: a pattern would run on the OS clock
+            // and keep accurate time, drifting away from a tick that really lands
+            // at 70–90ms under load — the buzz would stop while the faces still
+            // flicker. Per-tick puts the rumble on the same drifting clock as the
+            // visuals. pulse() never throws, so it cannot interrupt the tumble.
+            if (getPrefs().vibration) pulse(inFlight);
             draw();
             setTimeout(spin, TUMBLE_TICK_MS);
         };

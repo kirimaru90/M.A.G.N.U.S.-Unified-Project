@@ -11,9 +11,11 @@ import { renderLogin } from './screens/login.js';
 import { renderCampaignSelect } from './screens/campaign-select.js';
 import { renderCharacterSelect } from './screens/character-select.js';
 import { renderCreate } from './screens/create.js';
-import { renderSheet } from './screens/sheet.js';
+import { renderSheet, stopSheetWakeLock } from './screens/sheet.js';
 import { mount } from './engine/render.js';
 import { hideSheetNav, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
+import { getPrefs } from './state/prefs.js';
+import { applyOrientation } from './engine/device.js';
 
 const root = document.getElementById('app');
 
@@ -28,6 +30,9 @@ function resetChrome() {
     hideSheetNav();
     setCriticalChrome(false);
     setEditorChrome(false);
+    // Every non-sheet screen calls this, so it is also where "left the sheet"
+    // is observable — and therefore where the sheet's wake lock is released.
+    stopSheetWakeLock();
 }
 
 /**
@@ -218,6 +223,11 @@ window.addEventListener('pageshow', (e) => {
 });
 
 async function init() {
+    // Before any screen mounts: the orientation lock is a global device state,
+    // so it is applied from the persisted preference at boot rather than waiting
+    // for the user to reopen the popup. Non-throwing, so it is not awaited.
+    void applyOrientation(getPrefs().orientation);
+
     if (!('serviceWorker' in navigator)) return init2();
     try {
         // Pass the API origin (not the raw base) so the SW can classify API traffic.

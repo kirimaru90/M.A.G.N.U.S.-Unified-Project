@@ -367,6 +367,122 @@ export async function seedDice(page: Page, faces: number[]) {
   }, faces);
 }
 
+export interface DeviceStubOptions {
+  orientationAbsent?: boolean;
+  /** Mirrors an ordinary browser tab, where lock() rejects NotSupportedError. */
+  orientationRejects?: boolean;
+  wakeLockAbsent?: boolean;
+  wakeLockRejects?: boolean;
+  /** Holds `request()` pending, so a navigation can land mid-request. */
+  wakeLockRequestDelayMs?: number;
+  vibrateAbsent?: boolean;
+}
+
+export interface DeviceRecord {
+  vibrate: number[];
+  orientation: string[];
+  wakeLock: string[];
+  unhandled: string[];
+}
+
+/**
+ * None of `navigator.vibrate`, `screen.orientation` or `navigator.wakeLock` can
+ * be meaningfully driven from Playwright on a desktop browser, so each is
+ * replaced with a recording stub installed before boot — the same injection
+ * technique `seedDice` uses. The specs then assert *what the app asks the
+ * platform to do*, which is the only part the app controls; whether the motor
+ * spins is a hardware fact no harness can observe.
+ *
+ * Unhandled rejections are recorded too: every wrapper in `engine/device.js` is
+ * required to absorb its own failure, and an unhandled rejection is how a missed
+ * one shows up.
+ *
+ * Install before the app boots.
+ */
+export async function stubDeviceApis(page: Page, opts: DeviceStubOptions = {}) {
+  await page.addInitScript((o: DeviceStubOptions) => {
+    const rec = {
+      vibrate: [] as number[],
+      orientation: [] as string[],
+      wakeLock: [] as string[],
+      unhandled: [] as string[],
+      /** What a browser does on hide: release the lock and flag the sentinel,
+       *  silently — the app is never told and must re-request on its own. */
+      simulateHide: () => {},
+    };
+    (window as unknown as Record<string, unknown>).__PB_DEVICE__ = rec;
+
+    window.addEventListener('unhandledrejection', (e) => {
+      rec.unhandled.push(String((e as PromiseRejectionEvent).reason));
+    });
+
+    Object.defineProperty(navigator, 'vibrate', {
+      configurable: true,
+      value: o.vibrateAbsent ? undefined : (ms: number) => { rec.vibrate.push(ms); return true; },
+    });
+
+    Object.defineProperty(window.screen, 'orientation', {
+      configurable: true,
+      value: o.orientationAbsent ? undefined : {
+        lock: (type: string) => {
+          rec.orientation.push(`lock:${type}`);
+          return o.orientationRejects
+            ? Promise.reject(new DOMException('not supported', 'NotSupportedError'))
+            : Promise.resolve();
+        },
+        unlock: () => { rec.orientation.push('unlock'); },
+      },
+    });
+
+    let current: { released: boolean } | null = null;
+    rec.simulateHide = () => { if (current) current.released = true; };
+    Object.defineProperty(navigator, 'wakeLock', {
+      configurable: true,
+      value: o.wakeLockAbsent ? undefined : {
+        request: (type: string) => {
+          rec.wakeLock.push(`request:${type}`);
+          if (o.wakeLockRejects) return Promise.reject(new DOMException('denied', 'NotAllowedError'));
+          const sentinel = {
+            released: false,
+            release: () => {
+              sentinel.released = true;
+              rec.wakeLock.push('release');
+              return Promise.resolve();
+            },
+          };
+          current = sentinel;
+          if (!o.wakeLockRequestDelayMs) return Promise.resolve(sentinel);
+          return new Promise((resolve) => setTimeout(() => resolve(sentinel), o.wakeLockRequestDelayMs));
+        },
+      },
+    });
+  }, opts);
+}
+
+export function readDevice(page: Page): Promise<DeviceRecord> {
+  return page.evaluate(() => {
+    const r = (window as unknown as { __PB_DEVICE__: DeviceRecord }).__PB_DEVICE__;
+    return { vibrate: [...r.vibrate], orientation: [...r.orientation], wakeLock: [...r.wakeLock], unhandled: [...r.unhandled] };
+  });
+}
+
+/** Seed the persisted preference key before the app boots. */
+export async function seedPrefs(page: Page, prefs: unknown) {
+  await page.addInitScript((value: string) => {
+    window.localStorage.setItem('pipboy:prefs', value);
+  }, typeof prefs === 'string' ? prefs : JSON.stringify(prefs));
+}
+
+/** Make every `localStorage` access throw — the private-browsing/policy case. */
+export async function breakLocalStorage(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new Error('storage disabled by policy'); },
+    });
+  });
+}
+
 export async function login(page: Page) {
   await page.goto('/index.html');
   await page.locator('#pb-login-username').fill('player1');

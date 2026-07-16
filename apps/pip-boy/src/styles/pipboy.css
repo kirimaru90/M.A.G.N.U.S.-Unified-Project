@@ -1257,6 +1257,23 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-popup-tags { min-height: 4px; }
 .pb-popup-actions { display: flex; justify-content: flex-end; }
 
+/* Settings popup rows. A row is a label over the shared pick-one toggle row, so
+   it inherits the app's toggle treatment; only the disabled state is new. The
+   AUDIO row is dimmed and marked N/D rather than shipped live-but-inert: the app
+   has no audio, and a toggle that visibly responds while doing nothing reads as
+   a defect. `disabled` on its buttons is what actually makes it inert. */
+.pb-settings-row { display: flex; flex-direction: column; gap: 4px; }
+.pb-settings-row--disabled { opacity: 0.45; }
+.pb-settings-row--disabled .pb-toggle { cursor: not-allowed; }
+.pb-settings-na {
+    font-family: var(--font-body);
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--amber);
+    border: 1px solid var(--amber-border);
+    padding: 0 4px;
+}
+
 /* Read-only item detail popup: a fixed box occupying ~80% of the screen surface
    (≈89% × 89% ≈ 0.8 area), square-cornered and on the phosphor theme. Its body
    scrolls internally so a long description never grows the popup. */
