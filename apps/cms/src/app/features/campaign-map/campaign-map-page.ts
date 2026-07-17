@@ -537,16 +537,23 @@ type Mode = 'idle' | 'placing' | 'bounds';
         display: grid;
         grid-template-columns: 1fr 360px;
         gap: 16px;
-        /* No align-items: stretch — the map owns its height; coupling it to the
-           card column drove an unbounded-growth feedback loop (design.md). */
-        align-items: start;
+        /* Stretch: the map fills the left column down to the height of the
+           extended card column, so both bottoms meet the list below. This is
+           pure CSS — no ResizeObserver feeds the measured height back into the
+           map, so the unbounded-growth loop design.md warns about (and 12.1
+           removed) cannot recur. invalidateSize() below only tells Leaflet to
+           re-tile; it never writes a height. */
+        align-items: stretch;
+        margin-bottom: 16px;
+      }
+      .cm-map-card {
+        display: flex;
       }
       .cm-map {
+        flex: 1;
         width: 100%;
-        /* Stable, viewport-relative height, independent of the card column:
-           expanding the selection card or collapsing Configurazione never
-           resizes the map. */
-        height: clamp(420px, calc(100vh - 220px), 900px);
+        /* Floor only; the grid stretches it up to the card column's height. */
+        min-height: 420px;
         border-radius: 4px;
       }
       /* The exact token from pipboy-map-tab — a design token, not a tuning knob. */
