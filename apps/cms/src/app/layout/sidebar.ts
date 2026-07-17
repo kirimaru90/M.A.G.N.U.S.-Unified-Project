@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
+import { LayoutService } from '../core/layout/layout.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -10,7 +11,15 @@ import { AuthService } from '../core/auth/auth.service';
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <aside class="bo-sidebar">
+    <!-- Dismiss backdrop for the mobile drawer; inert (display:none) above the
+         breakpoint. Tapping it closes the drawer. -->
+    <div
+      class="bo-sidebar-backdrop"
+      [class.show]="layout.sidebarOpen()"
+      data-testid="sidebar-backdrop"
+      (click)="layout.closeSidebar()"
+    ></div>
+    <aside class="bo-sidebar" [class.open]="layout.sidebarOpen()">
       <div>
         <div class="section-label">Campagna</div>
         <nav class="bo-nav">
@@ -246,6 +255,17 @@ import { AuthService } from '../core/auth/auth.service';
 export class SidebarComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly layout = inject(LayoutService);
+
+  constructor() {
+    // Auto-close the mobile drawer when navigation completes, so tapping a nav
+    // link never strands the drawer open over the page it just opened. Harmless
+    // above the breakpoint, where the drawer CSS is inert.
+    effect(() => {
+      this.currentUrl();
+      this.layout.closeSidebar();
+    });
+  }
 
   /**
    * The Catalogo section links to admin-guarded routes; a non-admin who clicked

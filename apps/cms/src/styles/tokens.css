@@ -163,6 +163,58 @@
   box-shadow: 0 0 6px var(--bo-accent-edge);
 }
 
+/* ===== Mobile sidebar drawer =====
+   The CMS's first (and only) breakpoint. Above 768px both of these are inert:
+   the hamburger and the backdrop are hidden and the sidebar sits in normal
+   flow. Below it the sidebar becomes an off-canvas drawer the hamburger opens.
+   768px is MOBILE_BREAKPOINT_PX in core/layout/layout.service.ts — @media can't
+   read the constant, so keep the two in sync. */
+.bo-hamburger { display: none; }
+.bo-sidebar-backdrop { display: none; }
+
+@media (max-width: 768px) {
+  .bo-hamburger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--bo-border);
+    border-radius: var(--bo-radius-sm);
+    color: var(--bo-text);
+    font-size: 15px; line-height: 1;
+    cursor: pointer;
+  }
+  .bo-hamburger:hover { background: var(--bo-hover); }
+
+  /* Out of flow, so .bo-main takes the full width; slid off-screen until open. */
+  .bo-sidebar {
+    position: fixed;
+    top: 44px; left: 0; bottom: 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--bo-shadow);
+  }
+  .bo-sidebar.open { transform: translateX(0); }
+
+  .bo-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 44px 0 0 0;
+    z-index: 39;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .bo-sidebar-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .bo-body {
   flex: 1; min-height: 0;
   display: flex;

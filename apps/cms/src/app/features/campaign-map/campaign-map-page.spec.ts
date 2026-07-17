@@ -5,6 +5,7 @@ import { WritableSignal, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfirmationService, MessageService } from 'primeng/api';
+import * as L from 'leaflet';
 import { CampaignMapPage } from './campaign-map-page';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
@@ -365,6 +366,20 @@ describe('CampaignMapPage', () => {
       });
 
       expect(state<MapPlace[]>('places')[0].radius).toBeUndefined();
+    });
+
+    it('rounds a dragged marker to 6 decimals on store, so the field carries no float noise', async () => {
+      await setup([place({ slug: 'roma' })]);
+      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
+      const marker = markers.get('roma')!;
+      // The full-precision value Leaflet would hand back from a real drag.
+      marker.setLatLng([41.902800000000014, 12.496400000000031]);
+      marker.fire('dragend');
+      fixture.detectChanges();
+
+      const moved = state<MapPlace[]>('places')[0];
+      expect(moved.lat).toBe(41.9028);
+      expect(moved.lng).toBe(12.4964);
     });
   });
 

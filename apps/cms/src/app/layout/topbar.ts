@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../core/auth/auth.service';
+import { LayoutService } from '../core/layout/layout.service';
 import { ThemeService } from '../core/theme/theme.service';
 import { MoonIcon } from '../icons/moon-icon';
 import { SunIcon } from '../icons/sun-icon';
@@ -14,6 +15,16 @@ const APP_VERSION = 'v0.1.0';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="bo-topbar">
+      <button
+        type="button"
+        class="bo-hamburger"
+        data-testid="sidebar-toggle"
+        aria-label="Apri menu"
+        (click)="layout.toggleSidebar()"
+      >
+        ☰
+      </button>
+
       <span class="bo-logo">
         <span class="bo-logo-mark"></span>
         <span>MAGNUS</span>
@@ -49,6 +60,7 @@ const APP_VERSION = 'v0.1.0';
 export class TopbarComponent {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
+  protected readonly layout = inject(LayoutService);
   private readonly router = inject(Router);
 
   protected readonly version = APP_VERSION;

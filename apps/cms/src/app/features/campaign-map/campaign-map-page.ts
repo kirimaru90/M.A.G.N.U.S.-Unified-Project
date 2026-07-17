@@ -546,6 +546,14 @@ type Mode = 'idle' | 'placing' | 'bounds';
         align-items: stretch;
         margin-bottom: 16px;
       }
+      /* Below the shell breakpoint (768px — see MOBILE_BREAKPOINT_PX in
+         core/layout/layout.service.ts) the 1fr 360px split crushes the map, so
+         stack to a single column and let the cards fall under it. */
+      @media (max-width: 768px) {
+        .cm-grid {
+          grid-template-columns: 1fr;
+        }
+      }
       .cm-map-card {
         display: flex;
       }
@@ -571,6 +579,12 @@ type Mode = 'idle' | 'placing' | 'bounds';
         flex-direction: column;
         gap: 16px;
       }
+      /* The two side cards opt into padding here rather than through global
+         .bo-card (which is deliberately padding-less so .cm-map-card can sit the
+         map flush to its border and the table card can inset its own bar). */
+      .cm-side .bo-card {
+        padding: 12px;
+      }
       .cm-card-head {
         display: flex;
         align-items: center;
@@ -589,6 +603,17 @@ type Mode = 'idle' | 'placing' | 'bounds';
         flex-direction: column;
         gap: 2px;
         font-size: 12px;
+      }
+      /* Keep captured/dragged values from widening a field past the card. The
+         inputs set no width of their own, so a long value grows them to fit and
+         pushes the card wall; min-width: 0 lets them shrink inside the flex/grid
+         column instead. (Rounding on store is the matching fix for the cause.) */
+      .cm-fields input,
+      .cm-fields select,
+      .cm-fields textarea {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
       }
       .cm-inline {
         flex-direction: row !important;
@@ -617,6 +642,14 @@ type Mode = 'idle' | 'placing' | 'bounds';
         justify-content: space-between;
         gap: 8px;
         font-size: 12px;
+      }
+      /* Clamp the coordinate readout so a long pair can't shove the "sposta"
+         button out of the card; the button keeps its intrinsic width. */
+      .cm-coords span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .cm-hint {
         opacity: 0.7;
@@ -1015,20 +1048,35 @@ export class CampaignMapPage {
     this.config.set({ ...cfg, bounds: { ...cfg.bounds, ...patch } });
   }
 
+  /**
+   * Quantise a coordinate to 6 decimals (~11 cm) on store. A captured or dragged
+   * lat/lng arrives with the full double precision Leaflet computed it at
+   * (`41.902800000000014`); binding that raw into a width-less `pInputText` grows
+   * the field to fit and pushes the card wall. Rounding here keeps the stored
+   * value — and therefore the field — free of float noise at authoring precision.
+   */
+  private round6(n: number): number {
+    return Math.round(n * 1e6) / 1e6;
+  }
+
   protected captureStartView(): void {
     if (!this.map) return;
     const c = this.map.getCenter();
-    this.patchConfig({ startLat: c.lat, startLng: c.lng, startZoom: this.map.getZoom() });
+    this.patchConfig({
+      startLat: this.round6(c.lat),
+      startLng: this.round6(c.lng),
+      startZoom: this.map.getZoom(),
+    });
   }
 
   protected captureBounds(): void {
     if (!this.map) return;
     const b = this.map.getBounds();
     this.patchBounds({
-      south: b.getSouth(),
-      west: b.getWest(),
-      north: b.getNorth(),
-      east: b.getEast(),
+      south: this.round6(b.getSouth()),
+      west: this.round6(b.getWest()),
+      north: this.round6(b.getNorth()),
+      east: this.round6(b.getEast()),
     });
   }
 
@@ -1216,7 +1264,7 @@ export class CampaignMapPage {
           const ll = marker.getLatLng();
           const target = this.places().find((p) => p.slug === slug);
           if (!target) return;
-          const moved = { ...target, lat: ll.lat, lng: ll.lng };
+          const moved = { ...target, lat: this.round6(ll.lat), lng: this.round6(ll.lng) };
           this.places.set(this.places().map((p) => (p.slug === slug ? moved : p)));
           if (this.selected() === slug) this.draft.set(moved);
         });
@@ -1325,10 +1373,10 @@ export class CampaignMapPage {
       dragFrom = e.latlng;
       const cur = this.config().bounds;
       this.patchBounds({
-        south: cur.south + dLat,
-        north: cur.north + dLat,
-        west: cur.west + dLng,
-        east: cur.east + dLng,
+        south: this.round6(cur.south + dLat),
+        north: this.round6(cur.north + dLat),
+        west: this.round6(cur.west + dLng),
+        east: this.round6(cur.east + dLng),
       });
     });
     this.map.on('mouseup', () => {
@@ -1337,10 +1385,10 @@ export class CampaignMapPage {
     });
 
     const corners: [L.LatLngExpression, (ll: L.LatLng) => void][] = [
-      [[b.south, b.west], (ll) => this.patchBounds({ south: ll.lat, west: ll.lng })],
-      [[b.south, b.east], (ll) => this.patchBounds({ south: ll.lat, east: ll.lng })],
-      [[b.north, b.west], (ll) => this.patchBounds({ north: ll.lat, west: ll.lng })],
-      [[b.north, b.east], (ll) => this.patchBounds({ north: ll.lat, east: ll.lng })],
+      [[b.south, b.west], (ll) => this.patchBounds({ south: this.round6(ll.lat), west: this.round6(ll.lng) })],
+      [[b.south, b.east], (ll) => this.patchBounds({ south: this.round6(ll.lat), east: this.round6(ll.lng) })],
+      [[b.north, b.west], (ll) => this.patchBounds({ north: this.round6(ll.lat), west: this.round6(ll.lng) })],
+      [[b.north, b.east], (ll) => this.patchBounds({ north: this.round6(ll.lat), east: this.round6(ll.lng) })],
     ];
 
     for (const [pos, apply] of corners) {
