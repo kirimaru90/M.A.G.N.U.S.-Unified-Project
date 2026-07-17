@@ -134,6 +134,44 @@ test.describe('marker popup', () => {
     expect(await markerNames(page)).toContain('VAULT');
     await expect(page.locator('.leaflet-popup')).toHaveCount(0);
   });
+
+  test('a click on the empty map closes the popup', async ({ page }) => {
+    await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
+    await setView(page, ORIGIN_LAT, ORIGIN_LNG, 14);
+    await page.locator('.pb-map-marker--vault').click();
+    await expect(page.locator('.pb-map-popup-name')).toHaveText('VAULT');
+    await settle(page);
+
+    // A genuine tap on empty map (no marker, no popup) near a corner — not the
+    // centred vault marker.
+    const box = (await page.locator('.pb-map-canvas').boundingBox())!;
+    await page.mouse.click(box.x + 24, box.y + box.height - 24);
+
+    await expect(page.locator('.leaflet-popup')).toHaveCount(0);
+    // The marker itself is untouched.
+    expect(await markerNames(page)).toContain('VAULT');
+  });
+
+  test('a pan that keeps the place in view leaves the popup open', async ({ page }) => {
+    await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
+    await setView(page, ORIGIN_LAT, ORIGIN_LNG, 14);
+    await page.locator('.pb-map-marker--vault').click();
+    await expect(page.locator('.pb-map-popup-name')).toHaveText('VAULT');
+    await settle(page);
+
+    // A drag (not a click) pans the map a little; the vault stays on screen, so
+    // the popup must survive — panning does not dismiss it.
+    const box = (await page.locator('.pb-map-canvas').boundingBox())!;
+    const cx = box.x + box.width / 2;
+    const cy = box.y + box.height / 2;
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx - 50, cy - 40, { steps: 8 });
+    await page.mouse.up();
+    await settle(page);
+
+    await expect(page.locator('.pb-map-popup-name')).toHaveText('VAULT');
+  });
 });
 
 test.describe('Vedi mappa', () => {

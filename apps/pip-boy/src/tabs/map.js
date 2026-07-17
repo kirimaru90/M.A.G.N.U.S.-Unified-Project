@@ -205,15 +205,19 @@ function mountMap(canvas, zoneEl, { config, places }) {
         });
         // The popup is bound to the marker, so Leaflet's own `remove` handler
         // tears it down when syncMarkers/bloom removes the marker — that is what
-        // closes it as the place opens (design.md). autoClose/closeOnClick off so
-        // nothing incidental closes it; a pan off-screen is handled explicitly on
-        // 'moveend' below. autoPan off so opening it never shifts the centre away
-        // from the place focusPlace just centred.
+        // closes it as the place opens (design.md). `closeOnClick` closes it on a
+        // genuine tap of the empty map: Leaflet fires that via `preclick`, which
+        // it suppresses after a drag (so a pan never closes it) and does not fire
+        // on wheel/pinch zoom — and the marker and popup body stop it themselves,
+        // so only a click *outside* closes it. A pan that carries the place off
+        // screen is still handled explicitly on 'moveend' below. autoPan off so
+        // opening it never shifts the centre away from the place focusPlace just
+        // centred.
         marker.bindPopup(popupContent(place), {
             className: 'pb-map-popup-wrap',
             closeButton: false,
             autoClose: false,
-            closeOnClick: false,
+            closeOnClick: true,
             autoPan: false,
         });
         // Drop Leaflet's default click-to-open (it pops at the pre-move position)

@@ -160,12 +160,19 @@ async function checkForUpdate(btn) {
         }
 
         let reloaded = false;
+        let stallTimer = null;
         const reloadOnce = () => {
             if (reloaded) return;
             reloaded = true;
+            if (stallTimer) clearTimeout(stallTimer);
             self.location.reload();
         };
         navigator.serviceWorker.addEventListener('controllerchange', reloadOnce);
+
+        const giveUp = () => {
+            navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
+            restore();
+        };
 
         await reg.update();
         const incoming = reg.installing || reg.waiting;
@@ -180,6 +187,12 @@ async function checkForUpdate(btn) {
         // then reloads onto it.
         btn.textContent = 'AGGIORNAMENTO…';
         if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        // Safety net: if the new worker never activates (a stalled install, a
+        // failed fetch), don't sit on AGGIORNAMENTO… forever — restore the button.
+        stallTimer = setTimeout(() => {
+            if (reloaded) return;
+            giveUp();
+        }, 15000);
     } catch (_) {
         btn.textContent = 'ERRORE';
         setTimeout(restore, 2500);
