@@ -90,6 +90,29 @@ test('the popup shows four rows in order and offers no OK control anywhere', asy
   await expect(page.locator(POPUP).getByText('OK', { exact: true })).toHaveCount(0);
 });
 
+test('a VERSIONE footer shows the build and offers an update check, outside the four rows', async ({ page }) => {
+  await stubDeviceApis(page);
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  // Still exactly four preference rows: the version footer is not one of them.
+  await expect(page.locator(`${POPUP} .pb-settings-row`)).toHaveCount(4);
+
+  const version = page.locator(`${POPUP} [data-version]`);
+  await expect(version).toBeVisible();
+  // Resolves to a non-empty build id (or the dev fallback), never the placeholder.
+  await expect(version).not.toHaveText('…');
+  await expect(version).not.toHaveText('__BUILD_ID__');
+
+  const update = page.locator(`${POPUP} [data-update]`);
+  await expect(update).toHaveText('CERCA AGGIORNAMENTI');
+  const insideRow = await page.evaluate(
+    () => !!document.querySelector('[data-update]')!.closest('.pb-settings-row'),
+  );
+  expect(insideRow).toBe(false);
+});
+
 test('the popup opens with the defaults active: AUTO, vibration on, wake lock on', async ({ page }) => {
   await stubDeviceApis(page);
   await stubEnvironment(page);

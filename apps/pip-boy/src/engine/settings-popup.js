@@ -111,6 +111,81 @@ function openCreditsPopup() {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 }
 
+// The shell cache is named `pipboy-<BUILD_ID>` by sw.js, stamped from the
+// deployed commit at image-build time. Reading the cache name back is how the app
+// learns which build it is running without a second source of truth. A local dev
+// build (or a browser with no Cache Storage) has no stamped id, shown as such.
+const TILE_CACHE_NAME = 'pipboy-tiles-v1';
+
+async function readBuildId() {
+    try {
+        if (!('caches' in self)) return 'sviluppo';
+        const keys = await caches.keys();
+        const shell = keys.find((k) => k.startsWith('pipboy-') && k !== TILE_CACHE_NAME);
+        const id = shell ? shell.replace(/^pipboy-/, '') : '';
+        // The untouched placeholder means the build never had an id stamped in.
+        return !id || id === '__BUILD_ID__' ? 'sviluppo' : id;
+    } catch (_) {
+        return 'sviluppo';
+    }
+}
+
+/**
+ * Check for a newer deploy and, if one is found, reload onto it. The pip-boy is a
+ * PWA whose shell is served cache-first, so a player keeps running the cached
+ * build until a new service worker installs and takes control — this button is
+ * the manual trigger for that. `controllerchange` fires when the fresh worker
+ * claims the page, which is the moment a reload will serve the new code.
+ */
+async function checkForUpdate(btn) {
+    if (!('serviceWorker' in navigator)) {
+        btn.textContent = 'NON DISPONIBILE';
+        return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'RICERCA…';
+
+    const restore = () => {
+        btn.textContent = original;
+        btn.disabled = false;
+    };
+
+    try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+            // No worker registered yet — a plain reload fetches the latest shell.
+            self.location.reload();
+            return;
+        }
+
+        let reloaded = false;
+        const reloadOnce = () => {
+            if (reloaded) return;
+            reloaded = true;
+            self.location.reload();
+        };
+        navigator.serviceWorker.addEventListener('controllerchange', reloadOnce);
+
+        await reg.update();
+        const incoming = reg.installing || reg.waiting;
+        if (!incoming) {
+            navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
+            btn.textContent = 'GIÀ AGGIORNATO';
+            setTimeout(restore, 2500);
+            return;
+        }
+        // A new worker is installing; nudge it to activate immediately (sw.js also
+        // skips waiting on install, so this is belt-and-braces). controllerchange
+        // then reloads onto it.
+        btn.textContent = 'AGGIORNAMENTO…';
+        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } catch (_) {
+        btn.textContent = 'ERRORE';
+        setTimeout(restore, 2500);
+    }
+}
+
 export function openSettingsPopup() {
     const prefs = getPrefs();
 
@@ -136,6 +211,13 @@ export function openSettingsPopup() {
                     </div>
                 `).join('')}
                 <button class="pb-btn pb-settings-action" data-credits>CREDITI</button>
+                <div class="pb-settings-version" data-version-block>
+                    <div class="pb-split-row">
+                        <span class="pb-label">VERSIONE</span>
+                        <span class="pb-settings-version-value" data-version>…</span>
+                    </div>
+                    <button class="pb-btn pb-settings-action" data-update>CERCA AGGIORNAMENTI</button>
+                </div>
             </div>
         </div>
     `;
@@ -145,6 +227,16 @@ export function openSettingsPopup() {
     overlay.querySelector('[data-close]').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.querySelector('[data-credits]').addEventListener('click', openCreditsPopup);
+
+    // The build id is read from the shell cache name asynchronously; fill it in
+    // once resolved, guarding against the popup having been closed meanwhile.
+    const versionEl = overlay.querySelector('[data-version]');
+    void readBuildId().then((id) => {
+        if (versionEl.isConnected) versionEl.textContent = id;
+    });
+    overlay.querySelector('[data-update]').addEventListener('click', (e) => {
+        void checkForUpdate(e.currentTarget);
+    });
 
     for (const row of ROWS) {
         if (row.disabled) continue;

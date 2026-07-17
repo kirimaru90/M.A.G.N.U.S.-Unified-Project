@@ -177,18 +177,19 @@ function zoomForViewportRadius(vr, viewportPx, lat) {
  * viewport. This is what *Vedi mappa* targets. Pure inverse of `viewportRadius`,
  * clamped to `[minZoom, maxZoom]`.
  *
- * `isOpen` is true at exactly this zoom (`vr ≤ R`) and false one integer step
- * further out (`vr = 2·R > R`).
+ * The map snaps to whole zoom levels (crisp raster tiles), so this rounds *up*
+ * to the least **integer** zoom that opens the place — never down, which would
+ * leave it closed ("zoomed in not enough to open"). The `-EPS` keeps a value
+ * already essentially on an integer from rounding a whole level too far in.
  *
- * The `EPS` nudge zooms in by a negligible fraction of a level so the round-trip
- * through `log2`/`2^z` cannot land a hair *outside* the circle and leave the
- * place closed — the whole point of the helper is that the place is open here.
+ * `isOpen` is true at the returned zoom (`vr ≤ R`) and false one integer step
+ * further out.
  */
-const CONTAIN_EPS = 1e-6;
+const CONTAIN_EPS = 1e-9;
 export function containZoom(place, radii, viewportPx, zoomRange) {
     const R = radii.get(place.slug) ?? 0;
-    const zoom = zoomForViewportRadius(R, viewportPx, place.lat) + CONTAIN_EPS;
-    return clampZoom(zoom, zoomRange);
+    const exact = zoomForViewportRadius(R, viewportPx, place.lat);
+    return clampZoom(Math.ceil(exact - CONTAIN_EPS), zoomRange);
 }
 
 /**
@@ -215,7 +216,25 @@ export function revealZoom(place, places, radii, viewportPx, zoomRange) {
         // No ancestor bound: a step out from the place's own contain zoom.
         targetVr = 2 * (R > 0 ? R : DEFAULT_PLACE_RADIUS_M);
     }
-    return clampZoom(zoomForViewportRadius(targetVr, viewportPx, place.lat), zoomRange);
+    const target = Math.round(zoomForViewportRadius(targetVr, viewportPx, place.lat));
+
+    // The marker only renders on whole zoom levels between "every ancestor just
+    // open" (lower edge) and "the place itself about to open" (upper edge). Round
+    // the target into that integer window so a snap can't land it out of the band.
+    const loEdge = bound != null && bound > 0
+        ? Math.ceil(zoomForViewportRadius(bound, viewportPx, place.lat) - 1e-9)
+        : zoomRange.minZoom;
+    const canOpen = kids(places, place.slug).length > 0 && R > 0;
+    const hiEdge = canOpen
+        ? Math.floor(zoomForViewportRadius(R, viewportPx, place.lat) - 1e-9)
+        : zoomRange.maxZoom;
+
+    const lo = Math.max(zoomRange.minZoom, loEdge);
+    const hi = Math.min(zoomRange.maxZoom, hiEdge);
+    // When the window spans no whole level, prefer the lower edge (ancestors open)
+    // over nothing.
+    const z = hi >= lo ? Math.min(hi, Math.max(lo, target)) : lo;
+    return clampZoom(z, zoomRange);
 }
 
 /**

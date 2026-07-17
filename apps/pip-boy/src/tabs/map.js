@@ -154,11 +154,11 @@ function mountMap(canvas, zoneEl, { config, places }) {
         maxZoom: config.maxZoom,
         maxBounds: bounds,
         maxBoundsViscosity: 1,
-        // focusPlace / Vedi mappa target derived, fractional zooms (containZoom,
-        // revealZoom). The default zoomSnap of 1 would round setView to an
-        // integer and could land *below* the least-open zoom, leaving the place
-        // closed; snapping off honours the computed zoom exactly.
-        zoomSnap: 0,
+        // focusPlace / Vedi mappa jump to whole zoom levels (containZoom rounds
+        // *up* to the level that opens the place). Raise the animation threshold
+        // past the campaign's whole zoom span so even a multi-level jump animates
+        // rather than snapping instantly — a tap always eases to its target.
+        zoomAnimationThreshold: config.maxZoom - config.minZoom + 1,
         zoomControl: false,
         // Disabling the control also drops Leaflet's own "Leaflet" prefix. Its
         // BSD-2 licence wants the notice in the source, which the vendored copy
@@ -286,7 +286,10 @@ function mountMap(canvas, zoneEl, { config, places }) {
         const zoom = open
             ? containZoom(place, radii, viewportPxNow(), zoomRange)
             : revealZoom(place, places, radii, viewportPxNow(), zoomRange);
-        map.setView([place.lat, place.lng], zoom);
+        // Explicit animate so the centre eases in; paired with the map's raised
+        // zoomAnimationThreshold it holds even for a big jump (search across the
+        // map), rather than teleporting.
+        map.setView([place.lat, place.lng], zoom, { animate: true });
         if (!open) openPopupFor(place);
     }
 

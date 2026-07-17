@@ -145,6 +145,13 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('message', (event) => {
+  // The settings "CERCA AGGIORNAMENTI" button posts this so a freshly-installed
+  // worker takes control at once rather than waiting for every tab to close.
+  // (install already calls skipWaiting; this covers the case it is ever removed.)
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
   if (event.data && event.data.type === 'FLUSH_CONTENT_CACHES') {
     // Logout: drop every non-shell cache except the tiles. They carry no player
     // or campaign data, so discarding them would force a full re-download on the
