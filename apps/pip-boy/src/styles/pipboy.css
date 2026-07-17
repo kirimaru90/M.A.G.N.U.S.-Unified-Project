@@ -1560,6 +1560,44 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     border-radius: 0;
     box-shadow: none;
 }
+/* Tighten Leaflet's roomy default content box to the phosphor scale. */
+.pb-map-canvas .leaflet-popup-content {
+    margin: 8px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    min-width: 120px;
+}
+.pb-map-popup-name {
+    color: var(--phosphor-bright);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+}
+/* The type line: a quiet, uppercased label under the name. */
+.pb-map-popup-type {
+    margin-top: 1px;
+    color: rgba(51, 255, 102, 0.6);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+.pb-map-popup-desc {
+    margin-top: 6px;
+    color: var(--phosphor);
+}
+/* Vedi mappa: the interior-open action, styled like the app's other controls. */
+.pb-map-popup-open {
+    margin-top: 8px;
+    padding: 3px 10px;
+    background: var(--green-fill);
+    border: 1px solid var(--green-border);
+    color: var(--phosphor);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.pb-map-popup-open:hover { background: var(--green-fill-active); }
 
 /* divIcon already anchors at iconSize/2 with its own negative margin. A margin
    here would double it and sit every marker half its size up-and-left of its
@@ -1646,6 +1684,82 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-map-skeleton {
     padding: 12px;
 }
+
+/* The name-search control: a lens button top-right that expands into an
+   autocomplete field. Above the tiles and attribution; inside the canvas, which
+   is the data-pb-no-swipe region, so interacting with it never leaves the tab. */
+.pb-map-search {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 600;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.pb-map-search-lens {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: rgba(6, 17, 10, 0.7);
+    border: 1px solid var(--green-border);
+    color: var(--phosphor);
+    cursor: pointer;
+}
+.pb-map-search-lens:hover { background: var(--green-fill-active); }
+.pb-map-search-lens svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--phosphor);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+/* Collapsed by default: the field and list only exist once the lens opens it. */
+.pb-map-search-input {
+    display: none;
+    width: 180px;
+    max-width: 60vw;
+    margin-top: 4px;
+    padding: 5px 8px;
+    background: rgba(6, 17, 10, 0.85);
+    border: 1px solid var(--green-border);
+    color: var(--phosphor);
+    font: inherit;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+}
+.pb-map-search-input::placeholder { color: rgba(51, 255, 102, 0.4); }
+.pb-map-search-input:focus { outline: none; border-color: var(--green-border-strong); }
+.pb-map-search-list {
+    display: none;
+    width: 180px;
+    max-width: 60vw;
+    margin: -1px 0 0;
+    padding: 0;
+    list-style: none;
+    max-height: 40vh;
+    overflow-y: auto;
+    background: rgba(6, 17, 10, 0.92);
+    border: 1px solid var(--green-border);
+    border-top: none;
+}
+.pb-map-search.is-open .pb-map-search-input { display: block; }
+.pb-map-search.is-open .pb-map-search-list:not(:empty) { display: block; }
+.pb-map-search-item {
+    padding: 5px 8px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--phosphor);
+    cursor: pointer;
+    border-top: 1px solid var(--green-hairline-faint);
+}
+.pb-map-search-item:first-child { border-top: none; }
+.pb-map-search-item:hover,
+.pb-map-search-item.is-active { background: var(--green-fill-active); }
 
 /* CREDITI — an action below the four preference rows, deliberately not a fifth
    pb-toggle-row: the pipboy-settings capability requires exactly four rows, and

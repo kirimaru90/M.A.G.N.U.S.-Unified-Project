@@ -4,7 +4,10 @@ import * as L from '../vendor/leaflet/leaflet.esm.js';
 import {
     ancestors,
     chain,
+    containZoom,
     effectiveRadius,
+    kids,
+    revealZoom,
     viewportRadius,
     visible,
 } from './map-geometry.js';
@@ -42,7 +45,14 @@ const BLOOM_MS = 800;
 const BLOOM_EASE = 'cubic-bezier(.16, 1, .3, 1)';
 const FADE_MS = 400;
 
-const ROOT_LABEL = 'MAPPA';
+// Shown only when the centre is inside no open place — never beside a named
+// level (renderZone returns early with it, or omits it entirely).
+const ROOT_LABEL = 'Terre contaminate';
+
+// The breadcrumb shows at most the three deepest open levels; a deeper chain
+// leads with this elision marker to signal the omitted ancestry.
+const CHAIN_MAX = 3;
+const CHAIN_ELISION = '…';
 
 // Inline SVG, keyed by name — the app's existing convention. Resolved at render
 // (`place.icon ?? type default`) and never copied onto a place, so retyping a
@@ -66,6 +76,17 @@ const TYPE_DEFAULT_ICON = {
     room: 'room',
     landmark: 'landmark',
     poi: 'poi',
+};
+
+/** Mirrors PLACE_TYPE_OPTIONS[].label in the CMS — the popup's type line. */
+const TYPE_LABEL = {
+    region: 'Regione',
+    settlement: 'Insediamento',
+    vault: 'Vault',
+    building: 'Edificio',
+    room: 'Stanza',
+    landmark: 'Punto di riferimento',
+    poi: 'Punto di interesse',
 };
 
 /** An unknown key falls back to the type's default rather than rendering nothing. */
@@ -133,6 +154,11 @@ function mountMap(canvas, zoneEl, { config, places }) {
         maxZoom: config.maxZoom,
         maxBounds: bounds,
         maxBoundsViscosity: 1,
+        // focusPlace / Vedi mappa target derived, fractional zooms (containZoom,
+        // revealZoom). The default zoomSnap of 1 would round setView to an
+        // integer and could land *below* the least-open zoom, leaving the place
+        // closed; snapping off honours the computed zoom exactly.
+        zoomSnap: 0,
         zoomControl: false,
         // Disabling the control also drops Leaflet's own "Leaflet" prefix. Its
         // BSD-2 licence wants the notice in the source, which the vendored copy
@@ -155,6 +181,13 @@ function mountMap(canvas, zoneEl, { config, places }) {
         return viewportRadius({ width: size.x, height: size.y }, zoom, centre.lat);
     };
 
+    const viewportPxNow = () => {
+        const size = map.getSize();
+        return { width: size.x, height: size.y };
+    };
+
+    const zoomRange = { minZoom: config.minZoom, maxZoom: config.maxZoom };
+
     /** The set of slugs visible at a given viewport radius. */
     const visibleSet = (vr) => new Set(visible(places, vr, radii).map((p) => p.slug));
 
@@ -170,6 +203,23 @@ function mountMap(canvas, zoneEl, { config, places }) {
             }),
             keyboard: false,
         });
+        // The popup is bound to the marker, so Leaflet's own `remove` handler
+        // tears it down when syncMarkers/bloom removes the marker — that is what
+        // closes it as the place opens (design.md). autoClose/closeOnClick off so
+        // nothing incidental closes it; a pan off-screen is handled explicitly on
+        // 'moveend' below. autoPan off so opening it never shifts the centre away
+        // from the place focusPlace just centred.
+        marker.bindPopup(popupContent(place), {
+            className: 'pb-map-popup-wrap',
+            closeButton: false,
+            autoClose: false,
+            closeOnClick: false,
+            autoPan: false,
+        });
+        // Drop Leaflet's default click-to-open (it pops at the pre-move position)
+        // and route the tap through focusPlace so tap and search share one path.
+        marker.off('click');
+        marker.on('click', () => focusPlace(place, { open: false }));
         marker.addTo(map);
         markers.set(place.slug, marker);
         return marker;
@@ -179,6 +229,75 @@ function mountMap(canvas, zoneEl, { config, places }) {
         markers.get(slug)?.remove();
         markers.delete(slug);
     }
+
+    /**
+     * A marker's popup: the place name, its type, its description, and — for a
+     * place with a local map (`hasLocalMap` and at least one child) — a
+     * *Vedi mappa* action that opens the interior. Built as a DOM node so the
+     * button's listener is wired directly; Leaflet keeps the node and reuses it.
+     */
+    function popupContent(place) {
+        const canOpen = place.hasLocalMap && kids(places, place.slug).length > 0;
+        const el = document.createElement('div');
+        el.className = 'pb-map-popup';
+        el.innerHTML = `
+            <div class="pb-map-popup-name">${esc(place.name)}</div>
+            <div class="pb-map-popup-type">${esc(TYPE_LABEL[place.type] ?? place.type)}</div>
+            ${place.desc ? `<div class="pb-map-popup-desc">${esc(place.desc)}</div>` : ''}
+            ${canOpen ? `<button type="button" class="pb-map-popup-open" data-map-open>Vedi mappa</button>` : ''}
+        `;
+        if (canOpen) {
+            el.querySelector('[data-map-open]').addEventListener('click', () => {
+                focusPlace(place, { open: true });
+            });
+        }
+        return el;
+    }
+
+    // The slug whose popup is currently open, so a pan that carries it off screen
+    // can close it (its marker survives the pan — see the 'panning' test — so the
+    // popup, not the marker, is what closes). Cleared whenever any popup closes.
+    let openSlug = null;
+
+    /**
+     * Open the popup for `place`. If its marker exists now, open immediately;
+     * otherwise the marker is being created during setView's transition (a hidden
+     * place revealed by revealZoom), so defer the open to the transition's end.
+     */
+    function openPopupFor(place) {
+        const open = () => {
+            const marker = markers.get(place.slug);
+            if (!marker) return;
+            marker.openPopup();
+            openSlug = place.slug;
+        };
+        if (markers.has(place.slug)) open();
+        else map.once('moveend', open);
+    }
+
+    /**
+     * The one primitive behind marker taps, *Vedi mappa*, and search. Centre the
+     * place and zoom to `containZoom` (its interior fills the view) when `open`,
+     * else `revealZoom` (its own marker renders). When opening the interior the
+     * place's marker leaves the set and its popup dies with it, so only the
+     * non-open path re-opens a popup.
+     */
+    function focusPlace(place, { open = false } = {}) {
+        const zoom = open
+            ? containZoom(place, radii, viewportPxNow(), zoomRange)
+            : revealZoom(place, places, radii, viewportPxNow(), zoomRange);
+        map.setView([place.lat, place.lng], zoom);
+        if (!open) openPopupFor(place);
+    }
+
+    // A test seam for focusing a place with no rendered marker (a hidden place
+    // reached by search, before §5's UI exists): there is no DOM element to
+    // click. Same convention as the published `__PB_MAP__`; nothing in the app
+    // reads it.
+    map.__pbFocus = (slug, opts = {}) => {
+        const place = places.find((p) => p.slug === slug);
+        if (place) focusPlace(place, opts);
+    };
 
     /**
      * Reconcile by difference — never rebuild. An icon can only fly out of a
@@ -202,14 +321,18 @@ function mountMap(canvas, zoneEl, { config, places }) {
             zoneEl.innerHTML = `<span class="pb-map-chain"><bdi>${ROOT_LABEL}</bdi></span>`;
             return;
         }
-        // Truncation is left-side (see pipboy.css): where you are matters more
-        // than distant ancestry, so the deepest entries survive.
-        const parts = line.map((p, i) =>
-            i === line.length - 1
+        // Cap to the three deepest levels; a deeper chain leads with an elision
+        // marker. Left-side truncation (see pipboy.css) is the width fallback
+        // beyond that: where you are matters more than distant ancestry, so the
+        // deepest entries survive.
+        const shown = line.slice(-CHAIN_MAX);
+        const parts = shown.map((p, i) =>
+            i === shown.length - 1
                 ? `<b class="pb-map-chain-here">${esc(p.name)}</b>`
                 : esc(p.name),
         );
-        zoneEl.innerHTML = `<span class="pb-map-chain"><bdi>${parts.join(' › ')}</bdi></span>`;
+        const prefix = line.length > CHAIN_MAX ? `${CHAIN_ELISION} › ` : '';
+        zoneEl.innerHTML = `<span class="pb-map-chain"><bdi>${prefix}${parts.join(' › ')}</bdi></span>`;
     }
 
     /**
@@ -331,6 +454,126 @@ function mountMap(canvas, zoneEl, { config, places }) {
         syncMarkers(vrNow());
         renderZone();
     });
+
+    // A pan leaves the marker set untouched (APERTA is zoom-only), so an open
+    // popup whose place has been carried off the viewport is closed here rather
+    // than by removing its marker.
+    map.on('moveend', () => {
+        if (!openSlug) return;
+        const marker = markers.get(openSlug);
+        if (!marker) return;
+        const p = places.find((q) => q.slug === openSlug);
+        if (p && !map.getBounds().contains([p.lat, p.lng])) marker.closePopup();
+    });
+    map.on('popupclose', () => { openSlug = null; });
+
+    /**
+     * The name-search control: a lens button in a corner of the canvas that
+     * toggles an autocomplete field over the received `places`. The index is the
+     * received set only — the API already stripped non-public places server-side,
+     * so this cannot name a secret the client was never sent (design.md).
+     */
+    function mountSearch() {
+        const box = document.createElement('div');
+        box.className = 'pb-map-search';
+        box.setAttribute('data-map-search', '');
+        box.innerHTML = `
+            <button type="button" class="pb-map-search-lens" data-search-lens aria-label="Cerca un luogo">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            </button>
+            <input type="text" class="pb-map-search-input" data-search-input placeholder="Cerca…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Cerca un luogo">
+            <ul class="pb-map-search-list" data-search-list></ul>
+        `;
+        canvas.appendChild(box);
+        // Keep taps/scrolls on the control off the map beneath it — it sits inside
+        // the Leaflet container.
+        L.DomEvent.disableClickPropagation(box);
+        L.DomEvent.disableScrollPropagation(box);
+
+        const lens = box.querySelector('[data-search-lens]');
+        const input = box.querySelector('[data-search-input]');
+        const list = box.querySelector('[data-search-list]');
+
+        // Case- and accent-insensitive: decompose, drop combining marks, fold case.
+        const fold = (s) => [...s.normalize('NFD')].filter((c) => c.charCodeAt(0) < 0x300 || c.charCodeAt(0) > 0x36f).join('').toLowerCase();
+        const index = places.map((p) => ({ place: p, key: fold(p.name) }));
+
+        let results = [];
+        let active = -1;
+
+        function renderList() {
+            list.innerHTML = results
+                .map((p, i) =>
+                    `<li class="pb-map-search-item${i === active ? ' is-active' : ''}" data-i="${i}"><bdi>${esc(p.name)}</bdi></li>`,
+                )
+                .join('');
+        }
+
+        function search(q) {
+            const needle = fold(q).trim();
+            if (!needle) return [];
+            return index
+                .map(({ place, key }) => ({ place, at: key.indexOf(needle) }))
+                .filter((r) => r.at !== -1)
+                // Earliest match position wins; ties broken by name for stability.
+                .sort((a, b) => a.at - b.at || a.place.name.localeCompare(b.place.name))
+                .slice(0, 8)
+                .map((r) => r.place);
+        }
+
+        function collapse() {
+            box.classList.remove('is-open');
+            input.value = '';
+            results = [];
+            active = -1;
+            renderList();
+        }
+
+        function commit(place) {
+            if (!place) return;
+            focusPlace(place, { open: false });
+            collapse();
+        }
+
+        lens.addEventListener('click', () => {
+            if (box.classList.contains('is-open')) collapse();
+            else {
+                box.classList.add('is-open');
+                input.focus();
+            }
+        });
+
+        input.addEventListener('input', () => {
+            results = search(input.value);
+            active = results.length ? 0 : -1;
+            renderList();
+        });
+
+        input.addEventListener('keydown', (e) => {
+            // Isolate from Leaflet's own keyboard panning on the container.
+            e.stopPropagation();
+            if (e.key === 'Escape') {
+                collapse();
+            } else if (e.key === 'ArrowDown' && results.length) {
+                e.preventDefault();
+                active = (active + 1) % results.length;
+                renderList();
+            } else if (e.key === 'ArrowUp' && results.length) {
+                e.preventDefault();
+                active = (active - 1 + results.length) % results.length;
+                renderList();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                commit(results[active] ?? results[0]);
+            }
+        });
+
+        list.addEventListener('click', (e) => {
+            const li = e.target.closest('[data-i]');
+            if (li) commit(results[Number(li.dataset.i)]);
+        });
+    }
+    mountSearch();
 
     syncMarkers(vrNow());
     renderZone();

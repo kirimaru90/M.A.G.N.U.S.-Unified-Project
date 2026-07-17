@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 import {
   chain,
+  containZoom,
   distanceMetres,
   effectiveRadius,
   isInside,
   isOpen,
+  revealZoom,
   viewportRadius,
   visible,
 } from '../src/tabs/map-geometry.js';
@@ -248,5 +250,55 @@ test.describe('chain — the breadcrumb', () => {
     const r = effectiveRadius(overlapping);
     const out = chain(overlapping, centreAt(100), 1000, r).map((p) => p.slug);
     expect(out[out.length - 1]).toBe('small');
+  });
+});
+
+test.describe('containZoom / revealZoom — the derived zooms', () => {
+  const viewportPx = { width: 400, height: 800 };
+  // A wide range so clamping never masks the closed-form value.
+  const zoomRange = { minZoom: 3, maxZoom: 20 };
+
+  const places = [
+    at('region', 0, { radius: 5000 }),
+    at('vault', 1000, { radius: 300, parent: 'region' }),
+    at('room', 1050, { radius: 50, parent: 'vault' }),
+  ];
+  const radii = effectiveRadius(places);
+  const [region, vault, room] = places;
+
+  const vrAt = (zoom: number, lat: number) => viewportRadius(viewportPx, zoom, lat);
+
+  test('containZoom opens the place at its zoom and not one step further out', () => {
+    const z = containZoom(vault, radii, viewportPx, zoomRange);
+    expect(isOpen(vault, vrAt(z, vault.lat), radii, places)).toBe(true);
+    // One integer zoom step further OUT: the viewport is now larger than the
+    // circle, so the place is no longer APERTA.
+    expect(isOpen(vault, vrAt(z - 1, vault.lat), radii, places)).toBe(false);
+  });
+
+  test('a larger effective radius contains at a lower zoom', () => {
+    // region (R = 5000+) is far bigger than room (R = 50); the bigger circle
+    // fits the screen sooner, i.e. at the lower zoom number.
+    const zBig = containZoom(region, radii, viewportPx, zoomRange);
+    const zSmall = containZoom(room, radii, viewportPx, zoomRange);
+    expect(zBig).toBeLessThan(zSmall);
+  });
+
+  test('revealZoom renders a deep leaf: ancestors open, the leaf closed', () => {
+    const z = revealZoom(room, places, radii, viewportPx, zoomRange);
+    const vr = vrAt(z, room.lat);
+    const shown = visible(places, vr, radii).map((p) => p.slug);
+    expect(shown).toContain('room');
+    // Its ancestors are APERTA (that is why its marker renders) and it is not.
+    expect(isOpen(region, vr, radii, places)).toBe(true);
+    expect(isOpen(vault, vr, radii, places)).toBe(true);
+    expect(isOpen(room, vr, radii, places)).toBe(false);
+  });
+
+  test('revealZoom clamps to the campaign range', () => {
+    const tight = { minZoom: 3, maxZoom: 5 };
+    const z = revealZoom(room, places, radii, viewportPx, tight);
+    expect(z).toBeGreaterThanOrEqual(tight.minZoom);
+    expect(z).toBeLessThanOrEqual(tight.maxZoom);
   });
 });

@@ -143,6 +143,81 @@ export function visible(places, vr, radii) {
     });
 }
 
+// The base Web Mercator ground resolution at the equator, zoom 0 — the same
+// constant `viewportRadius` uses. The two derived-zoom helpers below are its
+// inverse: `viewportRadius` maps zoom → metres-on-screen; these map a target
+// metres-on-screen back to the zoom that produces it.
+const BASE_RESOLUTION = 156543.03392;
+
+/** Clamp a zoom to the campaign's configured range. */
+function clampZoom(zoom, { minZoom, maxZoom }) {
+    return Math.min(maxZoom, Math.max(minZoom, zoom));
+}
+
+/**
+ * The (fractional) zoom at which the viewport radius equals `vr` metres at
+ * latitude `lat` — the inverse of `viewportRadius`:
+ *
+ *   vr = (shortSide / 2) · BASE_RESOLUTION · cos(lat) / 2^zoom
+ *   ⇒ zoom = log2( (shortSide / 2) · BASE_RESOLUTION · cos(lat) / vr )
+ *
+ * As `vr` shrinks the zoom grows, matching that zooming in shows less world. A
+ * `vr ≤ 0` target means "as deep as possible" and yields +Infinity, which the
+ * callers clamp to `maxZoom`.
+ */
+function zoomForViewportRadius(vr, viewportPx, lat) {
+    const shortSide = Math.min(viewportPx.width, viewportPx.height);
+    const mppAt0 = (BASE_RESOLUTION * Math.cos((lat * Math.PI) / 180));
+    return Math.log2(((shortSide / 2) * mppAt0) / vr);
+}
+
+/**
+ * containZoom — the least zoom at which `place` is APERTA: the zoom whose
+ * viewport radius just equals `R(place)`, so the place's whole circle fits the
+ * viewport. This is what *Vedi mappa* targets. Pure inverse of `viewportRadius`,
+ * clamped to `[minZoom, maxZoom]`.
+ *
+ * `isOpen` is true at exactly this zoom (`vr ≤ R`) and false one integer step
+ * further out (`vr = 2·R > R`).
+ *
+ * The `EPS` nudge zooms in by a negligible fraction of a level so the round-trip
+ * through `log2`/`2^z` cannot land a hair *outside* the circle and leave the
+ * place closed — the whole point of the helper is that the place is open here.
+ */
+const CONTAIN_EPS = 1e-6;
+export function containZoom(place, radii, viewportPx, zoomRange) {
+    const R = radii.get(place.slug) ?? 0;
+    const zoom = zoomForViewportRadius(R, viewportPx, place.lat) + CONTAIN_EPS;
+    return clampZoom(zoom, zoomRange);
+}
+
+/**
+ * revealZoom — a zoom at which `place`'s marker renders: every ancestor is
+ * APERTA and `place` itself is not. Expressed in `vr`, that is the window
+ * `( R(place), R(parent) ]`; by the containment invariant the tightest bound is
+ * the smallest ancestor radius. We target the geometric middle of the window so
+ * the zoom sits a clean fraction inside both bounds.
+ *
+ * A top-level place has no ancestor bound, so it targets a `vr` one zoom step
+ * larger than `R(place)` and sits closed among nothing.
+ */
+export function revealZoom(place, places, radii, viewportPx, zoomRange) {
+    const R = radii.get(place.slug) ?? 0;
+    const ancRadii = ancestors(places, place.slug).map((a) => radii.get(a.slug) ?? 0);
+    const bound = ancRadii.length ? Math.min(...ancRadii) : null;
+
+    let targetVr;
+    if (bound != null && bound > 0) {
+        // Middle of the (R, bound] window. When R is 0 (a pin has no circle),
+        // half the ancestor radius is safely within the ancestor's open circle.
+        targetVr = R > 0 ? Math.sqrt(R * bound) : bound / 2;
+    } else {
+        // No ancestor bound: a step out from the place's own contain zoom.
+        targetVr = 2 * (R > 0 ? R : DEFAULT_PLACE_RADIUS_M);
+    }
+    return clampZoom(zoomForViewportRadius(targetVr, viewportPx, place.lat), zoomRange);
+}
+
 /**
  * The breadcrumb: the deepest place that is both APERTA and DENTRO, plus its
  * ancestors, root-first.

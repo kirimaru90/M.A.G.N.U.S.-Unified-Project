@@ -157,7 +157,7 @@ test.describe('level of detail', () => {
     // Far out: only the region's marker, and no chain — nothing is open.
     await setView(page, ORIGIN_LAT, ORIGIN_LNG, 9);
     expect(await markerNames(page)).toEqual(['REGION']);
-    expect(await breadcrumb(page)).toContain('MAPPA');
+    expect(await breadcrumb(page)).toContain('Terre contaminate');
 
     // Zoomed in over the region: it opens, its own marker gives way to the vault.
     await setView(page, ORIGIN_LAT, ORIGIN_LNG, 14);
@@ -186,7 +186,7 @@ test.describe('level of detail', () => {
     // breadcrumb must.
     await setView(page, ORIGIN_LAT + 1.5, ORIGIN_LNG, 14);
     expect(await markerNames(page)).toEqual(before);
-    expect(await breadcrumb(page)).toContain('MAPPA');
+    expect(await breadcrumb(page)).toContain('Terre contaminate');
   });
 
   test('a place with no local map never opens, however far you zoom', async ({ page }) => {
@@ -203,6 +203,39 @@ test.describe('level of detail', () => {
     const names = await markerNames(page);
     expect(names).toContain('PIN');
     expect(names).not.toContain('GHOST');
+  });
+});
+
+test.describe('breadcrumb', () => {
+  // Five tiers (A›B›C›D each open, E a leaf pin) so the chain of open places is
+  // four deep — one more than the cap.
+  const DEEP_PLACES = [
+    at('a', 0, { radius: 20_000, name: 'A' }),
+    at('b', 10, { radius: 6_000, parent: 'a', name: 'B' }),
+    at('c', 20, { radius: 2_000, parent: 'b', name: 'C' }),
+    at('d', 30, { radius: 800, parent: 'c', name: 'D' }),
+    at('e', 40, { hasLocalMap: false, parent: 'd', type: 'poi', name: 'E' }),
+  ];
+
+  test('reads the root label when inside no open place', async ({ page }) => {
+    await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
+    await setView(page, ORIGIN_LAT, ORIGIN_LNG, 9);
+    expect(await breadcrumb(page)).toBe('Terre contaminate');
+  });
+
+  test('a chain deeper than three shows the last three led by an elision marker', async ({ page }) => {
+    await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: DEEP_PLACES } });
+
+    // Centred deep inside D at high zoom: A, B, C and D are all open.
+    const d = DEEP_PLACES[3];
+    await setView(page, d.lat, d.lng, 18);
+
+    const text = await breadcrumb(page);
+    expect(text).toBe('… › B › C › D');
+    // The root label is never shown beside a named level.
+    expect(text).not.toContain('Terre contaminate');
+    // A, the elided ancestor, is not among the three shown.
+    expect(text).not.toContain('A ›');
   });
 });
 
