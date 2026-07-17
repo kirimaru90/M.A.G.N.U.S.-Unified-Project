@@ -18,6 +18,29 @@ The screen SHALL follow `cms-backoffice-table-conventions`: a `.bo-page-head` wi
 - **WHEN** a non-admin navigates to the campaign map route
 - **THEN** they are redirected away and cannot issue the map `PUT`
 
+### Requirement: The screen loads reactively and offers an in-page campaign selector
+
+The screen SHALL load its map reactively from the current campaign rather than from a one-time read at initialization, so that it renders correctly when the current campaign resolves asynchronously — including a hard refresh landing directly on the map route. When the current campaign becomes available or changes, the screen SHALL (re)issue `GET /campaigns/:id/map` and SHALL construct its interactive map once its container is present.
+
+The header SHALL carry an in-page campaign selector, following `cms-terminals-crud`. Selecting a campaign SHALL update the shared workspace context and reload the map for the newly selected campaign, without a route change.
+
+Because the screen holds unsaved authoring state, switching campaigns while edits are pending SHALL prompt for confirmation before discarding them: accepting SHALL load the selected campaign, and declining SHALL keep the current campaign and its edits.
+
+#### Scenario: A hard refresh on the map route loads once the campaign resolves
+- **GIVEN** the current campaign is not yet resolved when the map route is opened directly
+- **WHEN** the current campaign resolves
+- **THEN** the screen issues `GET /campaigns/:id/map` for it and renders its config, places, and interactive map
+
+#### Scenario: Selecting a campaign reloads the map
+- **GIVEN** no unsaved edits
+- **WHEN** an admin picks a different campaign in the in-page selector
+- **THEN** the screen loads that campaign's map without a route change
+
+#### Scenario: Switching with unsaved edits confirms first
+- **GIVEN** the map has unsaved edits
+- **WHEN** an admin selects a different campaign
+- **THEN** the screen asks to confirm before discarding the edits, and keeps the current campaign if the admin declines
+
 ### Requirement: Authoring happens on the map, not in coordinate fields
 
 The screen SHALL mount an interactive Leaflet map as the primary authoring surface. Positions, extents, and framing SHALL be settable by direct manipulation; typed numeric fields SHALL remain available for precision but SHALL NOT be the only way to set any of them.
@@ -109,7 +132,7 @@ Selecting a place — from its marker or its row — SHALL open a selection card
 
 The parent selector SHALL exclude the place itself and all of its descendants, so a cycle cannot be authored.
 
-The configuration card and the selection card SHALL sit beside the map, and the map SHALL be at least as tall as those cards at their full extent so that collapsing the configuration card does not shrink it.
+The configuration card and the selection card SHALL sit beside the map. The map SHALL keep a stable height of its own, independent of those cards' extent, so that neither expanding the selection card nor collapsing the configuration card resizes it.
 
 #### Scenario: Selecting a place opens its card
 - **WHEN** an admin clicks a place's marker

@@ -1,14 +1,12 @@
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  OnDestroy,
-  OnInit,
   computed,
   effect,
   inject,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
@@ -22,6 +20,7 @@ import { Toast } from 'primeng/toast';
 import * as L from 'leaflet';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
+import { CampaignWorkspaceSwitcherComponent } from '../../layout/campaign-workspace-switcher';
 import {
   DEFAULT_PLACE_RADIUS_M,
   PLACE_TYPE_OPTIONS,
@@ -78,6 +77,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
     ConfirmDialog,
     Toast,
     InputTextModule,
+    CampaignWorkspaceSwitcherComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -93,6 +93,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
           <span data-testid="visible-count">{{ visibleCount() }} visibili al giocatore</span>
         </div>
         <div class="bo-page-head-actions">
+          <app-campaign-workspace-switcher [guard]="switchGuard" />
           <label class="cm-inline">
             <input
               type="checkbox"
@@ -139,11 +140,10 @@ type Mode = 'idle' | 'placing' | 'bounds';
               data-testid="map"
               [class.cm-filtered]="filterPreview()"
               [class.cm-placing]="mode() === 'placing'"
-              [style.min-height.px]="mapMinHeight()"
             ></div>
           </div>
 
-          <div #sideCol class="cm-side">
+          <div class="cm-side">
             <div class="bo-card">
               <div class="cm-card-head">
                 <strong>Configurazione</strong>
@@ -537,14 +537,16 @@ type Mode = 'idle' | 'placing' | 'bounds';
         display: grid;
         grid-template-columns: 1fr 360px;
         gap: 16px;
-        align-items: stretch;
-      }
-      .cm-map-card {
-        display: flex;
+        /* No align-items: stretch — the map owns its height; coupling it to the
+           card column drove an unbounded-growth feedback loop (design.md). */
+        align-items: start;
       }
       .cm-map {
-        flex: 1;
         width: 100%;
+        /* Stable, viewport-relative height, independent of the card column:
+           expanding the selection card or collapsing Configurazione never
+           resizes the map. */
+        height: clamp(420px, calc(100vh - 220px), 900px);
         border-radius: 4px;
       }
       /* The exact token from pipboy-map-tab — a design token, not a tuning knob. */
@@ -685,14 +687,13 @@ type Mode = 'idle' | 'placing' | 'bounds';
     `,
   ],
 })
-export class CampaignMapPage implements OnInit, AfterViewInit, OnDestroy {
+export class CampaignMapPage {
   private readonly api = inject(CampaignMapApiService);
   private readonly currentCampaign = inject(CurrentCampaignService);
   private readonly confirm = inject(ConfirmationService);
   private readonly toast = inject(MessageService);
 
   private readonly mapEl = viewChild<ElementRef<HTMLElement>>('mapEl');
-  private readonly sideCol = viewChild<ElementRef<HTMLElement>>('sideCol');
 
   protected readonly typeOptions = PLACE_TYPE_OPTIONS;
   protected readonly defaultRadius = DEFAULT_PLACE_RADIUS_M;
@@ -714,9 +715,15 @@ export class CampaignMapPage implements OnInit, AfterViewInit, OnDestroy {
   protected readonly configCollapsed = signal(false);
   protected readonly nameFilter = signal('');
   protected readonly collapsedBranches = signal<ReadonlySet<string>>(new Set());
-  protected readonly mapMinHeight = signal(420);
 
   protected readonly campaignId = computed(() => this.currentCampaign.currentCampaign()?.id ?? null);
+
+  /**
+   * A JSON snapshot of `{ config, places }` as last loaded (or saved). The switch
+   * guard compares the working copy against it, so the dirty check is a value
+   * compare rather than a flag threaded through every mutation.
+   */
+  private readonly loadedSnapshot = signal<string | null>(null);
 
   protected readonly effR = computed(() => effectiveRadius(this.places()));
   protected readonly floors = computed(() => floorR(this.places()));
@@ -858,15 +865,45 @@ export class CampaignMapPage implements OnInit, AfterViewInit, OnDestroy {
       this.map?.setMinZoom(cfg.minZoom);
       this.map?.setMaxZoom(cfg.maxZoom);
     });
+
+    // The current campaign resolves asynchronously, so a one-shot read in
+    // ngOnInit loses the race on a hard refresh landed directly here. Drive the
+    // load from an effect instead: it (re)loads whenever the id appears or
+    // changes — including a switch via the header selector.
+    effect(() => {
+      const id = this.campaignId();
+      // Untracked: only the campaign id should drive a (re)load. load() writes
+      // and — via snapshot() — reads config/places, and tracking those would
+      // reload the map on every local edit, throwing the edit away.
+      if (id) untracked(() => this.load(id));
+    });
+
+    // Build Leaflet when its container appears and tear it down when it leaves,
+    // so clearing then re-selecting a campaign rebinds to the fresh @else
+    // element rather than a detached node.
+    effect((onCleanup) => {
+      const el = this.mapEl()?.nativeElement;
+      if (!el) return;
+      // Untracked: initMap reads config/labels/places to seed the first draw,
+      // but only the element's appearance/disappearance should drive this
+      // effect — tracking those signals would tear down and rebuild the map on
+      // every edit.
+      untracked(() => this.initMap(el));
+      onCleanup(() => {
+        this.resizeObserver?.disconnect();
+        this.resizeObserver = undefined;
+        this.map?.remove();
+        this.map = undefined;
+        this.tiles = undefined;
+        this.markers.clear();
+        this.clearRadius();
+        this.clearBounds();
+      });
+    });
   }
 
-  ngOnInit(): void {
-    this.reload();
-  }
-
-  ngAfterViewInit(): void {
-    const el = this.mapEl()?.nativeElement;
-    if (!el) return;
+  private initMap(el: HTMLElement): void {
+    if (this.map) return;
 
     const cfg = this.config();
     this.map = L.map(el, {
@@ -885,39 +922,60 @@ export class CampaignMapPage implements OnInit, AfterViewInit, OnDestroy {
     this.syncRadius();
     this.syncBounds();
 
-    // The map's floor is the tallest the side column has ever been — the
-    // selection card's height depends on its contents, so this is measured
-    // rather than guessed. Collapsing Configurazione must not shrink the map.
-    const side = this.sideCol()?.nativeElement;
-    if (side && typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => {
-        const h = side.offsetHeight;
-        if (h > this.mapMinHeight()) this.mapMinHeight.set(h);
-        this.map?.invalidateSize();
-      });
-      this.resizeObserver.observe(side);
+    // A genuine container/window resize is the only thing that should trigger
+    // invalidateSize — the map's height is a fixed clamp, so this cannot feed
+    // back into a growth loop the way the old min-height machinery did.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.map?.invalidateSize());
+      this.resizeObserver.observe(el);
     }
-  }
-
-  ngOnDestroy(): void {
-    this.resizeObserver?.disconnect();
-    this.map?.remove();
   }
 
   // --- data ---
 
-  protected reload(): void {
-    const id = this.campaignId();
-    if (!id) return;
+  private load(id: string): void {
     this.api.get(id).subscribe({
       next: (dto) => {
         this.config.set(dto.config ?? DEFAULT_CONFIG);
         this.places.set(dto.places ?? []);
+        this.loadedSnapshot.set(this.snapshot());
         this.select(null);
       },
       error: () => this.toast.add({ severity: 'error', summary: 'Caricamento fallito' }),
     });
   }
+
+  /** "Annulla" — discard local edits by reloading the current campaign. */
+  protected reload(): void {
+    const id = this.campaignId();
+    if (id) this.load(id);
+  }
+
+  private snapshot(): string {
+    return JSON.stringify({ config: this.config(), places: this.places() });
+  }
+
+  /** True while the working copy diverges from what was last loaded or saved. */
+  private isDirty(): boolean {
+    const snap = this.loadedSnapshot();
+    return snap !== null && this.snapshot() !== snap;
+  }
+
+  /**
+   * Opt-in gate passed to the header's campaign selector. A clean working copy
+   * switches silently; unsaved edits raise the existing confirm — accepting
+   * discards and lets the 12.2 effect reload, rejecting keeps the campaign.
+   */
+  protected readonly switchGuard = (): boolean | Promise<boolean> => {
+    if (!this.isDirty()) return true;
+    return new Promise<boolean>((resolve) => {
+      this.confirm.confirm({
+        message: 'Ci sono modifiche non salvate. Cambiare campagna e scartarle?',
+        accept: () => resolve(true),
+        reject: () => resolve(false),
+      });
+    });
+  };
 
   protected save(): void {
     const id = this.campaignId();
@@ -927,6 +985,9 @@ export class CampaignMapPage implements OnInit, AfterViewInit, OnDestroy {
     this.api.replace(id, payload).subscribe({
       next: () => {
         this.saving.set(false);
+        // The saved copy is now the baseline: a switch straight after a save is
+        // clean and must not prompt.
+        this.loadedSnapshot.set(this.snapshot());
         this.toast.add({ severity: 'success', summary: 'Mappa salvata' });
       },
       error: () => {

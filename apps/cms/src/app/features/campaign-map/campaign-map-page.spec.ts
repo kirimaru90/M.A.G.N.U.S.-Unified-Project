@@ -1,13 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { signal } from '@angular/core';
+import { WritableSignal, signal } from '@angular/core';
 import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { CampaignMapPage } from './campaign-map-page';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
+import type { CampaignDto } from '../../core/campaign/campaign.types';
 import type { CampaignMapDto, MapPlace } from '../../core/campaign-map/campaign-map.types';
 
 const CONFIG = {
@@ -32,16 +33,25 @@ function place(over: Partial<MapPlace> & { slug: string }): MapPlace {
   };
 }
 
+const CAMPAIGN: CampaignDto = { id: 'c1', name: 'C1', isActive: true, isPublic: true };
+const OTHER_CAMPAIGN: CampaignDto = { id: 'c2', name: 'C2', isActive: true, isPublic: true };
+
 describe('CampaignMapPage', () => {
   let fixture: ComponentFixture<CampaignMapPage>;
   let component: CampaignMapPage;
   let getSpy: ReturnType<typeof vi.fn>;
   let replaceSpy: ReturnType<typeof vi.fn>;
+  let currentCampaign: WritableSignal<CampaignDto | null>;
+  let setCurrentSpy: ReturnType<typeof vi.fn>;
 
-  async function setup(places: MapPlace[] = []) {
+  // `initial: null` mimics a hard refresh landed straight on the map route,
+  // where the campaign resolves after the component is created.
+  async function setup(places: MapPlace[] = [], initial: CampaignDto | null = CAMPAIGN) {
     const dto: CampaignMapDto = { config: CONFIG, places };
     getSpy = vi.fn().mockReturnValue(of(dto));
     replaceSpy = vi.fn().mockReturnValue(of(dto));
+    currentCampaign = signal<CampaignDto | null>(initial);
+    setCurrentSpy = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [CampaignMapPage],
@@ -51,7 +61,11 @@ describe('CampaignMapPage', () => {
         { provide: CampaignMapApiService, useValue: { get: getSpy, replace: replaceSpy } },
         {
           provide: CurrentCampaignService,
-          useValue: { currentCampaign: signal({ id: 'c1', name: 'C1', isActive: true, isPublic: true }) },
+          useValue: {
+            currentCampaign,
+            campaigns: signal([CAMPAIGN, OTHER_CAMPAIGN]),
+            setCurrent: setCurrentSpy,
+          },
         },
         ConfirmationService,
         MessageService,
@@ -386,5 +400,59 @@ describe('CampaignMapPage', () => {
     const payload = replaceSpy.mock.calls[0][1];
     expect(JSON.stringify(payload)).not.toContain('labels');
     expect(JSON.stringify(payload)).not.toContain('filterPreview');
+  });
+
+  describe('reactive to the current campaign', () => {
+    it('does not load while the campaign is still resolving', async () => {
+      // The hard-refresh race: a one-shot read in ngOnInit would bail here and
+      // never retry, leaving the map blank.
+      await setup([], null);
+      expect(getSpy).not.toHaveBeenCalled();
+    });
+
+    it('loads once the campaign resolves', async () => {
+      await setup([place({ slug: 'roma' })], null);
+      expect(getSpy).not.toHaveBeenCalled();
+
+      currentCampaign.set(CAMPAIGN);
+      fixture.detectChanges();
+
+      expect(getSpy).toHaveBeenCalledWith('c1');
+      expect(state<MapPlace[]>('places')).toHaveLength(1);
+    });
+
+    it('reloads when the campaign changes', async () => {
+      await setup([place({ slug: 'roma' })]);
+      expect(getSpy).toHaveBeenCalledWith('c1');
+
+      currentCampaign.set(OTHER_CAMPAIGN);
+      fixture.detectChanges();
+
+      expect(getSpy).toHaveBeenCalledWith('c2');
+    });
+  });
+
+  describe('the switch guard', () => {
+    const guardOf = (c: CampaignMapPage) =>
+      (c as unknown as { switchGuard: () => boolean | Promise<boolean> }).switchGuard;
+
+    it('switches silently when there is nothing unsaved', async () => {
+      await setup([place({ slug: 'roma' })]);
+      const spy = vi.spyOn(TestBed.inject(ConfirmationService), 'confirm');
+
+      expect(guardOf(component)()).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('prompts before a switch that would discard unsaved edits', async () => {
+      await setup([place({ slug: 'roma' })]);
+      const spy = vi.spyOn(TestBed.inject(ConfirmationService), 'confirm');
+
+      component.addPlaceAt(43.5, 11.2);
+
+      const result = guardOf(component)();
+      expect(result).toBeInstanceOf(Promise);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
   });
 });

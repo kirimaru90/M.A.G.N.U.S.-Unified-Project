@@ -190,7 +190,23 @@ Panning triggers no animation at all — only zoom changes `APERTA`.
 
 ### CMS layout: map-first, cards right
 
-The Configurazione and selection cards sit **permanently right** of the map. `align-items: stretch` makes the map track the column's height, so opening the selection card grows the map with it. The map's minimum height is the **tallest the column has ever been** — necessarily measured at runtime, not a constant, because the selection card's height depends on its contents. Collapsing Configurazione shortens the column but the map holds its height.
+The Configurazione and selection cards sit **permanently right** of the map. The map holds a **stable, viewport-relative height** of its own (a `clamp()` against the viewport), independent of the card column: expanding the selection card or collapsing Configurazione never resizes it.
+
+An earlier version measured the tallest the card column had ever been and fed that into the map's `min-height` through a `ResizeObserver`, so the map would "track" the column. That coupling is a trap. The grid's `align-items: stretch` makes the *observed* column mirror the map's own height, and the map card's border adds a pixel or two on top — so each observation reads back a value larger than the one it just wrote, the min-height climbs with no fixed point, and the map grows without bound. A fixed viewport height removes the loop and the machinery both; the map calls `invalidateSize()` only on a genuine container/window resize.
+
+### The screen is reactive to the current campaign, not a one-shot read
+
+The current campaign resolves **asynchronously** — `CurrentCampaignService` fetches it from the stored id after construction. A screen that reads `campaignId()` once, in `ngOnInit`/`ngAfterViewInit`, loses the race on a hard refresh landed directly on the map route: the id is still null, the data fetch bails, and — because the map container lives inside the `@else` of `!campaignId()` — Leaflet is never constructed. Navigating in from elsewhere hides the bug, because the campaign has resolved by then.
+
+So the load is driven by effects, the way `cms-terminals-crud` already stays reactive to this same signal:
+- an effect on `campaignId()` (re)loads the map whenever it becomes available or changes;
+- an effect on the map container's `viewChild` builds Leaflet when the element appears and tears it down when it leaves, so clearing then re-selecting a campaign rebinds to the fresh element rather than a detached node.
+
+### In-page campaign selector, guarded against discarding edits
+
+The header carries the same in-page campaign selector as the terminals list — the shared `CampaignWorkspaceSwitcherComponent`, reused rather than reimplemented. But the map is an **authoring surface** with unsaved local state — unlike the read-only terminals list — so switching campaigns while edits are pending would silently throw work away. The screen tracks whether the working copy diverges from what was last loaded (a snapshot compare, not a flag threaded through every mutation) and confirms before a switch that would discard: accepting loads the new campaign, declining keeps the current one and its edits. A hard refresh is outside this guard — the browser owns that — the guard is specifically the in-app switch.
+
+The switcher commits immediately today, so the guard is added to the shared component as an **opt-in** input: `guard?: (next) => boolean | Promise<boolean>`. When absent — the terminals list — it commits as before; when the map page supplies one, `onSelect` awaits it and only calls `setCurrent` if it resolves truthy. One gotcha this introduces: the switcher binds `[ngModel]` **one-way** to `currentCampaign()`, so a *declined* switch leaves `p-select` still showing the rejected pick — the CVA kept the user's selection and the signal never changed, so nothing writes the old value back. The component therefore drives the select from a local model it re-asserts to the current campaign on decline, snapping the control back to reality.
 
 **The selection card is the editor; there is no inline row editing.** This diverges from the catalog pages (`talents-catalog-page.ts:60`, `:109`), and the reason is scale: a place has name, type, parent, coordinates, `hasLocalMap`, radius, `isPublic`, and description — long past what a table row holds — and it is selected *from the map*, so its editor belongs beside the map. Edits apply on input with no confirm step, matching the radius handle, which already worked that way. (Text edits patch the table row in place rather than re-rendering the card, or the name field loses focus on every keystroke.)
 
