@@ -113,6 +113,12 @@ export function renderSheet(root, opts) {
     const activeSub = {};
     // Editor mode is view state only: never persisted, off on every sheet open.
     let editMode = false;
+    // Immersive (full-screen map) mode is view state only, like editMode: never
+    // persisted, off on every sheet open. The sheet shell owns it because the
+    // chrome it hides — header, tab bars, resource band, footer — is the shell's
+    // DOM, not the map tab's; the map tab requests it through ctx (see
+    // renderActiveTab), and CSS does the hiding via the `pb-immersive` class.
+    let immersive = false;
     // Set when an approach row is tapped, consumed by the DADI tab.
     let pendingApproach = null;
     // The roller's view state (including its register) survives tab switches
@@ -152,6 +158,12 @@ export function renderSheet(root, opts) {
             <span id="pb-footer-clock">${clock()}</span>
         </div>
     `);
+
+    // `mount` replaces the sheet's innerHTML but not the persistent shell root
+    // (`#app` / `.pb-screen-inner`), so a class stamped on it by a previous
+    // sheet's immersive session would survive into this fresh mount. Clear it so
+    // immersive truly defaults to off on every sheet open (task 1.4).
+    root.classList.remove('pb-immersive');
 
     // The reference puts navigation — and the owner/admin `✎` toggle — in the
     // case status bar, not the sheet header.
@@ -225,6 +237,19 @@ export function renderSheet(root, opts) {
 
     const next = () => goToIndex(currentFlatIndex() + 1);
     const prev = () => goToIndex(currentFlatIndex() - 1);
+
+    // --- immersive (full-screen map) mode -----------------------------------
+    // Idempotent: toggling the `pb-immersive` class on the stable shell root is
+    // the whole mechanism; CSS hides the header, tab bars, subtab row, resource
+    // band and footer, and lets the map canvas fill `.pb-screen`. The map tab is
+    // the only caller (via ctx); it never reaches outside its own container to
+    // hide the sibling chrome directly (design.md Decision 1).
+    function setImmersive(on) {
+        on = !!on;
+        if (on === immersive) return;
+        immersive = on;
+        root.classList.toggle('pb-immersive', immersive);
+    }
 
     // --- header (PA control) ------------------------------------------------
 
@@ -405,6 +430,10 @@ export function renderSheet(root, opts) {
             node: leaf,
             getEquipmentCatalog: () => equipmentCatalog,
             getTagCatalog: () => tagCatalog,
+            // Immersive full-screen: the map tab enters/leaves via these hooks
+            // rather than touching the sheet's chrome directly (design.md).
+            setImmersive,
+            isImmersive: () => immersive,
         }, leaf);
     }
 

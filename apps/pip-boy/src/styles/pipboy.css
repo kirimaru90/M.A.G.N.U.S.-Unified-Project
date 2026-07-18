@@ -1635,15 +1635,27 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     pointer-events: none;
 }
 
-/* The zone indicator: the chain of places the viewport is inside. */
+/* The zone indicator: the chain of places the viewport is inside. A floating
+   overlay in the canvas's top-left, phosphor-styled like the attribution/search
+   controls — not a reserved layout row — so it is present in both normal and
+   immersive modes without reserving vertical space (design.md Decision 3).
+   `pointer-events: none` so a pan or zoom beneath it always reaches the map.
+   `right` is held clear of the top-right control cluster (search lens + the
+   immersive toggle); the left-truncation below caps it within that span. */
 .pb-map-zone {
-    flex: 0 0 auto;
-    padding: 4px 8px;
-    border-bottom: 1px solid var(--green-hairline);
-    background: var(--green-fill);
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 500;
+    width: max-content;
+    max-width: calc(100% - 86px);
+    padding: 2px 8px;
+    background: rgba(6, 17, 10, 0.7);
+    border: 1px solid var(--green-hairline);
     font-size: 11px;
     letter-spacing: 0.08em;
     color: rgba(51, 255, 102, 0.7);
+    pointer-events: none;
 }
 /* Truncated from the LEFT: where you are matters more than distant ancestry, so
    the deepest entries survive. `direction: rtl` puts the ellipsis at the start;
@@ -1760,6 +1772,69 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-map-search-item:first-child { border-top: none; }
 .pb-map-search-item:hover,
 .pb-map-search-item.is-active { background: var(--green-fill-active); }
+
+/* The immersive (full-screen) toggle: a sibling of the search lens in the
+   canvas's top-right control cluster, same phosphor treatment. It sits inside
+   the canvas (the data-pb-no-swipe / Leaflet-container region) and map.js runs
+   `L.DomEvent.disableClickPropagation` on it, so a tap never reaches the map or
+   leaves the tab. */
+.pb-map-fs {
+    position: absolute;
+    top: 6px;
+    right: 42px;
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: rgba(6, 17, 10, 0.7);
+    border: 1px solid var(--green-border);
+    color: var(--phosphor);
+    cursor: pointer;
+}
+.pb-map-fs:hover { background: var(--green-fill-active); }
+.pb-map-fs[aria-pressed="true"] { background: var(--green-fill-active); }
+.pb-map-fs svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: var(--phosphor);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ── Immersive (full-screen) map mode ──────────────────────────────────────
+   The map tab asks the sheet shell to enter immersive mode; the shell stamps the
+   `pb-immersive` class on its stable root (`#app` / `.pb-screen-inner`), which
+   owns the chrome being hidden (design.md Decision 1). With its siblings gone,
+   `#pb-sheet-content` already flexes to fill `.pb-screen`, and the map screen /
+   canvas fill it in turn. The bezel and CRT overlays are siblings of the sheet
+   root *inside* `.pb-screen`, so they are untouched and keep rendering above the
+   enlarged canvas; the statusbar lives outside `.pb-screen` and is device chrome
+   like the bezel, so it stays too (design.md Open Questions). */
+.pb-immersive .pb-header,
+.pb-immersive .pb-tabs,
+.pb-immersive .pb-subtabs,
+.pb-immersive #pb-sheet-strip,
+.pb-immersive .pb-resource-band,
+.pb-immersive .pb-footer {
+    display: none;
+}
+/* Drop the content padding so the canvas reaches the screen edges (inside the
+   bezel) in immersive mode. */
+.pb-immersive #pb-sheet-content {
+    padding: 0;
+}
+/* The expand is an instant flex reflow — no transition drives `width`/`height`,
+   so Leaflet measures the *final* size on the revalidation timeout rather than
+   an intermediate one (design.md Decision 4, fallback branch). The transition
+   here is a non-size flourish only, and is dropped under reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+    .pb-map-canvas { transition: filter 220ms ease; }
+}
 
 /* CREDITI — an action below the four preference rows, deliberately not a fifth
    pb-toggle-row: the pipboy-settings capability requires exactly four rows, and

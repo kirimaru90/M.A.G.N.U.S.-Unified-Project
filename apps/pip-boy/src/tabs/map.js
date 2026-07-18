@@ -36,6 +36,25 @@ export const ATTRIBUTION_COLLAPSE_MS = 5000;
 const attributionDelay = () =>
     Number(globalThis.__PB_MAP_ATTRIBUTION_MS__ ?? ATTRIBUTION_COLLAPSE_MS);
 
+/**
+ * The budget (ms) after which a mode toggle revalidates the map size when no
+ * size-driving `transitionend` fires. Entering/leaving immersive is an instant
+ * flex reflow — the CSS transition (see pipboy.css) is a non-size flourish — so
+ * this timeout is what actually drives `invalidateSize` against the final size,
+ * matching design.md Decision 4's fallback branch. The override exists only so
+ * the Playwright spec need not wait it out; nothing in the app sets it.
+ */
+export const IMMERSIVE_TRANSITION_MS = 220;
+const immersiveDelay = () =>
+    Number(globalThis.__PB_MAP_IMMERSIVE_MS__ ?? IMMERSIVE_TRANSITION_MS);
+
+// The corner-cluster icons for the immersive toggle: arrows out to enter
+// full-screen, arrows in to leave. Swapped by updateImmersiveControl.
+const FS_EXPAND_ICON =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+const FS_COLLAPSE_ICON =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
+
 // Both directions share this curve, and it is NOT mirrored on the way out. The
 // exact time-reverse of an ease-out is an ease-in, which relocates the curve's
 // imperceptible tail to the *front* of the exit — measured at 460 ms before the
@@ -111,7 +130,7 @@ function publishForTests(map) {
 }
 
 export function renderMapTab(container, ctx = {}) {
-    const { campaignId } = ctx;
+    const { campaignId, setImmersive, isImmersive } = ctx;
 
     if (currentMap) {
         currentMap.remove();
@@ -119,12 +138,17 @@ export function renderMapTab(container, ctx = {}) {
         publishForTests(null);
     }
 
+    // The breadcrumb is a floating overlay *inside* the canvas (like the search
+    // and attribution controls), not a reserved row above it — so it survives
+    // into immersive mode without costing vertical space, and serves both modes
+    // with one code path (design.md Decision 3). renderZone still writes into the
+    // same `[data-map-zone]` element; only its placement/CSS changed.
     container.innerHTML = `
         <div class="pb-map-screen">
-            <div class="pb-map-zone" data-map-zone>
-                <span class="pb-map-chain"><bdi>${ROOT_LABEL}</bdi></span>
-            </div>
             <div class="pb-map-canvas" data-map-canvas data-pb-no-swipe>
+                <div class="pb-map-zone" data-map-zone>
+                    <span class="pb-map-chain"><bdi>${ROOT_LABEL}</bdi></span>
+                </div>
                 <div class="pb-label pb-map-skeleton" data-map-skeleton>Caricamento mappa…</div>
             </div>
         </div>
@@ -137,11 +161,12 @@ export function renderMapTab(container, ctx = {}) {
         // The tab may have been left while the fetch was in flight.
         if (!container.isConnected || !canvas.isConnected) return;
         canvas.querySelector('[data-map-skeleton]')?.remove();
-        mountMap(canvas, zoneEl, map);
+        mountMap(canvas, zoneEl, map, { setImmersive, isImmersive });
     });
 }
 
-function mountMap(canvas, zoneEl, { config, places }) {
+function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
+    const { setImmersive, isImmersive } = immersiveHooks;
     const bounds = L.latLngBounds(
         [config.bounds.south, config.bounds.west],
         [config.bounds.north, config.bounds.east],
@@ -474,6 +499,115 @@ function mountMap(canvas, zoneEl, { config, places }) {
     });
     map.on('popupclose', () => { openSlug = null; });
 
+    // --- immersive (full-screen) mode ---------------------------------------
+    // The sheet shell owns the mode (design.md Decision 1); this tab only asks,
+    // via the ctx hooks, and manages its own exit affordances — a toggle control
+    // and Escape — because immersive hides the first-level tab bar.
+
+    /**
+     * The immersive toggle: a sibling of the search lens in the corner cluster.
+     * `disableClickPropagation` keeps a tap off the map beneath it, exactly like
+     * the search box. Wired to enter/leave via the ctx hooks.
+     */
+    function mountImmersiveToggle() {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pb-map-fs';
+        btn.setAttribute('data-map-fs', '');
+        canvas.appendChild(btn);
+        L.DomEvent.disableClickPropagation(btn);
+        L.DomEvent.disableScrollPropagation(btn);
+        btn.addEventListener('click', () => applyImmersive(!immersiveOn()));
+        return btn;
+    }
+
+    const immersiveOn = () => !!isImmersive?.();
+
+    /** Reflect the current mode on the toggle: glyph, label, pressed state. */
+    function updateImmersiveControl(on) {
+        if (!fsToggle) return;
+        fsToggle.innerHTML = on ? FS_COLLAPSE_ICON : FS_EXPAND_ICON;
+        const label = on ? 'Esci da schermo intero' : 'Schermo intero';
+        fsToggle.setAttribute('aria-label', label);
+        fsToggle.title = label;
+        fsToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+    }
+
+    // Escape leaves immersive, but the search box's own Escape (collapse) must
+    // win when it is open: that handler lives on the search input and
+    // stopPropagation()s, so a keydown from the focused field never reaches this
+    // document listener — and the guard below makes it a no-op even if focus is
+    // elsewhere while the box is open. Bound only while immersive, torn down on
+    // leaving (and on map unload), matching the wake-lock bind/unbind pattern.
+    function onImmersiveKeydown(e) {
+        if (e.key !== 'Escape') return;
+        // Self-heal: if this map was orphaned (the tab/sheet was left without a
+        // re-render firing map.remove()), drop the listener rather than acting on
+        // a detached shell — the same tolerance the orphaned-Leaflet pattern relies
+        // on above.
+        if (!canvas.isConnected) { unbindEscape(); return; }
+        if (canvas.querySelector('.pb-map-search.is-open')) return;
+        if (!immersiveOn()) return;
+        e.preventDefault();
+        applyImmersive(false);
+    }
+
+    let escBound = false;
+    function bindEscape() {
+        if (escBound) return;
+        document.addEventListener('keydown', onImmersiveKeydown);
+        escBound = true;
+    }
+    function unbindEscape() {
+        if (!escBound) return;
+        document.removeEventListener('keydown', onImmersiveKeydown);
+        escBound = false;
+    }
+    // A stray listener would outlive the map otherwise — Leaflet fires `unload`
+    // from map.remove() (the tab's teardown on re-render).
+    map.on('unload', unbindEscape);
+
+    /**
+     * Enter or leave immersive: ask the shell to (un)hide its chrome, bind/unbind
+     * Escape, refresh the control, then revalidate the level of detail against
+     * the resized canvas.
+     */
+    function applyImmersive(on) {
+        if (!setImmersive) return;
+        setImmersive(on);
+        if (on) bindEscape(); else unbindEscape();
+        updateImmersiveControl(on);
+        revalidateAfterResize();
+    }
+
+    /**
+     * After the canvas resizes (design.md Decision 4): re-measure Leaflet, then
+     * re-sync the marker set and breadcrumb to the new viewport radius — `vr`
+     * grows/shrinks with the canvas, so the visible-place set changes. Run on the
+     * canvas's `transitionend` guarded to a size-driving property, with a timeout
+     * fallback (the reflow is instant, so in practice the timeout fires) — either
+     * way Leaflet measures the *final* size, never an intermediate one.
+     */
+    function revalidateAfterResize() {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            canvas.removeEventListener('transitionend', onEnd);
+            clearTimeout(timer);
+            map.invalidateSize();
+            syncMarkers(vrNow());
+            renderZone();
+        };
+        const onEnd = (e) => {
+            if (e.target === canvas && (e.propertyName === 'width' || e.propertyName === 'height')) {
+                finish();
+            }
+        };
+        canvas.addEventListener('transitionend', onEnd);
+        const timer = setTimeout(finish, immersiveDelay());
+    }
+
     /**
      * The name-search control: a lens button in a corner of the canvas that
      * toggles an autocomplete field over the received `places`. The index is the
@@ -534,6 +668,11 @@ function mountMap(canvas, zoneEl, { config, places }) {
             results = [];
             active = -1;
             renderList();
+            // Release focus from the now-hidden field. The input stopPropagation()s
+            // every keydown to stay off Leaflet's keyboard panning, so a lingering
+            // focus here would also swallow the *next* Escape — which in immersive
+            // mode is the one meant to leave full-screen (see map-fullscreen.spec).
+            input.blur();
         }
 
         function commit(place) {
@@ -581,6 +720,15 @@ function mountMap(canvas, zoneEl, { config, places }) {
         });
     }
     mountSearch();
+    const fsToggle = mountImmersiveToggle();
+
+    // If the tab re-mounts while the shell is already immersive (e.g. the editor
+    // `✎` toggle in the statusbar — which stays visible in immersive — re-rendered
+    // the tab), reflect that on the fresh control and re-bind Escape: the map is
+    // new but the mode persisted on the shell. A fresh sheet open resets the mode
+    // (sheet.js), so a normal navigation into the tab lands here non-immersive.
+    updateImmersiveControl(immersiveOn());
+    if (immersiveOn()) bindEscape();
 
     syncMarkers(vrNow());
     renderZone();

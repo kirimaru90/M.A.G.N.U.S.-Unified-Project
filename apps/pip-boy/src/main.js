@@ -30,6 +30,11 @@ function resetChrome() {
     hideSheetNav();
     setCriticalChrome(false);
     setEditorChrome(false);
+    // Immersive-map mode rides a class on the shell root (#app); the statusbar
+    // stays visible in immersive, so a user can leave the sheet (e.g. DOSSIER)
+    // while immersive. Clear it here — the "left the sheet" point — so the class
+    // never leaks onto the next screen's chrome. sheet.js re-clears it on open.
+    root.classList.remove('pb-immersive');
     // Every non-sheet screen calls this, so it is also where "left the sheet"
     // is observable — and therefore where the sheet's wake lock is released.
     stopSheetWakeLock();
