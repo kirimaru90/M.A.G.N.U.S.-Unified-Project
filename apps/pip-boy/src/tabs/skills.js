@@ -1,9 +1,31 @@
 import { esc } from '../engine/render.js';
 import { patchSkills, patchPerks } from '../api/characters.js';
-import { SKILL_LEVELS, SKILL_LEVEL_LABELS, clamp } from '../sheet/model.js';
+import { APPROACHES, SKILL_LEVELS, SKILL_LEVEL_LABELS, clamp } from '../sheet/model.js';
 import { pips } from '../sheet/pips.js';
 import { openAddPopup } from './add-popup.js';
 import { getTalentsCatalog } from '../api/catalogs.js';
+
+// A talent's requirement is "met" when every non-zero minimum in
+// `specialRequirement` is at or below the character's corresponding SPECIAL.
+// No requirement at all (field absent) is always met.
+function meetsRequirement(special, specialRequirement) {
+    if (!specialRequirement) return true;
+    return APPROACHES.every((a, i) => (specialRequirement[i] || 0) <= (special?.[a.key] ?? 0));
+}
+
+// The talent detail popup body: name, description, and — only for stats with a
+// non-zero minimum — a compact `LETTERA · N` line per stat. No requirement at
+// all renders no requirement line.
+function talentDetail(entry) {
+    const reqs = APPROACHES
+        .map((a, i) => ({ letter: a.letter, min: entry.specialRequirement?.[i] || 0 }))
+        .filter((r) => r.min > 0);
+    return `
+        <div class="pb-popup-title">${esc(entry.name)}</div>
+        ${entry.description ? `<div class="pb-label">${esc(entry.description)}</div>` : ''}
+        ${reqs.length > 0 ? `<div class="pb-talent-req">${reqs.map((r) => `<span>${esc(r.letter)} · ${r.min}</span>`).join('')}</div>` : ''}
+    `;
+}
 
 // Maestria maps to a filled count on a three-slot square row, in the same visual
 // language as the SPECIAL pips: COMPETENTE=1, ESPERTO=2, MAESTRO=3.
@@ -226,6 +248,9 @@ export function renderTalentsTab(container, ctx) {
                         if (entry.description) item.description = entry.description;
                         return item;
                     },
+                    rowRank: (entry) => (meetsRequirement(character.special, entry.specialRequirement) ? 0 : 1),
+                    rowAccent: (entry) => (meetsRequirement(character.special, entry.specialRequirement) ? '' : 'pb-picker-row--unmet'),
+                    detail: talentDetail,
                 },
                 custom: {
                     renderFields: (pane) => {

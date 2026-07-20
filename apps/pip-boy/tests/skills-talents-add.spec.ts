@@ -84,3 +84,108 @@ test('the talents catalog 400 degrades to an empty selection tab with no error; 
 
   await expect(page.locator('#pb-perks-list')).toContainText('Rissaiolo');
 });
+
+// ── SPECIAL-requirement detail popup + dimming/ordering ──────────────
+
+// The default character (see fixtures.ts) has every SPECIAL stat at 3, so an
+// Endurance-4 requirement is unmet while a Perception-2 requirement is met.
+const GUN_FU = { slug: 'gun-fu', name: 'Gun Fu', description: 'Combattimento a mani nude' };
+const IRON_FIST = { slug: 'iron-fist', name: 'Iron Fist', specialRequirement: [0, 0, 4, 0, 0, 0, 0] };
+const EAGLE_EYE = { slug: 'eagle-eye', name: 'Eagle Eye', specialRequirement: [0, 2, 0, 0, 0, 0, 0] };
+
+async function openTalentsPicker(page: Page) {
+  await page.locator('.pb-tab', { hasText: 'STATS' }).click();
+  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  await page.locator('[data-add-talent]').click();
+  await page.locator('[data-open-existing]').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+}
+
+test('tapping a talent row opens its detail popup instead of picking immediately', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([GUN_FU]) }));
+
+  await openTalentsPicker(page);
+  await page.locator('.pb-picker-row', { hasText: 'Gun Fu' }).click();
+
+  await expect(page.locator('.pb-picker-detail')).toBeVisible();
+  await expect(page.locator('.pb-picker-detail')).toContainText('Gun Fu');
+  await expect(page.locator('.pb-picker-detail')).toContainText('Combattimento a mani nude');
+  // The picker list is still mounted underneath.
+  await expect(page.locator('.pb-picker')).toBeVisible();
+  // Nothing is selected yet: the add popup's field is still empty.
+  await expect(page.locator('[data-open-existing]')).not.toContainText('Gun Fu');
+});
+
+test('Seleziona commits the detail popup talent and OK issues the perks PATCH', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([GUN_FU]) }));
+
+  await openTalentsPicker(page);
+  await page.locator('.pb-picker-row', { hasText: 'Gun Fu' }).click();
+  await page.locator('[data-detail-select]').click();
+
+  await expect(page.locator('.pb-picker-detail-overlay')).toHaveCount(0);
+  await expect(page.locator('.pb-picker-overlay')).toHaveCount(0);
+  await expect(page.locator('[data-open-existing]')).toContainText('Gun Fu');
+
+  const req = page.waitForRequest((r) => r.url().includes('/perks') && r.method() === 'PATCH');
+  await page.locator('[data-ok]').click();
+  expect((await req).postDataJSON()).toEqual({
+    items: [{ name: 'Gun Fu', description: 'Combattimento a mani nude' }],
+  });
+});
+
+test('closing the detail popup returns to the list with search and results preserved, no PATCH', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([GUN_FU, IRON_FIST]) }));
+
+  let patched = false;
+  page.on('request', (r) => {
+    if (r.url().includes('/perks') && r.method() === 'PATCH') patched = true;
+  });
+
+  await openTalentsPicker(page);
+  await page.locator('.pb-picker-search').fill('Gun');
+  await expect(page.locator('.pb-picker-row')).toHaveCount(1);
+  await page.locator('.pb-picker-row', { hasText: 'Gun Fu' }).click();
+  await expect(page.locator('.pb-picker-detail')).toBeVisible();
+
+  await page.locator('[data-detail-cancel]').click();
+  await expect(page.locator('.pb-picker-detail-overlay')).toHaveCount(0);
+  await expect(page.locator('.pb-picker')).toBeVisible();
+  await expect(page.locator('.pb-picker-search')).toHaveValue('Gun');
+  await expect(page.locator('.pb-picker-row')).toHaveCount(1);
+  expect(patched).toBe(false);
+});
+
+test('a talent whose requirement is unmet renders dimmed and sorts after satisfied entries, and stays selectable', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([IRON_FIST, GUN_FU, EAGLE_EYE]) }));
+
+  await openTalentsPicker(page);
+
+  // Endurance 4 > character's 3 → Iron Fist unmet; Gun Fu (no requirement) and
+  // Eagle Eye (Perception 2 ≤ 3) are both satisfied, so alphabetical among
+  // themselves, with Iron Fist last.
+  const names = await page.locator('.pb-picker-row').allInnerTexts();
+  expect(names).toEqual(['Eagle Eye', 'Gun Fu', 'Iron Fist']);
+
+  const ironFistRow = page.locator('.pb-picker-row', { hasText: 'Iron Fist' });
+  await expect(ironFistRow).toHaveClass(/pb-picker-row--unmet/);
+
+  // Dimming is informational only — the row still opens its detail popup and
+  // can still be selected end-to-end.
+  await ironFistRow.click();
+  await expect(page.locator('.pb-picker-detail')).toContainText('Iron Fist');
+  await expect(page.locator('.pb-picker-detail')).toContainText('E · 4');
+  await page.locator('[data-detail-select]').click();
+
+  const req = page.waitForRequest((r) => r.url().includes('/perks') && r.method() === 'PATCH');
+  await page.locator('[data-ok]').click();
+  expect((await req).postDataJSON()).toEqual({ items: [{ name: 'Iron Fist' }] });
+});

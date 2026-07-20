@@ -13,6 +13,9 @@ export class TalentCatalogEntry {
 
   @Prop()
   description?: string;
+
+  @Prop({ type: [Number], required: false, default: undefined })
+  specialRequirement?: number[];
 }
 
 export const TalentCatalogEntrySchema =

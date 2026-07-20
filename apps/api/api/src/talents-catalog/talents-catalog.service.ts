@@ -17,6 +17,7 @@ export type IgnoredCatalogOp = { slug: string; reason: 'unknown_slug' };
 interface CatalogEntry {
   name: string;
   description?: string;
+  specialRequirement?: number[];
 }
 
 @Injectable()
@@ -36,13 +37,21 @@ export class TalentsCatalogService {
       slug: e.slug,
       name: e.name,
       description: e.description,
+      specialRequirement: e.specialRequirement,
     }));
   }
 
   async patchSchema(ops: TalentsCatalogOpDto[]) {
     const docs = await this.entryModel.find().lean();
     const map = new Map<string, CatalogEntry>(
-      docs.map((d) => [d.slug, { name: d.name, description: d.description }]),
+      docs.map((d) => [
+        d.slug,
+        {
+          name: d.name,
+          description: d.description,
+          specialRequirement: d.specialRequirement,
+        },
+      ]),
     );
 
     const ignored: IgnoredCatalogOp[] = [];
@@ -60,6 +69,7 @@ export class TalentsCatalogService {
         const entry: CatalogEntry = {
           name: op.entry.name,
           description: op.entry.description,
+          specialRequirement: op.entry.specialRequirement,
         };
         map.set(op.slug, entry);
         toUpsert.set(op.slug, entry);

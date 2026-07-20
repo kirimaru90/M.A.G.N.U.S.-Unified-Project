@@ -8,6 +8,8 @@ import { TableModule } from 'primeng/table';
 import { Toast } from 'primeng/toast';
 import { TalentsCatalogApiService } from '../../core/talents-catalog/talents-catalog-api.service';
 import type { TalentCatalogEntryDto } from '../../core/talents-catalog/talents-catalog.types';
+import { TalentRequirementDialogComponent } from './talent-requirement-dialog';
+import { ImportTalentsDialogComponent } from './import-talents-dialog';
 
 interface DraftRow {
   slug: string;
@@ -20,7 +22,16 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
 @Component({
   selector: 'app-talents-catalog-page',
   standalone: true,
-  imports: [FormsModule, TableModule, ButtonModule, ConfirmDialog, Toast, InputTextModule],
+  imports: [
+    FormsModule,
+    TableModule,
+    ButtonModule,
+    ConfirmDialog,
+    Toast,
+    InputTextModule,
+    TalentRequirementDialogComponent,
+    ImportTalentsDialogComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-toast />
@@ -31,6 +42,12 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
         <h1>Catalogo talenti</h1>
         @if (!addRowVisible()) {
           <div class="bo-page-head-actions">
+            <button type="button" class="bo-btn ghost" (click)="exportCatalog()">
+              Esporta
+            </button>
+            <button type="button" class="bo-btn ghost" (click)="openImportDialog()">
+              Importa
+            </button>
             <button type="button" class="bo-btn primary" (click)="showAddRow()">
               + Aggiungi
             </button>
@@ -85,6 +102,9 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
                 <td>{{ entry.description }}</td>
                 <td>
                   <div class="row-actions">
+                    <button type="button" class="bo-btn ghost" style="font-size: 12px; padding: 4px 10px; height: auto;" title="Modifica requisito SPECIAL" (click)="openRequirementDialog(entry)">
+                      Requisiti
+                    </button>
                     <button type="button" class="bo-btn ghost icon" title="Modifica" (click)="startEdit(entry)">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -141,6 +161,20 @@ const emptyDraft = (): DraftRow => ({ slug: '', name: '', description: '' });
         </p-table>
       </div>
     </div>
+
+    <app-talent-requirement-dialog
+      [visible]="requirementDialogVisible()"
+      [entry]="requirementEntry()"
+      (closed)="closeRequirementDialog()"
+      (saved)="onRequirementSaved($event)"
+    />
+
+    <app-import-talents-dialog
+      [visible]="importDialogVisible()"
+      [currentEntries]="entries() ?? []"
+      (closed)="closeImportDialog()"
+      (imported)="onImported()"
+    />
   `,
 })
 export class TalentsCatalogPage implements OnInit {
@@ -153,6 +187,11 @@ export class TalentsCatalogPage implements OnInit {
   protected readonly addRowVisible = signal(false);
   protected readonly rowError = signal<string | null>(null);
   protected draft: DraftRow = emptyDraft();
+
+  protected readonly requirementDialogVisible = signal(false);
+  protected readonly requirementEntry = signal<TalentCatalogEntryDto | null>(null);
+
+  protected readonly importDialogVisible = signal(false);
 
   ngOnInit(): void {
     this.load();
@@ -253,6 +292,61 @@ export class TalentsCatalogPage implements OnInit {
         });
       },
     });
+  }
+
+  protected openRequirementDialog(entry: TalentCatalogEntryDto): void {
+    this.requirementEntry.set(entry);
+    this.requirementDialogVisible.set(true);
+  }
+
+  protected closeRequirementDialog(): void {
+    this.requirementDialogVisible.set(false);
+    this.requirementEntry.set(null);
+  }
+
+  protected onRequirementSaved(specialRequirement: number[]): void {
+    const entry = this.requirementEntry();
+    if (!entry) return;
+    this.api
+      .patchSchema([
+        {
+          action: 'update',
+          slug: entry.slug,
+          entry: { name: entry.name, description: entry.description, specialRequirement },
+        },
+      ])
+      .subscribe({
+        next: () => {
+          this.closeRequirementDialog();
+          this.load();
+          this.messageService.add({ severity: 'success', summary: 'Requisiti aggiornati' });
+        },
+        error: () =>
+          this.messageService.add({ severity: 'error', summary: 'Errore durante il salvataggio dei requisiti' }),
+      });
+  }
+
+  protected exportCatalog(): void {
+    const entries = this.entries() ?? [];
+    const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'talenti-catalogo.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  protected openImportDialog(): void {
+    this.importDialogVisible.set(true);
+  }
+
+  protected closeImportDialog(): void {
+    this.importDialogVisible.set(false);
+  }
+
+  protected onImported(): void {
+    this.load();
   }
 
   private errorMessage(err: unknown): string {

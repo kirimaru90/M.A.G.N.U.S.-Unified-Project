@@ -8,10 +8,12 @@ import { openCatalogPicker } from './catalog-picker.js';
 //  - an `OK` that reads the active pane and calls `onAdd(item)`.
 //
 // The per-flow bits are injected:
-//  - `catalog` = `{ entries, kindNoun, toItem(entry) }` backs the "Scegli
-//    esistente" tab: tapping the field opens the full-screen picker over
-//    `entries`; on OK the chosen entry is mapped to a body via `toItem`.
-//    Omit `catalog` to hide the selection tab entirely (custom-only popup).
+//  - `catalog` = `{ entries, kindNoun, toItem(entry), renderMeta?, renderSub?,
+//    rowAccent?, rowRank?, detail? }` backs the "Scegli esistente" tab: tapping
+//    the field opens the full-screen picker over `entries` (the last four keys
+//    pass straight through to `openCatalogPicker`); on OK the chosen entry is
+//    mapped to a body via `toItem`. Omit `catalog` to hide the selection tab
+//    entirely (custom-only popup).
 //  - `custom` = `{ renderFields(paneEl), readItem(paneEl) }` backs the "Aggiungi
 //    custom" tab: `renderFields` fills the pane's DOM (and may wire its own
 //    handlers), `readItem` returns the assembled body (or `null`/`undefined` to
@@ -89,6 +91,8 @@ export function openAddPopup({ title, catalog, custom, onAdd }) {
                 renderMeta: catalog.renderMeta,
                 renderSub: catalog.renderSub,
                 rowAccent: catalog.rowAccent,
+                rowRank: catalog.rowRank,
+                detail: catalog.detail,
                 onPick: (entry) => {
                     selectedEntry = entry;
                     const valueEl = existingField.querySelector('.pb-popup-picker-value');

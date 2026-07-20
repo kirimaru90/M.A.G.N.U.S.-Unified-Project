@@ -113,6 +113,90 @@ describe('TalentsCatalogService.patchSchema', () => {
     expect(result.ignored).toEqual([{ slug: 'ghost', reason: 'unknown_slug' }]);
     expect(updateOne).not.toHaveBeenCalled();
   });
+
+  it('adds a new entry with a specialRequirement', async () => {
+    const { service, updateOne } = makeService([]);
+    const specialRequirement = [0, 0, 0, 0, 0, 3, 0];
+    await service.patchSchema([
+      {
+        action: 'add',
+        slug: 'gun-fu',
+        entry: { name: 'Gun Fu', specialRequirement },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'gun-fu' },
+      {
+        $set: {
+          slug: 'gun-fu',
+          name: 'Gun Fu',
+          description: undefined,
+          specialRequirement,
+        },
+      },
+      { upsert: true },
+    );
+  });
+
+  it('update replaces specialRequirement wholesale', async () => {
+    const { service, updateOne } = makeService([
+      {
+        slug: 'gun-fu',
+        name: 'Gun Fu',
+        specialRequirement: [0, 0, 0, 0, 0, 3, 0],
+      } as never,
+    ]);
+    const specialRequirement = [1, 0, 0, 0, 0, 0, 0];
+    await service.patchSchema([
+      {
+        action: 'update',
+        slug: 'gun-fu',
+        entry: { name: 'Gun Fu', specialRequirement },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'gun-fu' },
+      {
+        $set: {
+          slug: 'gun-fu',
+          name: 'Gun Fu',
+          description: undefined,
+          specialRequirement,
+        },
+      },
+      { upsert: true },
+    );
+  });
+
+  it('update omitting specialRequirement leaves the existing value unchanged', async () => {
+    const existingRequirement = [0, 0, 0, 0, 0, 3, 0];
+    const { service, updateOne } = makeService([
+      {
+        slug: 'gun-fu',
+        name: 'Gun Fu',
+        specialRequirement: existingRequirement,
+      } as never,
+    ]);
+    await service.patchSchema([
+      {
+        action: 'update',
+        slug: 'gun-fu',
+        entry: { name: 'Gun Fu', description: 'updated' },
+      } as never,
+    ]);
+    expect(updateOne).toHaveBeenCalledWith(
+      { slug: 'gun-fu' },
+      {
+        $set: {
+          slug: 'gun-fu',
+          name: 'Gun Fu',
+          description: 'updated',
+          specialRequirement: existingRequirement,
+        },
+      },
+      { upsert: true },
+    );
+  });
 });
 
 describe('TalentsCatalogService.findAll', () => {
@@ -127,6 +211,30 @@ describe('TalentsCatalogService.findAll', () => {
   it('returns an empty array when the catalog is empty', async () => {
     const { service } = makeOrderedService([]);
     expect(await service.findAll()).toEqual([]);
+  });
+
+  it('returns specialRequirement when set on the entry', async () => {
+    const { service } = makeOrderedService([
+      {
+        slug: 'gun-fu',
+        name: 'Gun Fu',
+        specialRequirement: [0, 0, 0, 0, 0, 3, 0],
+      },
+    ]);
+    expect(await service.findAll()).toEqual([
+      {
+        slug: 'gun-fu',
+        name: 'Gun Fu',
+        specialRequirement: [0, 0, 0, 0, 0, 3, 0],
+      },
+    ]);
+  });
+
+  it('omits specialRequirement when never set on the entry', async () => {
+    const { service } = makeOrderedService([{ slug: 'gun-fu', name: 'Gun Fu' }]);
+    const all = await service.findAll();
+    expect(all[0].specialRequirement).toBeUndefined();
+    expect(JSON.stringify(all[0])).not.toContain('specialRequirement');
   });
 
   it('applies the name sort with Italian collation when orderBy=name', async () => {

@@ -5,11 +5,13 @@ export interface TalentCatalogEntryDto {
   slug: string;
   name: string;
   description?: string;
+  specialRequirement?: number[];
 }
 
 export interface TalentCatalogEntryShape {
   name: string;
   description?: string;
+  specialRequirement?: number[];
 }
 
 export interface TalentsCatalogOp {

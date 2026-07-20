@@ -18,6 +18,15 @@ import { esc } from '../engine/render.js';
 //     - renderSub?(entry): optional — returns HTML rendered on a new line *below*
 //       the name (e.g. a row of tag chips). Omitted → no second line.
 //     - rowAccent?(entry): optional — returns a colour-accent class for the row.
+//     - rowRank?(entry): optional — returns a number used as the primary (ascending)
+//       sort key, applied before the alphabetical pass; entries with no explicit
+//       rank sort as 0. Omitted → alphabetical order only (unchanged behavior).
+//     - detail?(entry): optional — returns HTML for a nested detail popup. When
+//       supplied, tapping a row opens that popup (rendered above the picker, list
+//       left mounted underneath) instead of picking immediately; its ✕ closes only
+//       the detail popup (search/results untouched) and its "Seleziona" button
+//       commits the pick, closing both. Omitted → tapping a row picks immediately
+//       (unchanged behavior).
 //     - onPick(entry): called with the chosen (or free-typed) entry, then closes
 //
 //   Entries are always presented in ascending alphabetical order of `name`
@@ -29,7 +38,7 @@ import { esc } from '../engine/render.js';
 // client and server orderings agree.
 const nameCollator = new Intl.Collator('it', { sensitivity: 'base' });
 
-export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, renderMeta, renderSub, rowAccent, onPick }) {
+export function openCatalogPicker({ title, entries, query = '', allowFreeText = false, renderMeta, renderSub, rowAccent, rowRank, detail, onPick }) {
     const list = Array.isArray(entries) ? entries : [];
 
     const overlay = document.createElement('div');
@@ -59,9 +68,15 @@ export function openCatalogPicker({ title, entries, query = '', allowFreeText = 
             : list;
 
         // Defensive alphabetical order by display name (case/accent-insensitive),
-        // on a copy so the caller's array is never mutated.
-        const sorted = [...matches].sort((a, b) =>
-            nameCollator.compare(String(a.name ?? ''), String(b.name ?? '')));
+        // on a copy so the caller's array is never mutated. `rowRank`, when
+        // supplied, is the primary sort key (ascending) applied before it.
+        const sorted = [...matches].sort((a, b) => {
+            if (rowRank) {
+                const diff = (rowRank(a) || 0) - (rowRank(b) || 0);
+                if (diff !== 0) return diff;
+            }
+            return nameCollator.compare(String(a.name ?? ''), String(b.name ?? ''));
+        });
 
         const rows = [];
         // A free-text commit row appears when the typed name is not already an
@@ -104,9 +119,38 @@ export function openCatalogPicker({ title, entries, query = '', allowFreeText = 
             btn.addEventListener('click', () => {
                 const entry = matches.find((e) => e.name === btn.dataset.pick);
                 if (!entry) return;
+                if (detail) {
+                    openDetail(entry);
+                    return;
+                }
                 onPick(entry);
                 close();
             });
+        });
+    }
+
+    // The nested detail popup: rendered above the picker (list stays mounted
+    // underneath), its own ✕ dismisses only itself, and "Seleziona" commits the
+    // pick and closes both layers.
+    function openDetail(entry) {
+        const detailOverlay = document.createElement('div');
+        detailOverlay.className = 'pb-popup-overlay pb-picker-detail-overlay';
+        detailOverlay.innerHTML = `
+            <div class="pb-info-popup pb-picker-detail" role="dialog" aria-modal="true">
+                <button class="pb-popup-close" data-detail-cancel aria-label="Chiudi">✕</button>
+                <div class="pb-info-popup-body">${detail(entry)}</div>
+                <button class="pb-btn pb-picker-detail-select" data-detail-select>Seleziona</button>
+            </div>
+        `;
+        document.body.appendChild(detailOverlay);
+        const closeDetail = () => detailOverlay.remove();
+
+        detailOverlay.querySelector('[data-detail-cancel]').addEventListener('click', closeDetail);
+        detailOverlay.addEventListener('click', (e) => { if (e.target === detailOverlay) closeDetail(); });
+        detailOverlay.querySelector('[data-detail-select]').addEventListener('click', () => {
+            onPick(entry);
+            closeDetail();
+            close();
         });
     }
 

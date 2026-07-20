@@ -15,7 +15,12 @@ import { TalentsCatalogModule } from '../src/talents-catalog/talents-catalog.mod
 import { User, UserSchema } from '../src/users/schemas/user.schema';
 import configuration from '../src/config/configuration';
 
-type Entry = { slug: string; name: string; description?: string };
+type Entry = {
+  slug: string;
+  name: string;
+  description?: string;
+  specialRequirement?: number[];
+};
 
 describe('TalentsCatalogModule (e2e)', () => {
   let app: NestFastifyApplication;
@@ -182,6 +187,101 @@ describe('TalentsCatalogModule (e2e)', () => {
       .filter((e) => e.slug.startsWith('ord-'))
       .map((e) => e.name);
     expect(mine).toEqual(['ananas', 'èlite', 'Zulu']);
+  });
+
+  it('admin adds a talent with a specialRequirement → GET reflects it', async () => {
+    const specialRequirement = [0, 0, 0, 0, 0, 3, 0];
+    const res = await patchCatalog([
+      {
+        action: 'add',
+        slug: 'iron-fist',
+        entry: { name: 'Iron Fist', specialRequirement },
+      },
+    ]);
+    expect(res.statusCode).toBe(200);
+    expect(await listTalents()).toContainEqual({
+      slug: 'iron-fist',
+      name: 'Iron Fist',
+      description: undefined,
+      specialRequirement,
+    });
+  });
+
+  it('malformed specialRequirement on add → 400', async () => {
+    const wrongLength = await patchCatalog([
+      {
+        action: 'add',
+        slug: 'bad-req-1',
+        entry: { name: 'Bad', specialRequirement: [0, 0, 0, 0, 0, 0] },
+      },
+    ]);
+    expect(wrongLength.statusCode).toBe(400);
+
+    const outOfRange = await patchCatalog([
+      {
+        action: 'add',
+        slug: 'bad-req-2',
+        entry: {
+          name: 'Bad',
+          specialRequirement: [0, 0, 0, 0, 0, 0, 6],
+        },
+      },
+    ]);
+    expect(outOfRange.statusCode).toBe(400);
+
+    expect(
+      (await listTalents()).some((e) =>
+        ['bad-req-1', 'bad-req-2'].includes(e.slug),
+      ),
+    ).toBe(false);
+  });
+
+  it('malformed specialRequirement on update → 400, entry unchanged', async () => {
+    await patchCatalog([
+      {
+        action: 'add',
+        slug: 'update-req',
+        entry: { name: 'Update Req', specialRequirement: [0, 0, 0, 0, 0, 3, 0] },
+      },
+    ]);
+    const res = await patchCatalog([
+      {
+        action: 'update',
+        slug: 'update-req',
+        entry: {
+          name: 'Update Req',
+          specialRequirement: [0, 0, 0, 0, 0, 0, 0, 0],
+        },
+      },
+    ]);
+    expect(res.statusCode).toBe(400);
+    expect(await listTalents()).toContainEqual({
+      slug: 'update-req',
+      name: 'Update Req',
+      description: undefined,
+      specialRequirement: [0, 0, 0, 0, 0, 3, 0],
+    });
+  });
+
+  it('rename preserves specialRequirement', async () => {
+    const specialRequirement = [0, 1, 0, 0, 0, 0, 0];
+    await patchCatalog([
+      {
+        action: 'add',
+        slug: 'rename-req',
+        entry: { name: 'Rename Req', specialRequirement },
+      },
+    ]);
+    const res = await patchCatalog([
+      { action: 'rename', slug: 'rename-req', rename: 'renamed-req' },
+    ]);
+    expect(res.statusCode).toBe(200);
+    expect(await listTalents()).toContainEqual({
+      slug: 'renamed-req',
+      name: 'Rename Req',
+      description: undefined,
+      specialRequirement,
+    });
   });
 
   it('an unrecognised ?orderBy value falls back to natural order (no error)', async () => {
