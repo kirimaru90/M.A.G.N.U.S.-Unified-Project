@@ -383,6 +383,74 @@ describe('CampaignMapPage', () => {
     });
   });
 
+  describe('typed coordinate inputs', () => {
+    async function selectAndGetInputs(places: MapPlace[]) {
+      await setup(places);
+      (component as unknown as { select: (s: string) => void }).select(places[0].slug);
+      fixture.detectChanges();
+      // NgModel's DOM writes (including the disabled/value sync for a freshly
+      // rendered field) land a microtask after detectChanges — see the
+      // hasLocalMap toggle tests above for the same pattern.
+      await fixture.whenStable();
+      fixture.detectChanges();
+      return {
+        latEl: fixture.nativeElement.querySelector('[data-testid="sel-lat"]') as HTMLInputElement,
+        lngEl: fixture.nativeElement.querySelector('[data-testid="sel-lng"]') as HTMLInputElement,
+      };
+    }
+
+    it('typing a new value into sel-lat updates the place and moves its marker', async () => {
+      const { latEl } = await selectAndGetInputs([place({ slug: 'roma', lat: 41.9, lng: 12.5 })]);
+
+      latEl.value = '42.5';
+      latEl.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(state<MapPlace[]>('places')[0].lat).toBe(42.5);
+      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
+      expect(markers.get('roma')!.getLatLng().lat).toBe(42.5);
+    });
+
+    it('rounds a typed coordinate with more than 6 decimal places to 6 on commit', async () => {
+      const { lngEl } = await selectAndGetInputs([place({ slug: 'roma' })]);
+
+      lngEl.value = '12.123456789';
+      lngEl.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      expect(state<MapPlace[]>('places')[0].lng).toBe(12.123457);
+    });
+
+    it('drag-to-reposition and sposta still update coordinates with the typed inputs present', async () => {
+      await setup([place({ slug: 'roma', lat: 41.9, lng: 12.5 })]);
+      (component as unknown as { select: (s: string) => void }).select('roma');
+      fixture.detectChanges();
+
+      // Drag-to-reposition, unaffected by the new inputs.
+      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
+      const marker = markers.get('roma')!;
+      marker.setLatLng([43.1, 13.2]);
+      marker.fire('dragend');
+      fixture.detectChanges();
+      expect(state<MapPlace[]>('places')[0].lat).toBe(43.1);
+
+      // "sposta": re-click a position on the map still repositions the place.
+      (component as unknown as { startMove: () => void }).startMove();
+      expect(state<string>('mode')).toBe('placing');
+
+      const map = (component as unknown as { map: L.Map }).map;
+      map.fire('click', { latlng: L.latLng(50, 20) } as L.LeafletMouseEvent);
+      fixture.detectChanges();
+
+      const moved = state<MapPlace[]>('places')[0];
+      expect(moved.lat).toBe(50);
+      expect(moved.lng).toBe(20);
+      expect(state<string>('mode')).toBe('idle');
+    });
+  });
+
   it('saves the config and places together', async () => {
     await setup([place({ slug: 'roma' })]);
     (component as unknown as { save: () => void }).save();

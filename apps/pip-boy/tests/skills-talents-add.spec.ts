@@ -171,8 +171,11 @@ test('a talent whose requirement is unmet renders dimmed and sorts after satisfi
 
   // Endurance 4 > character's 3 → Iron Fist unmet; Gun Fu (no requirement) and
   // Eagle Eye (Perception 2 ≤ 3) are both satisfied, so alphabetical among
-  // themselves, with Iron Fist last.
-  const names = await page.locator('.pb-picker-row').allInnerTexts();
+  // themselves, with Iron Fist last. Iron Fist and Eagle Eye also carry a
+  // requirement chip on their row, so read the row identity off `data-pick`
+  // rather than its full text.
+  const names = await page.locator('.pb-picker-row[data-pick]').evaluateAll(
+    (els) => els.map((el) => el.getAttribute('data-pick')));
   expect(names).toEqual(['Eagle Eye', 'Gun Fu', 'Iron Fist']);
 
   const ironFistRow = page.locator('.pb-picker-row', { hasText: 'Iron Fist' });
@@ -188,4 +191,43 @@ test('a talent whose requirement is unmet renders dimmed and sorts after satisfi
   const req = page.waitForRequest((r) => r.url().includes('/perks') && r.method() === 'PATCH');
   await page.locator('[data-ok]').click();
   expect((await req).postDataJSON()).toEqual({ items: [{ name: 'Iron Fist' }] });
+});
+
+// ── Inline requirement chips on the picker row ────────────────────────
+
+test('a talent with a non-zero requirement shows the matching chip(s) inline on its row', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([IRON_FIST, EAGLE_EYE]) }));
+
+  await openTalentsPicker(page);
+
+  const ironFistRow = page.locator('.pb-picker-row', { hasText: 'Iron Fist' });
+  await expect(ironFistRow.locator('.pb-picker-sub')).toContainText('E · 4');
+
+  const eagleEyeRow = page.locator('.pb-picker-row', { hasText: 'Eagle Eye' });
+  await expect(eagleEyeRow.locator('.pb-picker-sub')).toContainText('P · 2');
+});
+
+test('a talent with no requirement shows no chip row', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([GUN_FU]) }));
+
+  await openTalentsPicker(page);
+
+  const gunFuRow = page.locator('.pb-picker-row', { hasText: 'Gun Fu' });
+  await expect(gunFuRow.locator('.pb-picker-sub')).toHaveCount(0);
+});
+
+test('tapping a chip-bearing row still opens the detail popup, not an immediate pick', async ({ page }) => {
+  await openSheetAsOwner(page);
+  await page.route('**/talents-catalog*', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([IRON_FIST]) }));
+
+  await openTalentsPicker(page);
+  await page.locator('.pb-picker-row', { hasText: 'Iron Fist' }).click();
+
+  await expect(page.locator('.pb-picker-detail')).toBeVisible();
+  await expect(page.locator('[data-open-existing]')).not.toContainText('Iron Fist');
 });

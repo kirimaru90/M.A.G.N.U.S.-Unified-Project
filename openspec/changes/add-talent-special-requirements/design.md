@@ -55,12 +55,21 @@ Both the CMS and pip-boy already fetch the *entire* talents catalog on load (`en
   - one `PATCH /talents-catalog { ops }` call carries every resulting `add` op; the dialog then reports counts of added vs. skipped slugs (and, on skip, which slugs and why — "già nel catalogo" vs. "duplicato nel file").
 *Alternative rejected:* a dedicated `POST /talents-catalog/import` endpoint mirroring the terminal import pattern — the terminal case needed a real endpoint because terminal content is deeply nested and importing means replacing one whole document server-side; a talent-catalog import is just N `add` ops over an endpoint that already exists and already validates each entry, so a new endpoint would only duplicate that validation.
 
+### 7. Row-level requirement chips are additive to the detail popup, not a replacement
+
+The talents picker gains a `renderSub` callback — the same generic hook `add-item-popup.js` already uses to show equipment tag chips per row — that renders one compact `LETTERA · N` chip per stat with a non-zero `specialRequirement` minimum, directly on the row, using the identical `reqs` derivation the `detail` popup already computes (`APPROACHES.map(...).filter((r) => r.min > 0)`). An entry with no requirement renders no chip row, exactly like an equipment template with no tags renders no second line.
+
+This was explicitly decided *not* to replace the tap-through `detail` popup from Decision 4: the popup still carries the talent's description and still owns the "Seleziona" confirm step, both of which have no other home in the row. The chip row is purely an at-a-glance preview so a player can judge a requirement before committing to the extra tap — the two are independent presentations of the same data, wired from the same call site in `renderTalentsTab`. `rowAccent`/`rowRank` (dimming/sorting for an unmet requirement) are unaffected and continue to operate on the row as a whole, regardless of whether a chip row is present.
+
+*Alternative considered:* dropping the `detail` popup now that the requirement is visible inline, returning talents to the same immediate-pick behavior every other picker uses. Rejected for this change — the popup's description text has no other surface to render on, and Decision 4's tap-through was itself an explicit prior ask, not an incidental side effect to undo opportunistically. Revisiting that trade-off is a separate decision, not a consequence of adding row chips.
+
 ## Risks / Trade-offs
 
 - **Positional array is easy to author out of order** (e.g. swapping Charisma and Endurance) → Mitigated by never exposing raw indices to a human: the CMS dialog and the pip-boy detail popup both always render through `APPROACHES` (letter-labelled), and the DTO validates shape/range, not semantic intent — same residual risk the app already accepts for `character.special` itself.
 - **`rowRank` widens the shared picker's hook surface** → Kept optional and presentation-only, consistent with the guardrail already established for `renderMeta`/`renderSub`/`rowAccent`; unused by every non-talent caller.
 - **Import's silent-skip-on-conflict could surprise an admin expecting an upsert** → Mitigated by an explicit post-import summary naming every skipped slug and why; the proposal and CMS copy both state "additive-only" plainly.
 - **Extra tap added to every talent selection (detail popup is mandatory once `detail` is wired for talents, not conditional on having a requirement)** → Accepted as the explicit ask; scoped to talents only, so it doesn't add friction to the higher-traffic skills/equipment/conditions flows.
+- **Row chips and the detail popup now render the same requirement data in two places** → Accepted: the chip row and popup serve different moments (glance vs. commit) rather than duplicating for no reason, and both derive from the same single `reqs` computation, so there is no risk of the two disagreeing.
 
 ## Migration Plan
 

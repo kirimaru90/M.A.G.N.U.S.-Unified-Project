@@ -347,9 +347,26 @@ type Mode = 'idle' | 'placing' | 'bounds';
                   </label>
 
                   <div class="cm-coords">
-                    <span data-testid="sel-coords">
-                      {{ d.lat | number: '1.4-4' }}, {{ d.lng | number: '1.4-4' }}
-                    </span>
+                    <label>
+                      Lat
+                      <input
+                        pInputText
+                        type="number"
+                        data-testid="sel-lat"
+                        [ngModel]="d.lat"
+                        (ngModelChange)="patchPlace({ lat: round6(+$event) })"
+                      />
+                    </label>
+                    <label>
+                      Lng
+                      <input
+                        pInputText
+                        type="number"
+                        data-testid="sel-lng"
+                        [ngModel]="d.lng"
+                        (ngModelChange)="patchPlace({ lng: round6(+$event) })"
+                      />
+                    </label>
                     <button
                       type="button"
                       class="bo-btn"
@@ -642,14 +659,6 @@ type Mode = 'idle' | 'placing' | 'bounds';
         justify-content: space-between;
         gap: 8px;
         font-size: 12px;
-      }
-      /* Clamp the coordinate readout so a long pair can't shove the "sposta"
-         button out of the card; the button keeps its intrinsic width. */
-      .cm-coords span {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
       .cm-hint {
         opacity: 0.7;
@@ -1055,7 +1064,7 @@ export class CampaignMapPage {
    * the field to fit and pushes the card wall. Rounding here keeps the stored
    * value — and therefore the field — free of float noise at authoring precision.
    */
-  private round6(n: number): number {
+  protected round6(n: number): number {
     return Math.round(n * 1e6) / 1e6;
   }
 

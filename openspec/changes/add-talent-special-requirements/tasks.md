@@ -46,3 +46,12 @@
 
 - [x] 8.1 Extend `apps/pip-boy/tests/skills-talents-add.spec.ts` and/or `apps/pip-boy/tests/catalog-picker.spec.ts`: tapping a talent row opens the detail popup instead of picking immediately; **Seleziona** commits the pick and the subsequent `OK` issues the same `PATCH .../perks` as before; **✕** returns to the list with search text and results preserved and issues no `PATCH`; a talent whose requirement isn't met by the current character's SPECIAL renders dimmed and sorts after satisfied/unconstrained entries, and remains selectable end-to-end via its detail popup.
 - [x] 8.2 From `apps/pip-boy`, run `npm test` (Playwright) and confirm all pass.
+
+## 9. Pip-Boy — inline requirement chips on the picker row
+
+- [x] 9.1 In `apps/pip-boy/src/tabs/skills.js` `renderTalentsTab`, factor the existing non-zero-minimum derivation out of `talentDetail` into a small shared helper (e.g. `talentReqs(entry)` returning `{ letter, min }[]` filtered to `min > 0`), used by both `talentDetail` and the new `renderSub`.
+- [x] 9.2 Add a `renderSub(entry)` callback to the talents catalog config passed into `openAddPopup`/`openCatalogPicker`: when `talentReqs(entry)` is non-empty, render one chip per `{ letter, min }` as `LETTERA · N` (mirroring `add-item-popup.js`'s tag-chip `renderSub`); return `''` when the talent has no requirement, so an unconstrained talent renders no second line.
+- [x] 9.3 In `apps/pip-boy/src/styles/pipboy.css`, style the new chip row — reuse `.pb-picker-sub`/`.pb-chip` (the picker's existing read-only chip styling) or `.pb-talent-req span` (the popup's existing requirement-chip styling); do not introduce a third visual treatment for the same data.
+- [x] 9.4 Confirm `rowAccent`/`rowRank` and the `detail` tap-through are unaffected: a row with chips still dims/sorts purely on met/unmet status, and tapping it still opens the detail popup rather than picking immediately.
+- [x] 9.5 Extend `apps/pip-boy/tests/skills-talents-add.spec.ts` and/or `apps/pip-boy/tests/catalog-picker.spec.ts`: a talent with a non-zero `specialRequirement` shows the expected `LETTERA · N` chip(s) inline on its row; a talent with no requirement shows no chip row; tapping a chip-bearing row still opens the detail popup (not an immediate pick).
+- [x] 9.6 From `apps/pip-boy`, run `npm test` (Playwright) and confirm all pass.

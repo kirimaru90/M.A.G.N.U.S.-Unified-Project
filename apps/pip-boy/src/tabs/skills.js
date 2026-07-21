@@ -13,18 +13,33 @@ function meetsRequirement(special, specialRequirement) {
     return APPROACHES.every((a, i) => (specialRequirement[i] || 0) <= (special?.[a.key] ?? 0));
 }
 
+// The non-zero SPECIAL minimums a talent's `specialRequirement` carries, as
+// `{ letter, min }[]` in S·P·E·C·I·A·L order. Shared by the detail popup and
+// the picker row's inline chips so both render off the same derivation.
+function talentReqs(entry) {
+    return APPROACHES
+        .map((a, i) => ({ letter: a.letter, min: entry.specialRequirement?.[i] || 0 }))
+        .filter((r) => r.min > 0);
+}
+
 // The talent detail popup body: name, description, and — only for stats with a
 // non-zero minimum — a compact `LETTERA · N` line per stat. No requirement at
 // all renders no requirement line.
 function talentDetail(entry) {
-    const reqs = APPROACHES
-        .map((a, i) => ({ letter: a.letter, min: entry.specialRequirement?.[i] || 0 }))
-        .filter((r) => r.min > 0);
+    const reqs = talentReqs(entry);
     return `
         <div class="pb-popup-title">${esc(entry.name)}</div>
         ${entry.description ? `<div class="pb-label">${esc(entry.description)}</div>` : ''}
         ${reqs.length > 0 ? `<div class="pb-talent-req">${reqs.map((r) => `<span>${esc(r.letter)} · ${r.min}</span>`).join('')}</div>` : ''}
     `;
+}
+
+// Inline picker-row chips: one `LETTERA · N` chip per non-zero minimum, same
+// data as `talentDetail`'s requirement line. No requirement → no second line.
+function talentReqChips(entry) {
+    const reqs = talentReqs(entry);
+    if (reqs.length === 0) return '';
+    return reqs.map((r) => `<span class="pb-chip">${esc(r.letter)} · ${r.min}</span>`).join('');
 }
 
 // Maestria maps to a filled count on a three-slot square row, in the same visual
@@ -250,6 +265,7 @@ export function renderTalentsTab(container, ctx) {
                     },
                     rowRank: (entry) => (meetsRequirement(character.special, entry.specialRequirement) ? 0 : 1),
                     rowAccent: (entry) => (meetsRequirement(character.special, entry.specialRequirement) ? '' : 'pb-picker-row--unmet'),
+                    renderSub: talentReqChips,
                     detail: talentDetail,
                 },
                 custom: {

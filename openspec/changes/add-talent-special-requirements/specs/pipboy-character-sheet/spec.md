@@ -14,6 +14,8 @@ Within the **Scegli esistente** picker, entries whose catalog `specialRequiremen
 
 Tapping a row in the **Scegli esistente** picker SHALL NOT select it immediately. Instead it SHALL open a nested detail popup showing the talent's name, description, and — for any stat with a non-zero `specialRequirement` minimum — that stat's letter and minimum value (a talent with no requirement shows no requirement line). The detail popup SHALL present a **Seleziona** button that commits the entry (equivalent to the previous immediate-pick behavior: closes the picker and the add popup's existing-tab selection reflects the chosen entry) and an **✕** in its top-right corner that closes only the detail popup, returning to the underlying catalog list with its search text and results preserved and no selection made.
 
+Each row in the **Scegli esistente** picker SHALL also show its `specialRequirement` inline, beneath the talent's name, as one compact `LETTERA · N` chip per stat with a non-zero minimum (no chip row at all when the talent has no requirement). This inline chip row is independent of, and additive to, the tap-through detail popup above — it SHALL NOT change tap behavior (a tap still opens the detail popup, not an immediate pick) and SHALL NOT change the row's dimming or sort order, which continue to be driven solely by whether the requirement is met.
+
 #### Scenario: Talents catalog 400 degrades to an empty selection tab
 - **GIVEN** the talents catalog endpoint responds `400` (or is absent)
 - **WHEN** the owning player opens the talents add popup's **Scegli esistente** tab
@@ -45,3 +47,18 @@ Tapping a row in the **Scegli esistente** picker SHALL NOT select it immediately
 - **GIVEN** a talent's requirement is not met by the character's current SPECIAL
 - **WHEN** the owning player taps that dimmed row, opens its detail popup, and taps **Seleziona**
 - **THEN** the talent is selected exactly as any other entry would be — the dimming does not block the pick
+
+#### Scenario: A talent's requirement renders as inline chips on its row
+- **GIVEN** the talents catalog contains a talent requiring Endurance ≥ 3 and Intelligence ≥ 2
+- **WHEN** the owning player opens the talents add popup's **Scegli esistente** tab
+- **THEN** that talent's row shows an `E · 3` chip and an `I · 2` chip beneath its name, with no chip for any of the other five SPECIAL stats
+
+#### Scenario: A talent with no requirement shows no chip row
+- **GIVEN** a talent in the catalog has no `specialRequirement` set
+- **WHEN** the owning player opens the talents add popup's **Scegli esistente** tab
+- **THEN** that talent's row shows only its name, with no chip row beneath it
+
+#### Scenario: Inline chips do not change tap behavior
+- **GIVEN** a talent row is showing one or more requirement chips
+- **WHEN** the owning player taps that row
+- **THEN** the detail popup opens exactly as it would for a talent with no chips — the chip row never causes an immediate pick
