@@ -1073,6 +1073,13 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     cursor: default;
 }
 
+/* Idle pool preview before the first roll: dimmed only, no strikethrough —
+   distinct from a settled `.pb-die--full` six and a dropped die. */
+.pb-die--placeholder {
+    opacity: 0.35;
+    cursor: default;
+}
+
 .pb-result-box {
     border: 1px solid var(--green-border-soft);
     text-align: center;
@@ -1080,6 +1087,11 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     letter-spacing: 2px;
     padding: 10px;
     margin: 10px 0;
+}
+
+/* No result yet: keep the box's space reserved, just invisible. */
+.pb-result-box--empty {
+    opacity: 0;
 }
 
 .pb-register { max-height: 160px; overflow-y: auto; }

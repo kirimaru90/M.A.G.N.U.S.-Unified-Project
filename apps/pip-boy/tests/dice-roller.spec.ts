@@ -83,17 +83,84 @@ test('the modifier stepper is bounded −6..+6', async ({ page }) => {
   await expect(page.locator('#pb-dice-mod button[data-dir="-1"]')).toBeDisabled();
 });
 
-test('no result box is rendered before the first roll; a seeded roll then shows the outcome', async ({ page }) => {
+test('the result box is present but invisible before the first roll; a seeded roll then shows the outcome', async ({ page }) => {
   await openDice(page, { faces: [2, 6, 3] });
   await page.locator('[data-approach="strength"]').click(); // 3d6
 
-  // Before any roll there is no result box element at all — no placeholder slot.
-  await expect(page.locator('#pb-dice-result')).toHaveCount(0);
-  await expect(page.locator('.pb-die')).toHaveCount(0);
+  // Before any roll the result box is present and empty, reserving its space.
+  const result = page.locator('#pb-dice-result');
+  await expect(result).toHaveCount(1);
+  await expect(result).toHaveText('');
+  await expect(result).toHaveCSS('opacity', '0');
+
+  // The idle grid previews the pool with placeholder dice, all showing 6.
+  await expect(page.locator('.pb-die')).toHaveCount(3);
+  await expect(page.locator('.pb-die--placeholder')).toHaveCount(3);
+  const placeholderText = await page.locator('.pb-die--placeholder').allTextContents();
+  expect(placeholderText).toEqual(['6', '6', '6']);
 
   await rollAndSettle(page);
 
-  // Once the tumble settles the result box appears with the resolved outcome.
+  // Once the tumble settles the result box becomes visible with the outcome.
+  await expect(result).toHaveText('SUCCESSO PIENO');
+  await expect(result).toHaveCSS('opacity', '1');
+});
+
+test('idle placeholder dice are non-interactive', async ({ page }) => {
+  await openDice(page, { faces: [2, 6, 3] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+
+  const placeholders = page.locator('.pb-die--placeholder');
+  await expect(placeholders).toHaveCount(3);
+
+  await placeholders.first().click();
+
+  // Tapping a placeholder carries no reroll semantics — nothing is selected
+  // and the placeholder styling stays exactly as it was.
+  await expect(placeholders).toHaveCount(3);
+  await expect(page.locator('#pb-dice-hint')).toHaveCount(0);
+});
+
+test('the idle placeholder count tracks pool-size changes before rolling', async ({ page }) => {
+  await openDice(page, { faces: [1] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await expect(page.locator('.pb-die--placeholder')).toHaveCount(3);
+
+  await page.locator('#pb-dice-adv').click(); // VANTAGGIO: +1 → 4d6
+  await expect(page.locator('#pb-dice-pool')).toHaveText('4d6');
+  await expect(page.locator('.pb-die--placeholder')).toHaveCount(4);
+});
+
+test('placeholder dice never reappear after the first roll', async ({ page }) => {
+  await openDice(page, { faces: [2, 6, 3] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await rollAndSettle(page);
+
+  await expect(page.locator('.pb-die--placeholder')).toHaveCount(0);
+  await expect(page.locator('.pb-die')).toHaveCount(3);
+
+  // Changing the pool-affecting controls afterward must not bring placeholders
+  // back — the grid keeps showing the previous roll's real dice.
+  await page.locator('#pb-dice-adv').click();
+  await expect(page.locator('.pb-die--placeholder')).toHaveCount(0);
+  await expect(page.locator('.pb-die')).toHaveCount(3);
+});
+
+test('a reroll holds the previous outcome in the result box until it settles', async ({ page }) => {
+  await openDice(page, { faces: [1, 2, 3, 6] });
+  await page.locator('[data-approach="strength"]').click(); // 3d6
+  await rollAndSettle(page);
+  await expect(page.locator('#pb-dice-result')).toHaveText('FALLIMENTO');
+
+  await page.locator('button[data-die="0"]').click();
+  await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  await page.locator('#pb-dice-reroll').click();
+
+  // Mid-tumble the box keeps showing the previous outcome, unchanged.
+  await expect(page.locator('#pb-dice-result')).toHaveText('FALLIMENTO');
+  await expect(page.locator('#pb-dice-result')).toHaveCSS('opacity', '1');
+
+  await page.waitForTimeout(SETTLE_MS);
   await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });
 
