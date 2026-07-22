@@ -10,7 +10,7 @@ When `SVANTAGGIO` is active, the single highest-value die SHALL be dropped **bef
 
 Once a roll has **settled**, the dice SHALL render sorted from highest face value to lowest. This ordering is a display concern only: each die's identity for the purposes of reroll selection and the `SVANTAGGIO` drop SHALL remain tied to the die itself, independent of its rendered position — sorting the display SHALL NOT change which die is selected, dropped, or rerolled. While the tumble animation is playing, faces SHALL render in place and SHALL NOT be sorted.
 
-Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. The result box (`#pb-dice-result`) SHALL always be present in the DOM, reserving its layout space. Its visibility SHALL be driven purely by whether a result exists: with no result it renders empty at `opacity: 0`; once a result exists it renders at `opacity: 1` showing the resolved outcome (`SUCCESSO PIENO` / `SUCCESSO CON COSTO` / `FALLIMENTO`). This visibility SHALL depend only on whether a result exists, not on whether the tumble animation is currently playing — so during a reroll's tumble the box SHALL continue showing the previous result until the new one settles, rather than blanking mid-animation.
+Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. The result box (`#pb-dice-result`) SHALL always be present in the DOM at full opacity, reserving its layout space. Its content SHALL be driven purely by whether a result exists: with no result it renders a `-` placeholder; once a result exists it renders the resolved outcome (`SUCCESSO PIENO` / `SUCCESSO CON COSTO` / `FALLIMENTO`). This content SHALL depend only on whether a result exists, not on whether the tumble animation is currently playing — so during a reroll's tumble the box SHALL continue showing the previous result until the new one settles, rather than reverting to `-` mid-animation.
 
 The roller's random source SHALL be injectable, so that automated tests can assert on seeded outcomes rather than on real randomness.
 
@@ -48,17 +48,17 @@ The roller's random source SHALL be injectable, so that automated tests can asse
 - **WHEN** the tumble animation is playing
 - **THEN** tapping a die does not select it for reroll
 
-#### Scenario: Result box is present but invisible before the first roll
+#### Scenario: Result box shows a dash before the first roll
 - **WHEN** the `DADI` tab opens before any roll
-- **THEN** the `#pb-dice-result` element is present in the DOM, empty, and rendered at `opacity: 0`, reserving its layout space
+- **THEN** the `#pb-dice-result` element is present in the DOM at full opacity, showing `-`, reserving its layout space
 
-#### Scenario: Result box becomes visible once a roll settles
-- **GIVEN** the `DADI` tab was opened with no roll yet, so the result box is present at `opacity: 0`
+#### Scenario: Result box shows the outcome once a roll settles
+- **GIVEN** the `DADI` tab was opened with no roll yet, so the result box shows `-`
 - **WHEN** the player rolls and the tumble settles
-- **THEN** the result box renders at `opacity: 1`, showing the resolved outcome label
+- **THEN** the result box shows the resolved outcome label
 
 #### Scenario: Result box holds the previous outcome through a reroll's tumble
-- **GIVEN** a settled roll whose outcome is showing at `opacity: 1`
+- **GIVEN** a settled roll whose outcome is showing in the result box
 - **WHEN** the player rerolls selected dice and the reroll's tumble animation plays
 - **THEN** the result box continues showing the previous outcome, unchanged, until the reroll settles, at which point it updates to the newly resolved outcome
 

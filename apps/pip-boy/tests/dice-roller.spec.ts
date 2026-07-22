@@ -83,15 +83,16 @@ test('the modifier stepper is bounded −6..+6', async ({ page }) => {
   await expect(page.locator('#pb-dice-mod button[data-dir="-1"]')).toBeDisabled();
 });
 
-test('the result box is present but invisible before the first roll; a seeded roll then shows the outcome', async ({ page }) => {
+test('the result box shows a dash before the first roll; a seeded roll then shows the outcome', async ({ page }) => {
   await openDice(page, { faces: [2, 6, 3] });
   await page.locator('[data-approach="strength"]').click(); // 3d6
 
-  // Before any roll the result box is present and empty, reserving its space.
+  // Before any roll the result box is present at full opacity, showing a dash
+  // that reserves the box's space without claiming a result exists.
   const result = page.locator('#pb-dice-result');
   await expect(result).toHaveCount(1);
-  await expect(result).toHaveText('');
-  await expect(result).toHaveCSS('opacity', '0');
+  await expect(result).toHaveText('-');
+  await expect(result).toHaveCSS('opacity', '1');
 
   // The idle grid previews the pool with placeholder dice, all showing 6.
   await expect(page.locator('.pb-die')).toHaveCount(3);
@@ -101,7 +102,7 @@ test('the result box is present but invisible before the first roll; a seeded ro
 
   await rollAndSettle(page);
 
-  // Once the tumble settles the result box becomes visible with the outcome.
+  // Once the tumble settles the result box shows the resolved outcome.
   await expect(result).toHaveText('SUCCESSO PIENO');
   await expect(result).toHaveCSS('opacity', '1');
 });

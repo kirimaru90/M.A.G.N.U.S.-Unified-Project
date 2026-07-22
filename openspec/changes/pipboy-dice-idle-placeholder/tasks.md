@@ -1,8 +1,8 @@
 ## 1. Result box: reserve space, decouple from `s.rolling`
 
 - [x] 1.1 In `apps/pip-boy/src/tabs/dice.js`, change the `draw()` template so `#pb-dice-result` is rendered unconditionally (no more `s.result && !s.rolling ? ... : ''` ternary hiding the element entirely).
-- [x] 1.2 Give the element an empty/populated content branch and an "empty" state marker (e.g. a modifier class or `data-` attribute) driven purely by `s.result` truthiness — text is empty when `s.result` is null, `OUTCOME[s.result.outcome]` otherwise. Do **not** gate on `s.rolling`.
-- [x] 1.3 In `apps/pip-boy/src/styles/pipboy.css`, add the empty-state rule for `.pb-result-box` (`opacity: 0`), keeping border/padding/height identical to the populated state so no layout shift occurs when it toggles.
+- [x] 1.2 Give the element an empty/populated content branch driven purely by `s.result` truthiness — text is `-` when `s.result` is null, `OUTCOME[s.result.outcome]` otherwise. Do **not** gate on `s.rolling`. (Revised: the box stays at full opacity in both states — no opacity/empty-state CSS modifier — since a `-` placeholder reserves the space on its own.)
+- [x] 1.3 `.pb-result-box` needs no separate empty-state rule: border/padding/height are already identical in both states, and the box never toggles opacity, so no layout shift occurs.
 
 ## 2. Idle placeholder dice
 
@@ -12,7 +12,7 @@
 
 ## 3. Tests: `apps/pip-boy/tests/dice-roller.spec.ts`
 
-- [x] 3.1 Update the existing "no result box is rendered before the first roll" test: assert `#pb-dice-result` is present with empty text and computed `opacity: 0`, instead of `toHaveCount(0)`.
+- [x] 3.1 Update the existing "no result box is rendered before the first roll" test: assert `#pb-dice-result` is present showing `-` at full opacity, instead of `toHaveCount(0)`. (Revised from an opacity-0/empty-text assertion to a `-`-placeholder-at-full-opacity assertion.)
 - [x] 3.2 Update the same test's `.pb-die` assertion: before any roll, assert `poolSize()` placeholder dice are present (matching the selected approach's `{n}d6`) instead of `toHaveCount(0)`.
 - [x] 3.3 Add a test that placeholder dice are non-interactive: tapping one does not change any reroll-selection state and leaves the placeholder styling in place.
 - [x] 3.4 Add a test that the placeholder count tracks pool-size changes pre-roll (e.g. activating `VANTAGGIO` before rolling increases the shown placeholder count by one, matching the updated `{n}d6` readout).

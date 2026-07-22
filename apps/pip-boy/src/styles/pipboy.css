@@ -1089,11 +1089,6 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     margin: 10px 0;
 }
 
-/* No result yet: keep the box's space reserved, just invisible. */
-.pb-result-box--empty {
-    opacity: 0;
-}
-
 .pb-register { max-height: 160px; overflow-y: auto; }
 
 /* ── Dossier ────────────────────────────────────────────────────── */

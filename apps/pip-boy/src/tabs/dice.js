@@ -151,7 +151,7 @@ export function renderDiceTab(container, ctx) {
 
             <div class="pb-dice-grid" id="pb-dice-grid">${diceGrid()}</div>
 
-            <div class="pb-result-box vt${s.result ? '' : ' pb-result-box--empty'}" id="pb-dice-result">${s.result ? OUTCOME[s.result.outcome] : ''}</div>
+            <div class="pb-result-box vt" id="pb-dice-result">${s.result ? OUTCOME[s.result.outcome] : '-'}</div>
 
             <button class="pb-btn pb-btn--primary pb-btn--block" id="pb-dice-roll" ${s.rolling ? 'disabled' : ''}>TIRA</button>
 
