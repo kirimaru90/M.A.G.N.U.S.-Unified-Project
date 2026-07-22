@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
 
-const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'MAPPA', 'NOTES'];
+const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'NOTES', 'MAPPA'];
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {

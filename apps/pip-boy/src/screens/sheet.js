@@ -24,7 +24,7 @@ const TAB_TREE = [
     { key: 'stats', label: 'STATS', subtabs: [
         { key: 'special', label: 'S.P.E.C.I.A.L.', render: renderSpecialTab },
         { key: 'skills', label: 'Abilità', render: renderAbilitaTab },
-        { key: 'talents', label: 'Talents', render: renderTalentsTab },
+        { key: 'talents', label: 'TALENTI', render: renderTalentsTab },
     ] },
     { key: 'health', label: 'SALUTE', render: renderHealthTab },
     { key: 'inv', label: 'INV', subtabs: [
@@ -34,8 +34,8 @@ const TAB_TREE = [
         { key: 'misc', label: 'Vari', invKey: 'misc', invKind: 'misc', render: renderInvSubtab },
     ] },
     { key: 'dice', label: 'DADI', render: renderDiceTab },
-    { key: 'map', label: 'MAPPA', render: renderMapTab },
     { key: 'notes', label: 'NOTES', render: renderNotesTab },
+    { key: 'map', label: 'MAPPA', render: renderMapTab },
 ];
 
 // Depth-first leaf order that visits a section's subtabs before the next
@@ -316,7 +316,7 @@ export function renderSheet(root, opts) {
     }
 
     function renderStrip() {
-        // The amber critical banner wins over the green editor strip.
+        // The critical-red banner wins over the phosphor-colored editor strip.
         if (character.status?.criticalState) {
             stripEl.innerHTML = `<div class="pb-banner-critical">${CRITICAL_BANNER}</div>`;
         } else if (editMode) {
@@ -325,8 +325,8 @@ export function renderSheet(root, opts) {
             stripEl.innerHTML = '';
         }
         setCriticalChrome(!!character.status?.criticalState);
-        // The green editor ring mirrors the strip; setEditorChrome yields to the
-        // amber critical ring when both apply.
+        // The phosphor-colored editor ring mirrors the strip; setEditorChrome
+        // yields to the critical-red ring when both apply.
         setEditorChrome(editMode);
     }
 

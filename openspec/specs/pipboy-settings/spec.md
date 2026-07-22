@@ -3,53 +3,51 @@
 ## Purpose
 TBD - created by archiving change add-pipboy-settings-and-haptics. Update Purpose after archive.
 ## Requirements
-### Requirement: Settings entry point in the status bar
+### Requirement: Settings entry point in the bezel
 
-The status bar's sheet nav (`#pb-statusbar-nav`) SHALL present a settings control rendered
-**between** `◄ DOSSIER` and `ESCI`, labelled with a `⚙` glyph and carrying an Italian accessible
-name (`Impostazioni`). Activating it SHALL open the settings popup.
+The bottom bezel's left knob SHALL be the settings control: a `⚙`-glyphed, focusable button carrying an Italian accessible name (`Impostazioni`). Activating it SHALL open the settings popup.
 
-The control SHALL follow the existing nav's visibility rules: it is shown when the sheet nav is
-shown and hidden when the sheet nav is hidden, so it is reachable only while a character sheet is
-mounted. Unlike the `✎` editor toggle, it SHALL NOT be gated on write permission — every viewer,
-including one who may not write the character, SHALL be able to open settings.
+Unlike the earlier status-bar placement, the control SHALL be reachable on **every** screen — `login`, campaign-select, character-select, and the sheet — since the bezel that hosts it is always rendered. It SHALL NOT be gated on write permission, matching its prior behavior: every viewer, including one who may not write a character, and a user who has not yet reached a character sheet at all, SHALL be able to open settings.
 
-Preferences are therefore **edited only from the sheet** but **applied globally**: a preference
-set on the sheet SHALL remain in effect on the login, campaign-select, and character-select
-screens, where no settings control is present.
+Preferences are therefore both **edited** and **applied** globally: a preference set from the control on any screen SHALL remain in effect on every other screen, with no screen acting as the sole place it can be changed.
 
-#### Scenario: Settings control renders between the nav controls on the sheet
-- **WHEN** a character sheet is mounted
-- **THEN** the status bar nav shows `◄ DOSSIER`, then the settings control, then `ESCI`, in that
-  order
+Per `pipboy-terminal-chrome`'s `Bezel control lit state` requirement, the knob SHALL light (solid phosphor fill, dark glyph) for exactly as long as the settings popup is open, returning to its idle look the instant the popup closes — regardless of which of the popup's dismissal paths (its `✕` control or a click outside it) closed it.
 
-#### Scenario: Settings control is absent off-sheet
-- **WHEN** the login, campaign-select, or character-select screen is mounted
-- **THEN** no settings control is rendered
+#### Scenario: Settings control renders in the bezel on every screen
+- **WHEN** any screen — `login`, campaign-select, character-select, or the sheet — is mounted
+- **THEN** the bottom bezel's left knob is present, labelled `Impostazioni`, and activating it opens the settings popup
 
 #### Scenario: A read-only viewer can still open settings
-- **GIVEN** a user viewing a character they may not write, for whom the `✎` editor toggle is
-  hidden
+- **GIVEN** a user viewing a character they may not write, for whom the `✎` editor toggle is inert
 - **WHEN** the sheet is mounted
-- **THEN** the settings control is still shown and opens the popup
+- **THEN** the config knob still opens the popup
 
-#### Scenario: A preference set on the sheet applies off-sheet
-- **GIVEN** the user selects a non-default preference in the popup
-- **WHEN** the user navigates back to character-select
-- **THEN** that preference remains in effect even though the settings control is not shown there
+#### Scenario: A preference set on any screen applies everywhere
+- **GIVEN** the user selects a non-default preference in the popup opened from character-select
+- **WHEN** the user proceeds to the sheet
+- **THEN** that preference remains in effect
+
+#### Scenario: The config knob lights while the popup is open
+- **WHEN** the settings popup is opened
+- **THEN** the config knob is lit (solid phosphor fill, dark glyph)
+
+#### Scenario: The config knob goes dark when the popup closes via either path
+- **GIVEN** the settings popup is open and the config knob is lit
+- **WHEN** the popup is closed via its `✕` control, or by clicking outside it
+- **THEN** the config knob returns to its idle, unlit look in both cases
 
 ### Requirement: Settings popup applies every choice immediately
 
-The settings popup SHALL be titled `IMPOSTAZIONI` and SHALL present exactly four rows, in order:
-`ORIENTAMENTO`, `VIBRAZIONE`, `SCHERMO SEMPRE ATTIVO`, and `AUDIO`. Each row SHALL be a
+The settings popup SHALL be titled `IMPOSTAZIONI` and SHALL present exactly five rows, in order:
+`ORIENTAMENTO`, `VIBRAZIONE`, `SCHERMO SEMPRE ATTIVO`, `COLORE`, and `AUDIO`. Each row SHALL be a
 pick-one control consistent with the app's existing toggle-row treatment.
 
 Every choice SHALL take effect **the moment it is tapped** and SHALL be persisted at that moment.
 The popup SHALL offer **no OK or confirm control and no cancel control**; a single `✕` SHALL
 close it, and closing SHALL never revert a choice. This deliberately departs from the app's
 add-popup convention, which assembles an item and commits it on OK: a preference has no cancel
-semantics, and an orientation choice must be visibly applied while the popup is still open for
-the user to judge it.
+semantics, and an orientation or color choice must be visibly applied while the popup is still
+open for the user to judge it.
 
 The popup SHALL be dismissible by the `✕` and by activating the backdrop, consistent with the
 existing popup behaviour, and SHALL be reachable regardless of which sheet tab is active.
@@ -81,10 +79,11 @@ read at boot would abort startup and render nothing. When storage is unavailable
 are absent, unparseable, or of the wrong shape, the app SHALL fall back to defaults and SHALL
 continue to run normally, with preferences behaving as in-memory-only for that session.
 
-Defaults SHALL be: orientation `auto`, vibration on, screen-always-on on. The vibration default
-SHALL instead be **off** when the user agent reports `prefers-reduced-motion: reduce`; this seeds
-the default only and SHALL NOT override an explicit stored choice, so a user who asks for reduced
-motion may still turn rumble on and have that honoured.
+Defaults SHALL be: orientation `auto`, vibration on, screen-always-on on, phosphor color `green`.
+The vibration default SHALL instead be **off** when the user agent reports
+`prefers-reduced-motion: reduce`; this seeds the default only and SHALL NOT override an explicit
+stored choice, so a user who asks for reduced motion may still turn rumble on and have that
+honoured.
 
 #### Scenario: Preferences survive a reload
 - **GIVEN** the user chooses a non-default value in a row
@@ -111,6 +110,11 @@ motion may still turn rumble on and have that honoured.
 - **GIVEN** a user agent reporting `prefers-reduced-motion: reduce`
 - **WHEN** the user explicitly sets `VIBRAZIONE` to `ON`
 - **THEN** the choice is honoured and persisted, and rolls rumble
+
+#### Scenario: An invalid stored color falls back to green
+- **GIVEN** a stored `phosphorColor` value that is not one of `green`, `amber`, or `white`
+- **WHEN** the app boots
+- **THEN** the app applies `green` for that field without affecting any other stored preference
 
 ### Requirement: Orientation preference drives a runtime orientation lock
 
@@ -230,6 +234,28 @@ rejection.
 - **WHEN** the sheet is mounted with the preference `ON`
 - **THEN** no error is surfaced, no unhandled rejection occurs, and the app stays interactive
 
+### Requirement: Color preference selects the phosphor theme
+
+The `COLORE` row SHALL offer exactly three options — `VERDE` (default), `AMBRA`, and `BIANCO` —
+and SHALL be applied by setting the app's phosphor color theme, consistent with the token
+requirements specified by `pipboy-terminal-chrome`. The choice SHALL be local to the pip-boy app:
+it SHALL NOT be read from, written to, or synchronized with any other app's preferences, and SHALL
+NOT be sent to the server.
+
+#### Scenario: Selecting amber applies the amber theme
+- **WHEN** the user selects `AMBRA` in the `COLORE` row
+- **THEN** the app's phosphor theme switches to amber immediately, with no confirm step
+
+#### Scenario: Selecting white applies the white theme
+- **WHEN** the user selects `BIANCO` in the `COLORE` row
+- **THEN** the app's phosphor theme switches to white immediately, with no confirm step
+
+#### Scenario: The color choice is not shared with other apps
+- **GIVEN** the user has set a phosphor color preference in the terminal app
+- **WHEN** the user opens the pip-boy app for the first time
+- **THEN** the pip-boy `COLORE` row shows the default `VERDE`, unaffected by the terminal app's
+  preference
+
 ### Requirement: Audio preference is present but inert
 
 The `AUDIO` row SHALL be rendered in its documented position, visibly **disabled** and marked
@@ -242,7 +268,7 @@ disabled row marked `N/D` states the absence honestly.
 
 #### Scenario: The audio row is disabled and marked
 - **WHEN** the popup renders
-- **THEN** the `AUDIO` row is present in fourth position, is visibly disabled, and carries the
+- **THEN** the `AUDIO` row is present in fifth position, is visibly disabled, and carries the
   `N/D` marker
 
 #### Scenario: The audio row does not respond to activation
@@ -251,7 +277,7 @@ disabled row marked `N/D` states the absence honestly.
 
 ### Requirement: Credits entry in the settings popup
 
-The settings popup SHALL present a `CREDITI` action, rendered **below** its four preference rows and visually distinct from them. It is an action, not a preference: it is not a pick-one control, it persists nothing, and it does not affect the four-row requirement.
+The settings popup SHALL present a `CREDITI` action, rendered **below** its five preference rows and visually distinct from them. It is an action, not a preference: it is not a pick-one control, it persists nothing, and it does not affect the five-row requirement.
 
 Activating it SHALL open a credits view showing the third-party attribution the app owes, in the app's existing popup treatment, dismissible back to the settings popup or closed outright.
 
@@ -261,7 +287,7 @@ Reachability is bounded by the settings popup's own rules: it is available only 
 
 #### Scenario: Credits action renders below the preference rows
 - **WHEN** the settings popup is opened
-- **THEN** a `CREDITI` action is present below the four preference rows, visually distinct from them
+- **THEN** a `CREDITI` action is present below the five preference rows, visually distinct from them
 
 #### Scenario: Credits is not a preference
 - **WHEN** the user activates `CREDITI`

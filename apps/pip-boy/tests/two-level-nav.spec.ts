@@ -44,14 +44,14 @@ test('the first level is exactly the six tabs, in the flattened traversal order'
   await openSheet(page, { character: ownedCharacter() });
 
   // Exhaustive on purpose: FLAT derives from TAB_TREE, so this order is also the
-  // prev/next and swipe order. MAPPA sits between DADI and NOTES.
+  // prev/next and swipe order. MAPPA is the last tab, after NOTES.
   await expect(page.locator('.pb-tab')).toHaveText([
     'STATS',
     'SALUTE',
     'INV',
     'DADI',
-    'MAPPA',
     'NOTES',
+    'MAPPA',
   ]);
 });
 
@@ -59,7 +59,7 @@ test('the subtab row appears only for tabs that define subtabs', async ({ page }
   await openSheet(page, { character: ownedCharacter() });
 
   // STATS (default) → three subtabs.
-  await expect(page.locator('.pb-subtab')).toHaveText(['S.P.E.C.I.A.L.', 'Abilità', 'Talents']);
+  await expect(page.locator('.pb-subtab')).toHaveText(['S.P.E.C.I.A.L.', 'Abilità', 'TALENTI']);
 
   // SALUTE / DADI / MAPPA / NOTES → no subtab row.
   for (const label of ['SALUTE', 'DADI', 'MAPPA', 'NOTES']) {
@@ -95,16 +95,16 @@ test('swipe left advances and spills from a section into the next tab; right ret
   await swipe(page, -120); // → Abilità
   await expect(page.locator('.pb-subtab.active')).toHaveText('Abilità');
 
-  await swipe(page, -120); // → Talents
-  await expect(page.locator('.pb-subtab.active')).toHaveText('Talents');
+  await swipe(page, -120); // → TALENTI
+  await expect(page.locator('.pb-subtab.active')).toHaveText('TALENTI');
 
-  await swipe(page, -120); // spill: Talents is the last STATS subtab → SALUTE
+  await swipe(page, -120); // spill: TALENTI is the last STATS subtab → SALUTE
   await expect(page.locator('.pb-tab.active')).toHaveText('SALUTE');
   await expect(page.locator('.pb-subtabs')).toBeHidden();
 
   await swipe(page, 120); // back into the last STATS subtab
   await expect(page.locator('.pb-tab.active')).toHaveText('STATS');
-  await expect(page.locator('.pb-subtab.active')).toHaveText('Talents');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('TALENTI');
 });
 
 test('a short or predominantly-vertical gesture does not navigate', async ({ page }) => {
@@ -121,7 +121,7 @@ test('a short or predominantly-vertical gesture does not navigate', async ({ pag
 
 // ── STATS split ─────────────────────────────────────────────────────
 
-test('STATS splits into S.P.E.C.I.A.L. (with the dice legend), Abilità (+ SPESA PA), and Talents', async ({ page }) => {
+test('STATS splits into S.P.E.C.I.A.L. (with the dice legend), Abilità (+ SPESA PA), and TALENTI', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({ perks: [{ id: 'p1', name: 'Ratto di Fogna', description: 'noto' }] }),
   });
@@ -135,8 +135,8 @@ test('STATS splits into S.P.E.C.I.A.L. (with the dice legend), Abilità (+ SPESA
   await expect(page.locator('#pb-pa-spend')).toContainText('V.A.T.S.');
   await expect(page.locator('#pb-perks-list')).toHaveCount(0);
 
-  // Talents: perks only, no skills.
-  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  // TALENTI: perks only, no skills.
+  await page.locator('.pb-subtab', { hasText: 'TALENTI' }).click();
   await expect(page.locator('#pb-perks-list')).toContainText('Ratto di Fogna');
   await expect(page.locator('#pb-skills-list')).toHaveCount(0);
 });

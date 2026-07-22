@@ -16,6 +16,7 @@ import { mount } from './engine/render.js';
 import { hideSheetNav, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
 import { getPrefs } from './state/prefs.js';
 import { applyOrientation } from './engine/device.js';
+import { applyPhosphorTheme } from './engine/theme.js';
 
 const root = document.getElementById('app');
 
@@ -24,7 +25,7 @@ const root = document.getElementById('app');
 // screen mounts (every such screen calls resetChrome()).
 let mountedSheet = null;
 
-/** The status-bar nav and the amber/green rings belong to the sheet alone. */
+/** The status-bar nav and the critical/editor rings belong to the sheet alone. */
 function resetChrome() {
     mountedSheet = null;
     hideSheetNav();
@@ -228,6 +229,12 @@ window.addEventListener('pageshow', (e) => {
 });
 
 async function init() {
+    // Synchronous and before any screen mounts, per pipboy-settings: the phosphor
+    // theme is a CSS custom property, so applying it here — ahead of the first
+    // renderLogin/renderSheet call below — means the first paint already carries
+    // the persisted color instead of flashing the green default first.
+    applyPhosphorTheme(getPrefs().phosphorColor);
+
     // Before any screen mounts: the orientation lock is a global device state,
     // so it is applied from the persisted preference at boot rather than waiting
     // for the user to reopen the popup. Non-throwing, so it is not awaited.

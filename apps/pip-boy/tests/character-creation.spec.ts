@@ -192,7 +192,7 @@ test('the info box shows the selected species permesso and svantaggio', async ({
   await page.locator('[data-species="ghoul"]').click();
   await expect(page.locator('.pb-info-perm')).toContainText('Immune alle radiazioni.');
   await expect(page.locator('.pb-info-svan')).toContainText('Inviso agli umani.');
-  await expect(page.locator('.pb-info-svan')).toHaveCSS('color', 'rgb(255, 176, 46)');
+  await expect(page.locator('.pb-info-svan')).toHaveCSS('color', 'rgb(255, 59, 59)');
 });
 
 // ── Tag Skills add-flow ──────────────────────────────────────────────

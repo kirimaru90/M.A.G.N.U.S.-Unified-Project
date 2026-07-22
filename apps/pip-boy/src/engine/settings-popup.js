@@ -1,5 +1,6 @@
 import { getPrefs, setPref } from '../state/prefs.js';
 import { applyOrientation, requestWakeLock, releaseWakeLock } from './device.js';
+import { applyPhosphorTheme } from './theme.js';
 
 // The device-preferences popup. Chrome-level — it is opened from the status bar,
 // it outlives any screen, and it is not a sheet tab — so it sits beside chrome.js
@@ -49,6 +50,17 @@ const ROWS = [
             void (on ? requestWakeLock() : releaseWakeLock());
         },
         isActive: (prefs, value) => prefs.wakeLock === (value === 'on'),
+    },
+    {
+        key: 'phosphorColor',
+        label: 'COLORE',
+        options: [
+            { value: 'green', label: 'VERDE' },
+            { value: 'amber', label: 'AMBRA' },
+            { value: 'white', label: 'BIANCO' },
+        ],
+        apply: (value) => { setPref('phosphorColor', value); applyPhosphorTheme(value); },
+        isActive: (prefs, value) => prefs.phosphorColor === value,
     },
     {
         key: 'audio',

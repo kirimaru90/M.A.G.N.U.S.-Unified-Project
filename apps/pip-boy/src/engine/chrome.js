@@ -1,5 +1,5 @@
 // Controls the case chrome that lives *outside* `#app`: the status bar (dot,
-// label, sheet-only nav, OS label) and the amber critical ring overlay. Screens
+// label, sheet-only nav, OS label) and the critical-red ring overlay. Screens
 // mount into `#app` and cannot reach these, so they drive them through here.
 
 import { openSettingsPopup } from './settings-popup.js';
@@ -19,8 +19,9 @@ const configKnobEl = () => document.getElementById('pb-config-knob');
 let boundBack = null;
 let boundLogout = null;
 let boundToggleEdit = null;
-// The amber critical ring takes precedence over the green editor ring, so
-// setEditorChrome must know the current critical state to decide which shows.
+// The critical-red ring takes precedence over the phosphor-colored editor
+// ring, so setEditorChrome must know the current critical state to decide
+// which shows.
 let criticalActive = false;
 
 /**
@@ -80,20 +81,20 @@ configKnobEl()?.addEventListener('click', () => {
     openSettingsPopup(() => configKnobEl()?.classList.remove('on'));
 });
 
-/** Critical state rings the screen amber and swaps the status dot and label. */
+/** Critical state rings the screen critical-red and swaps the status dot and label. */
 export function setCriticalChrome(isCritical) {
     criticalActive = !!isCritical;
     const ring = ringEl();
     if (ring) ring.hidden = !isCritical;
     statusbar()?.classList.toggle('critical', !!isCritical);
     screenEl()?.classList.toggle('critical', !!isCritical);
-    // Recompute the editor ring: the amber ring must suppress it while critical.
+    // Recompute the editor ring: the critical-red ring must suppress it while critical.
     syncEditorRing();
 }
 
-// The green editor ring is only shown when editor mode is on AND the character
-// is not critical — the amber critical ring takes precedence, mirroring how the
-// amber critical banner takes precedence over the green editor strip.
+// The phosphor-colored editor ring is only shown when editor mode is on AND
+// the character is not critical — the critical-red ring takes precedence,
+// mirroring how the critical-red banner takes precedence over the editor strip.
 let editorActive = false;
 
 function syncEditorRing() {
@@ -101,12 +102,12 @@ function syncEditorRing() {
     if (ring) ring.hidden = !(editorActive && !criticalActive);
 }
 
-/** Reflect editor mode: the green ring and the nub's own lit state. */
+/** Reflect editor mode: the phosphor-colored ring and the nub's own lit state. */
 export function setEditorChrome(on) {
     editorActive = !!on;
     // The nub's lit state mirrors editor mode 1:1 (unlike the ring, it is not
-    // suppressed while critical — green never collides with the amber critical
-    // treatment, so both may show at once).
+    // suppressed while critical — the active phosphor theme color never
+    // collides with the critical-red treatment, so both may show at once).
     editorToggleEl()?.classList.toggle('on', !!on);
     syncEditorRing();
 }

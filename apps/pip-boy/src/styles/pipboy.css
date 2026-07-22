@@ -1,38 +1,53 @@
-/* Pip-Boy CRT phosphor-green visual system.
+/* Pip-Boy CRT phosphor visual system, parameterized by the user's chosen
+   phosphor theme (pipboy-settings' COLORE row: green / amber / white).
    Every colour, gradient and font below is a design token from
    `pipboy-terminal-chrome`. Nothing outside this set may be introduced:
-   reuse green and amber at alpha via the rgba() ladders, and express dim
-   text with element `opacity`, never with a colour alpha. */
+   reuse the active phosphor color and the critical-red token at alpha via
+   the rgba() ladders, and express dim text with element `opacity`, never
+   with a colour alpha.
+
+   The phosphor and phosphor-bright colors are each a channel-triplet custom
+   property (`--phosphor-rgb`/`--phosphor-bright-rgb`); engine/theme.js is the
+   single choke point that swaps them when the COLORE preference changes
+   (mirroring apps/terminal's config.js applyConfig()). `--phosphor`/
+   `--phosphor-bright` derive from the triplets so any rule that needs a
+   plain color value (rather than an alpha-adjustable one) keeps working
+   without a second write. */
 
 :root {
-    /* ── The six literals ─────────────────────────────────────── */
-    --phosphor: #33ff66;
-    --phosphor-bright: #aaffc0;
-    --amber: #ffb02e;
+    /* ── Phosphor theme (default: green) ──────────────────────── */
+    --phosphor-rgb: 51, 255, 102;
+    --phosphor-bright-rgb: 170, 255, 192;
+    --phosphor: rgb(var(--phosphor-rgb));
+    --phosphor-bright: rgb(var(--phosphor-bright-rgb));
     --screen-bg: #06110a;
     --case-gradient: linear-gradient(160deg, #22261c, #0e100b);
     --page-gradient: radial-gradient(circle at 50% 30%, #14170f 0%, #050604 70%);
 
-    /* ── Green opacity ladder ─────────────────────────────────── */
-    --green-border: rgba(51, 255, 102, 0.4);      /* default control border */
-    --green-border-soft: rgba(51, 255, 102, 0.25);
-    --green-border-strong: rgba(51, 255, 102, 0.5);
-    --green-hairline: rgba(51, 255, 102, 0.2);    /* dividers: 0.15–0.28 */
-    --green-hairline-faint: rgba(51, 255, 102, 0.15);
-    --green-fill: rgba(51, 255, 102, 0.08);       /* tinted fills: 0.08–0.14 */
-    --green-fill-active: rgba(51, 255, 102, 0.14);
-    --green-dashed: rgba(51, 255, 102, 0.45);
+    /* ── Phosphor opacity ladder ───────────────────────────────── */
+    --green-border: rgba(var(--phosphor-rgb), 0.4);      /* default control border */
+    --green-border-soft: rgba(var(--phosphor-rgb), 0.25);
+    --green-border-strong: rgba(var(--phosphor-rgb), 0.5);
+    --green-hairline: rgba(var(--phosphor-rgb), 0.2);    /* dividers: 0.15–0.28 */
+    --green-hairline-faint: rgba(var(--phosphor-rgb), 0.15);
+    --green-fill: rgba(var(--phosphor-rgb), 0.08);       /* tinted fills: 0.08–0.14 */
+    --green-fill-active: rgba(var(--phosphor-rgb), 0.14);
+    --green-dashed: rgba(var(--phosphor-rgb), 0.45);
 
-    /* ── Amber opacity ladder ─────────────────────────────────── */
-    --amber-border: rgba(255, 176, 46, 0.5);
-    --amber-fill: rgba(255, 176, 46, 0.12);
-    --amber-glow: 0 0 4px rgba(255, 176, 46, 0.4);
-    --amber-glow-strong: 0 0 6px rgba(255, 176, 46, 0.5);
+    /* ── Critical-red opacity ladder ───────────────────────────────
+       The critical/danger/damage/invalid/warning/error color, unconditional
+       across all three phosphor themes — see the "Negative accent" note
+       below for why this stays distinct from --neg too. */
+    --critical: #ff3b3b;
+    --critical-border: rgba(255, 59, 59, 0.5);
+    --critical-fill: rgba(255, 59, 59, 0.12);
+    --critical-glow: 0 0 4px rgba(255, 59, 59, 0.4);
+    --critical-glow-strong: 0 0 6px rgba(255, 59, 59, 0.5);
 
     /* ── Negative accent ──────────────────────────────────────────
        A desaturated red for negative conditions / depleted health. Kept
-       deliberately distinct from --amber, which stays critical-only, so the
-       critical escalation signal is never diluted by ordinary negatives. */
+       deliberately distinct from --critical, which stays critical-only, so
+       the critical escalation signal is never diluted by ordinary negatives. */
     --neg: #e0685c;
     --neg-border: rgba(224, 104, 92, 0.5);
     --neg-fill: rgba(224, 104, 92, 0.12);
@@ -40,8 +55,8 @@
     --pos: var(--phosphor);
 
     /* ── CRT ──────────────────────────────────────────────────── */
-    --phosphor-text-glow: 0 0 4px rgba(51, 255, 102, 0.55);
-    --screen-inner-glow: inset 0 0 60px rgba(51, 255, 102, 0.14), inset 0 0 6px rgba(51, 255, 102, 0.4);
+    --phosphor-text-glow: 0 0 4px rgba(var(--phosphor-rgb), 0.55);
+    --screen-inner-glow: inset 0 0 60px rgba(var(--phosphor-rgb), 0.14), inset 0 0 6px rgba(var(--phosphor-rgb), 0.4);
 
     --font-display: 'VT323', monospace;
     --font-body: 'Share Tech Mono', monospace;
@@ -97,10 +112,10 @@ body {
     padding-left: max(var(--pb-edge-margin), var(--pb-safe-left));
 }
 
-::selection { background: rgba(51, 255, 102, 0.35); }
+::selection { background: rgba(var(--phosphor-rgb), 0.35); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(51, 255, 102, 0.3); }
+::-webkit-scrollbar-thumb { background: rgba(var(--phosphor-rgb), 0.3); }
 ::-webkit-scrollbar-track { background: transparent; }
 
 .vt { font-family: var(--font-display); }
@@ -184,12 +199,13 @@ body {
 .pb-statusbar-btn:hover { background: var(--green-fill); }
 .pb-statusbar-btn[hidden] { display: none; }
 
-/* Critical state swaps the status dot and label to amber. */
+/* Critical state swaps the status dot and label to critical-red, in every
+   phosphor theme. */
 .pb-statusbar.critical .dot {
-    background: var(--amber);
-    box-shadow: 0 0 6px var(--amber);
+    background: var(--critical);
+    box-shadow: 0 0 6px var(--critical);
 }
-.pb-statusbar.critical .pb-status-label { color: var(--amber); text-shadow: var(--amber-glow); }
+.pb-statusbar.critical .pb-status-label { color: var(--critical); text-shadow: var(--critical-glow); }
 
 .pb-screen {
     flex: 1;
@@ -266,27 +282,31 @@ body {
     height: 40%;
     z-index: 3;
     pointer-events: none;
-    background: linear-gradient(180deg, rgba(51, 255, 102, 0.08), transparent);
+    background: linear-gradient(180deg, rgba(var(--phosphor-rgb), 0.08), transparent);
     animation: scanSweep 7s linear infinite;
 }
 
 /* Always-visible signal of editor mode, shown with the ◉ EDITOR strip. Sits
    below the critical ring (z4 vs z5); chrome.js hides it while critical so the
-   amber ring takes precedence, matching the banner precedence rule. */
+   critical-red ring takes precedence, matching the banner precedence rule.
+   Renders in the active phosphor theme color — never the critical-red token,
+   so it is never mistakable for a critical signal (pipboy-terminal-chrome). */
 .pb-editor-ring {
     z-index: 4;
     border-radius: 14px;
     border: 1px solid var(--green-border-strong);
-    box-shadow: inset 0 0 45px rgba(51, 255, 102, 0.25);
+    box-shadow: inset 0 0 45px rgba(var(--phosphor-rgb), 0.25);
 }
 .pb-editor-ring[hidden] { display: none; }
 
-/* Shown alongside the ⚠ STATO CRITICO banner, never instead of it. */
+/* Shown alongside the ⚠ STATO CRITICO banner, never instead of it. Renders in
+   the critical-red token unconditionally, regardless of the active phosphor
+   theme. */
 .pb-critical-ring {
     z-index: 5;
     border-radius: 14px;
-    border: 1px solid var(--amber-border);
-    box-shadow: inset 0 0 45px rgba(255, 176, 46, 0.3);
+    border: 1px solid var(--critical-border);
+    box-shadow: inset 0 0 45px rgba(255, 59, 59, 0.3);
 }
 .pb-critical-ring[hidden] { display: none; }
 
@@ -370,13 +390,14 @@ body {
    directly on its own body — solid phosphor fill with a glow — rather than
    pairing with a separate LED element. The glyph swaps to the dark
    screen-background ink so it stays legible against its own bright fill
-   instead of disappearing into it. Green only — amber stays reserved for the
-   critical state, so a lit control is never mistakable for a critical signal. */
+   instead of disappearing into it. Always the active phosphor theme color,
+   never critical-red — critical-red stays reserved for the critical state, so
+   a lit control is never mistakable for a critical signal. */
 #pb-config-knob.on,
 #pb-editor-toggle.on {
     background: var(--phosphor);
     border-color: var(--phosphor);
-    box-shadow: 0 0 6px var(--phosphor), 0 0 10px rgba(51, 255, 102, 0.6);
+    box-shadow: 0 0 6px var(--phosphor), 0 0 10px rgba(var(--phosphor-rgb), 0.6);
     color: var(--screen-bg);
 }
 
@@ -411,7 +432,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 .pb-dashed {
     border: none;
-    border-top: 1px dashed rgba(51, 255, 102, 0.3);
+    border-top: 1px dashed rgba(var(--phosphor-rgb), 0.3);
     margin: 10px 0;
 }
 
@@ -430,22 +451,22 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 }
 .pb-btn:hover { background: var(--green-fill); }
 .pb-btn:disabled { opacity: 0.35; cursor: default; }
-.pb-btn--primary { box-shadow: 0 0 6px rgba(51, 255, 102, 0.4); }
+.pb-btn--primary { box-shadow: 0 0 6px rgba(var(--phosphor-rgb), 0.4); }
 /* Dashed marks "add" and optional actions. */
 .pb-btn--dashed { border: 1px dashed var(--green-dashed); }
-.pb-btn--danger { border-color: var(--amber-border); color: var(--amber); }
+.pb-btn--danger { border-color: var(--critical-border); color: var(--critical); }
 .pb-btn--block { width: 100%; }
 
 .pb-input, .pb-select {
-    background: rgba(51, 255, 102, 0.06);
-    border: 1px solid rgba(51, 255, 102, 0.35);
+    background: rgba(var(--phosphor-rgb), 0.06);
+    border: 1px solid rgba(var(--phosphor-rgb), 0.35);
     color: var(--phosphor);
     font-family: var(--font-body);
     font-size: 13px;
     padding: 8px;
     width: 100%;
 }
-.pb-input::placeholder { color: rgba(51, 255, 102, 0.4); }
+.pb-input::placeholder { color: rgba(var(--phosphor-rgb), 0.4); }
 
 /* Render the native option popup on the phosphor theme rather than the
    browser-default light list. Native option styling is only partially honored
@@ -504,7 +525,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     opacity: 0.6;
     text-transform: uppercase;
 }
-.pb-chip.damaged { text-decoration: line-through; color: var(--amber); border-color: rgba(255, 176, 46, 0.4); }
+.pb-chip.damaged { text-decoration: line-through; color: var(--critical); border-color: rgba(255, 59, 59, 0.4); }
 
 .pb-row {
     border: 1px solid var(--green-border-soft);
@@ -608,10 +629,10 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 }
 
 .pb-banner-critical {
-    background: var(--amber-fill);
-    border: 1px solid var(--amber-border);
-    color: var(--amber);
-    text-shadow: var(--amber-glow-strong);
+    background: var(--critical-fill);
+    border: 1px solid var(--critical-border);
+    color: var(--critical);
+    text-shadow: var(--critical-glow-strong);
     padding: 8px 12px;
     margin: 10px 14px 0;
     text-align: center;
@@ -621,9 +642,9 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 }
 
 .pb-offline-banner {
-    background: rgba(255, 176, 46, 0.1);
-    border: 1px solid rgba(255, 176, 46, 0.4);
-    color: var(--amber);
+    background: rgba(255, 59, 59, 0.1);
+    border: 1px solid rgba(255, 59, 59, 0.4);
+    color: var(--critical);
     padding: 8px 12px;
     margin: 10px 14px 0;
     font-size: 11px;
@@ -631,8 +652,8 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 }
 
 .pb-error {
-    color: var(--amber);
-    text-shadow: var(--amber-glow);
+    color: var(--critical);
+    text-shadow: var(--critical-glow);
     font-size: 12px;
     margin-top: 6px;
 }
@@ -655,7 +676,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 }
 
 .pb-select-item {
-    border: 1px solid rgba(51, 255, 102, 0.3);
+    border: 1px solid rgba(var(--phosphor-rgb), 0.3);
     padding: 12px;
     cursor: pointer;
     display: flex;
@@ -819,7 +840,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-health-bar-fill {
     height: 100%;
     background: var(--phosphor);
-    box-shadow: inset 0 0 6px rgba(51, 255, 102, 0.5);
+    box-shadow: inset 0 0 6px rgba(var(--phosphor-rgb), 0.5);
     transition: width 0.2s ease;
 }
 .pb-health-bar-fill.empty { background: var(--neg); box-shadow: inset 0 0 6px var(--neg-fill); }
@@ -876,7 +897,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
    beneath it. Overrides the rich-row's row layout to a column. */
 .pb-picker-row--stacked { flex-direction: column; align-items: stretch; gap: 6px; }
 .pb-picker-row--stacked .pb-picker-row-line { display: flex; align-items: center; gap: 8px; }
-.pb-picker-sub { display: flex; flex-wrap: wrap; gap: 6px; }
+.pb-picker-sub { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 2px; }
 /* Tag chips shown in the picker are display-only — differentiate core/extra by
    background/border alone (no CORE/EXTRA label), reusing pb-chip--core/--extra. */
 .pb-picker-sub .pb-chip {
@@ -896,7 +917,7 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 
 .pb-btn--submit {
     margin-top: 8px;
-    background: rgba(51, 255, 102, 0.1);
+    background: rgba(var(--phosphor-rgb), 0.1);
     border: 1px solid var(--green-border-strong);
     font-family: var(--font-display);
     font-size: 18px;
@@ -965,9 +986,9 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
 .pb-chip-remove { background: transparent; border: none; color: inherit; cursor: pointer; padding: 0 2px; }
 
 .pb-danger-tag {
-    color: var(--amber);
-    border: 1px solid var(--amber-border);
-    text-shadow: var(--amber-glow);
+    color: var(--critical);
+    border: 1px solid var(--critical-border);
+    text-shadow: var(--critical-glow);
     font-size: 9px;
     letter-spacing: 1px;
     padding: 1px 5px;
@@ -1109,7 +1130,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-wizard-footer #pb-cr-next,
 .pb-wizard-footer #pb-cr-create { margin-left: auto; }
 .pb-btn--create {
-    background: rgba(51, 255, 102, 0.14);
+    background: rgba(var(--phosphor-rgb), 0.14);
     border-color: var(--green-border-strong);
     padding: 8px 20px;
 }
@@ -1130,10 +1151,10 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     line-height: 1.5;
 }
 .pb-info-perm { color: var(--phosphor); }
-.pb-info-svan { color: var(--amber); text-shadow: var(--amber-glow); margin-top: 6px; }
+.pb-info-svan { color: var(--critical); text-shadow: var(--critical-glow); margin-top: 6px; }
 
 .pb-remaining { font-size: 18px; }
-.pb-remaining.amber { color: var(--amber); text-shadow: var(--amber-glow-strong); }
+.pb-remaining.amber { color: var(--critical); text-shadow: var(--critical-glow-strong); }
 .pb-remaining.zero { color: var(--phosphor); text-shadow: 0 0 6px var(--phosphor); }
 
 .pb-pa-panels { display: flex; gap: 8px; margin-top: 10px; }
@@ -1225,19 +1246,21 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     flex-direction: column;
     gap: 10px;
 }
-/* Small red ✕ in the top-right cancels with no write. */
+/* The ✕ in the top-right cancels with no write — a plain dismiss action, not
+   a status/error indicator, so it renders in the active phosphor theme color
+   rather than the critical-red token. */
 .pb-popup-close {
     position: absolute;
     top: 6px; right: 6px;
     width: 24px; height: 24px;
-    border: 1px solid var(--amber-border);
+    border: 1px solid var(--green-border-strong);
     background: transparent;
-    color: var(--amber);
+    color: var(--phosphor);
     font-family: var(--font-body);
     font-size: 13px;
     cursor: pointer;
 }
-.pb-popup-close:hover { background: var(--amber-fill); }
+.pb-popup-close:hover { background: var(--green-fill); }
 .pb-popup-title {
     font-family: var(--font-display);
     font-size: 18px;
@@ -1276,8 +1299,8 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     font-family: var(--font-body);
     font-size: 9px;
     letter-spacing: 1px;
-    color: var(--amber);
-    border: 1px solid var(--amber-border);
+    color: var(--phosphor);
+    border: 1px solid var(--green-border);
     padding: 0 4px;
 }
 
@@ -1327,7 +1350,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 }
 .pb-notes-sep {
     border: none;
-    border-top: 1px dashed rgba(51, 255, 102, 0.3);
+    border-top: 1px dashed rgba(var(--phosphor-rgb), 0.3);
     margin: 16px 0 4px;
 }
 .pb-note-list { padding-bottom: 12px; }
@@ -1364,7 +1387,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     letter-spacing: 1px;
     margin-right: 28px; /* clears the ✕ */
 }
-.pb-input--invalid { border-color: var(--amber-border); box-shadow: var(--amber-glow); }
+.pb-input--invalid { border-color: var(--critical-border); box-shadow: var(--critical-glow); }
 
 .pb-note-toolbar {
     flex: none;
@@ -1476,14 +1499,14 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-picker-close {
     flex: none;
     width: 32px; height: 32px;
-    border: 1px solid var(--amber-border);
+    border: 1px solid var(--green-border-strong);
     background: transparent;
-    color: var(--amber);
+    color: var(--phosphor);
     font-family: var(--font-body);
     font-size: 15px;
     cursor: pointer;
 }
-.pb-picker-close:hover { background: var(--amber-fill); }
+.pb-picker-close:hover { background: var(--green-fill); }
 .pb-picker-search { flex: none; }
 /* The only scroll region: the sheet itself never scrolls, its list does. */
 .pb-picker-list {
@@ -1500,7 +1523,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     text-align: left;
     padding: 14px 12px;
     border: 1px solid var(--green-border);
-    background: rgba(51, 255, 102, 0.06);
+    background: rgba(var(--phosphor-rgb), 0.06);
     color: var(--phosphor);
     font-family: var(--font-body);
     font-size: 14px;
@@ -1514,7 +1537,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
    picker; it borrows .pb-input but aligns like a field and dims its placeholder. */
 .pb-popup-picker-field { text-align: left; cursor: pointer; }
 .pb-popup-picker-field:disabled { opacity: 0.5; cursor: default; }
-.pb-popup-picker-value[data-empty] { color: rgba(51, 255, 102, 0.4); }
+.pb-popup-picker-value[data-empty] { color: rgba(var(--phosphor-rgb), 0.4); }
 
 /* Nested detail popup opened from a picker row (talents only, via the `detail`
    hook): rendered above the picker sheet (z-index 50), list left mounted
@@ -1594,7 +1617,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 /* The type line: a quiet, uppercased label under the name. */
 .pb-map-popup-type {
     margin-top: 1px;
-    color: rgba(51, 255, 102, 0.6);
+    color: rgba(var(--phosphor-rgb), 0.6);
     font-size: 10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -1640,7 +1663,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     stroke-width: 1.6;
     stroke-linecap: round;
     stroke-linejoin: round;
-    filter: drop-shadow(0 0 3px rgba(51, 255, 102, 0.55));
+    filter: drop-shadow(0 0 3px rgba(var(--phosphor-rgb), 0.55));
 }
 .pb-map-marker-label {
     position: absolute;
@@ -1673,7 +1696,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     border: 1px solid var(--green-hairline);
     font-size: 11px;
     letter-spacing: 0.08em;
-    color: rgba(51, 255, 102, 0.7);
+    color: rgba(var(--phosphor-rgb), 0.7);
     pointer-events: none;
 }
 /* Truncated from the LEFT: where you are matters more than distant ancestry, so
@@ -1706,7 +1729,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     padding: 1px 5px;
     font-size: 9px;
     letter-spacing: 0.04em;
-    color: rgba(51, 255, 102, 0.55);
+    color: rgba(var(--phosphor-rgb), 0.55);
     background: rgba(6, 17, 10, 0.6);
     border: 1px solid var(--green-hairline-faint);
     pointer-events: none;
@@ -1763,7 +1786,7 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     font-size: 12px;
     letter-spacing: 0.04em;
 }
-.pb-map-search-input::placeholder { color: rgba(51, 255, 102, 0.4); }
+.pb-map-search-input::placeholder { color: rgba(var(--phosphor-rgb), 0.4); }
 .pb-map-search-input:focus { outline: none; border-color: var(--green-border-strong); }
 .pb-map-search-list {
     display: none;
@@ -1855,17 +1878,17 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     .pb-map-canvas { transition: filter 220ms ease; }
 }
 
-/* CREDITI — an action below the four preference rows, deliberately not a fifth
-   pb-toggle-row: the pipboy-settings capability requires exactly four rows, and
-   this is not a pick-one preference. It persists nothing. */
+/* CREDITI — an action below the five preference rows, deliberately not a
+   sixth pb-toggle-row: the pipboy-settings capability requires exactly five
+   rows, and this is not a pick-one preference. It persists nothing. */
 /* VERSIONE + update check: an informational footer below CREDITI, not a
-   preference row (the pipboy-settings capability fixes the row count at four). */
+   preference row (the pipboy-settings capability fixes the row count at five). */
 .pb-settings-version { margin-top: 4px; }
 .pb-settings-version-value {
     font-family: var(--font-body);
     font-size: 9px;
     letter-spacing: 1px;
-    color: rgba(51, 255, 102, 0.6);
+    color: rgba(var(--phosphor-rgb), 0.6);
     max-width: 60%;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1884,5 +1907,5 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     margin: 4px 0 0;
     font-size: 11px;
     line-height: 1.5;
-    color: rgba(51, 255, 102, 0.75);
+    color: rgba(var(--phosphor-rgb), 0.75);
 }

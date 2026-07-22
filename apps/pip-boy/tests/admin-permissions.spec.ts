@@ -64,9 +64,9 @@ test('the + add trigger is present in both modes on abilities and talents; remov
   await expect(page.locator('[data-add-skill]')).toBeVisible();
   await expect(page.locator('[data-remove-skill]').first()).toBeVisible();
 
-  // Talents subtab (editor mode persists across subtab switches): the + trigger
+  // TALENTI subtab (editor mode persists across subtab switches): the + trigger
   // is present regardless of mode.
-  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  await page.locator('.pb-subtab', { hasText: 'TALENTI' }).click();
   await expect(page.locator('[data-add-talent]')).toBeVisible();
 });
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, seedDice } from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs } from './fixtures';
 
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
@@ -265,7 +265,7 @@ test('login does not claim a first login registers a new id', async ({ page }) =
   expect(text).not.toContain('registr');
 });
 
-test('a failed auth shows an amber ⚠ inline error', async ({ page }) => {
+test('a failed auth shows a critical-red ⚠ inline error, in every phosphor theme', async ({ page }) => {
   await stubEnvironment(page);
   await page.route('**/auth/login', (route) =>
     route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }),
@@ -279,7 +279,7 @@ test('a failed auth shows an amber ⚠ inline error', async ({ page }) => {
   const error = page.locator('#pb-login-error');
   await expect(error).toBeVisible();
   await expect(error).toContainText('⚠');
-  await expect(error).toHaveCSS('color', 'rgb(255, 176, 46)');
+  await expect(error).toHaveCSS('color', 'rgb(255, 59, 59)');
 });
 
 // One test per field: a successful login persists its token, so a second
@@ -331,7 +331,7 @@ test('◄ DOSSIER returns to character selection and hides the nav again', async
   await expect(page.locator('#pb-statusbar-nav')).toBeHidden();
 });
 
-test('critical state rings the screen amber and swaps the status dot', async ({ page }) => {
+test('critical state rings the screen critical-red and swaps the status dot', async ({ page }) => {
   await stubEnvironment(page, {
     character: makeCharacter({
       status: { positiveConditions: [], negativeConditions: [], criticalState: true },
@@ -346,7 +346,7 @@ test('critical state rings the screen amber and swaps the status dot', async ({ 
     const cs = getComputedStyle(el);
     return { border: cs.borderTopColor, pe: cs.pointerEvents, radius: cs.borderRadius };
   });
-  expect(ring.border).toBe('rgba(255, 176, 46, 0.5)');
+  expect(ring.border).toBe('rgba(255, 59, 59, 0.5)');
   expect(ring.pe).toBe('none');
   expect(ring.radius).toBe('14px');
 });
@@ -358,6 +358,32 @@ test('a non-critical character shows no ring and a green status dot', async ({ p
   await expect(page.locator('#pb-critical-ring')).toBeHidden();
   await expect(page.locator('.pb-statusbar')).not.toHaveClass(/critical/);
 });
+
+// ── critical-red is amber-independent across all three phosphor themes ──
+
+for (const theme of ['green', 'amber', 'white'] as const) {
+  test(`critical state renders the same critical-red ring and status dot under the ${theme} theme`, async ({ page }) => {
+    await seedPrefs(page, { orientation: 'auto', vibration: true, wakeLock: true, phosphorColor: theme });
+    await stubEnvironment(page, {
+      character: makeCharacter({
+        status: { positiveConditions: [], negativeConditions: [], criticalState: true },
+      }),
+    });
+    await openSheet(page);
+
+    const [ringColor, dotColor, phosphorRgb] = await Promise.all([
+      page.locator('#pb-critical-ring').evaluate((el) => getComputedStyle(el).borderTopColor),
+      page.locator('.pb-statusbar .dot').evaluate((el) => getComputedStyle(el).backgroundColor),
+      page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--phosphor-rgb').trim()),
+    ]);
+
+    expect(ringColor).toBe('rgba(255, 59, 59, 0.5)');
+    expect(dotColor).toBe('rgb(255, 59, 59)');
+    // The critical-red rendering never matches the active theme's phosphor
+    // color — proving it did not fall back to (or collide with) the theme.
+    expect(dotColor).not.toBe(`rgb(${phosphorRgb})`);
+  });
+}
 
 // ── editor toggle in the bezel (sheet-chrome-and-layout) ─────────────
 
@@ -400,7 +426,7 @@ test('a non-owner viewer sees the ✎ toggle, disabled and inert', async ({ page
   await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 });
 
-test('toggling editor mode adds and removes the green ring and the ◉ EDITOR strip', async ({ page }) => {
+test('toggling editor mode adds and removes the phosphor-colored ring and the ◉ EDITOR strip', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
@@ -430,7 +456,27 @@ test('toggling editor mode adds and removes the green ring and the ◉ EDITOR st
   await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 });
 
-test('a critical character in editor mode shows the amber ring, not the green one', async ({ page }) => {
+test('the editor LED renders the active (non-green) phosphor theme color while critical, never critical-red', async ({ page }) => {
+  await seedPrefs(page, { orientation: 'auto', vibration: true, wakeLock: true, phosphorColor: 'amber' });
+  await stubEnvironment(page, {
+    character: makeCharacter({
+      status: { positiveConditions: [], negativeConditions: [], criticalState: true },
+    }),
+  });
+  await openSheet(page);
+
+  await page.locator('#pb-editor-toggle').click();
+  await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
+
+  const nubBg = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Lit, the nub's own body fills with the theme color (amber here) — never
+  // the critical-red token — even while the character is simultaneously
+  // critical, so the two indicators are never mistakable for one another.
+  expect(nubBg).toBe('rgb(255, 176, 46)');
+  expect(nubBg).not.toBe('rgb(255, 59, 59)');
+});
+
+test('a critical character in editor mode shows the critical-red ring, not the phosphor-colored one', async ({ page }) => {
   await stubEnvironment(page, {
     character: makeCharacter({
       status: { positiveConditions: [], negativeConditions: [], criticalState: true },
@@ -442,8 +488,9 @@ test('a critical character in editor mode shows the amber ring, not the green on
 
   await expect(page.locator('#pb-critical-ring')).toBeVisible();
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
-  // The nub stays lit green even while critical — the amber critical ring and
-  // the green nub never share a color, and both may show at once.
+  // The nub stays lit the active phosphor theme color even while critical — the
+  // critical-red ring and the phosphor-colored nub never share a color, and
+  // both may show at once.
   await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
 });
 

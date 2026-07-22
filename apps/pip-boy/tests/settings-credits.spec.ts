@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { stubEnvironment, login, makeCharacter, seedPrefs } from './fixtures';
 
-// Covers the pipboy-settings delta: CREDITI as an action below the four
+// Covers the pipboy-settings delta: CREDITI as an action below the five
 // preference rows.
 //
 // The other half of the basemap licence obligation lives here. The map collapses
@@ -22,11 +22,11 @@ async function openSettings(page: Page) {
   await expect(page.locator('#pb-settings-popup')).toBeVisible();
 }
 
-test('CREDITI renders below the four preference rows', async ({ page }) => {
+test('CREDITI renders below the five preference rows', async ({ page }) => {
   await openSettings(page);
 
-  // Still exactly four rows: CREDITI is an action, not a fifth pick-one row.
-  await expect(page.locator('.pb-settings-row')).toHaveCount(4);
+  // Still exactly five rows: CREDITI is an action, not a sixth pick-one row.
+  await expect(page.locator('.pb-settings-row')).toHaveCount(5);
 
   const action = page.locator('[data-credits]');
   await expect(action).toBeVisible();

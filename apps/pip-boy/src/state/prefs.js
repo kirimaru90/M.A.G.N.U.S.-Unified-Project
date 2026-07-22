@@ -11,6 +11,7 @@
 const KEY = 'pipboy:prefs';
 
 export const ORIENTATIONS = ['auto', 'portrait', 'landscape'];
+export const PHOSPHOR_COLORS = ['green', 'amber', 'white'];
 
 function prefersReducedMotion() {
     try {
@@ -26,7 +27,7 @@ function prefersReducedMotion() {
  * reduced motion may still turn rumble on and have that honoured.
  */
 export function defaultPrefs() {
-    return { orientation: 'auto', vibration: !prefersReducedMotion(), wakeLock: true };
+    return { orientation: 'auto', vibration: !prefersReducedMotion(), wakeLock: true, phosphorColor: 'green' };
 }
 
 function readRaw() {
@@ -52,6 +53,7 @@ function coerce(stored) {
     if (ORIENTATIONS.includes(stored.orientation)) prefs.orientation = stored.orientation;
     if (typeof stored.vibration === 'boolean') prefs.vibration = stored.vibration;
     if (typeof stored.wakeLock === 'boolean') prefs.wakeLock = stored.wakeLock;
+    if (PHOSPHOR_COLORS.includes(stored.phosphorColor)) prefs.phosphorColor = stored.phosphorColor;
     return prefs;
 }
 

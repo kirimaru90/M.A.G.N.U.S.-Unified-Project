@@ -61,7 +61,7 @@ test('the talents catalog 400 degrades to an empty selection tab with no error; 
     route.fulfill({ status: 400, contentType: 'application/json', body: '{"error":"not available"}' }));
 
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();
-  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  await page.locator('.pb-subtab', { hasText: 'TALENTI' }).click();
 
   await page.locator('[data-add-talent]').click();
 
@@ -95,7 +95,7 @@ const EAGLE_EYE = { slug: 'eagle-eye', name: 'Eagle Eye', specialRequirement: [0
 
 async function openTalentsPicker(page: Page) {
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();
-  await page.locator('.pb-subtab', { hasText: 'Talents' }).click();
+  await page.locator('.pb-subtab', { hasText: 'TALENTI' }).click();
   await page.locator('[data-add-talent]').click();
   await page.locator('[data-open-existing]').click();
   await expect(page.locator('.pb-picker')).toBeVisible();

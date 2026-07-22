@@ -92,7 +92,7 @@ test('the config knob lights while the popup is open, and darkens on close via e
 
 // ── popup shape and apply-on-tap ────────────────────────────────────
 
-test('the popup shows four rows in order and offers no OK control anywhere', async ({ page }) => {
+test('the popup shows five rows in order and offers no OK control anywhere', async ({ page }) => {
   await stubDeviceApis(page);
   await stubEnvironment(page);
   await openSheet(page);
@@ -100,24 +100,25 @@ test('the popup shows four rows in order and offers no OK control anywhere', asy
 
   await expect(page.locator(`${POPUP} .pb-popup-title`)).toHaveText('IMPOSTAZIONI');
   const labels = await page.locator(`${POPUP} .pb-settings-row .pb-label`).allTextContents();
-  expect(labels).toEqual(['ORIENTAMENTO', 'VIBRAZIONE', 'SCHERMO SEMPRE ATTIVO', 'AUDIO']);
+  expect(labels).toEqual(['ORIENTAMENTO', 'VIBRAZIONE', 'SCHERMO SEMPRE ATTIVO', 'COLORE', 'AUDIO']);
 
   await expect(row(page, 'orientation').locator('[data-value]')).toHaveText(['AUTO', 'VERTICALE', 'ORIZZONTALE']);
   await expect(row(page, 'vibration').locator('[data-value]')).toHaveText(['ON', 'OFF']);
+  await expect(row(page, 'phosphorColor').locator('[data-value]')).toHaveText(['VERDE', 'AMBRA', 'BIANCO']);
 
   // A preference has no cancel semantics, so there is nothing to confirm.
   await expect(page.locator(`${POPUP} .pb-popup-actions`)).toHaveCount(0);
   await expect(page.locator(POPUP).getByText('OK', { exact: true })).toHaveCount(0);
 });
 
-test('a VERSIONE footer shows the build and offers an update check, outside the four rows', async ({ page }) => {
+test('a VERSIONE footer shows the build and offers an update check, outside the five rows', async ({ page }) => {
   await stubDeviceApis(page);
   await stubEnvironment(page);
   await openSheet(page);
   await openSettings(page);
 
-  // Still exactly four preference rows: the version footer is not one of them.
-  await expect(page.locator(`${POPUP} .pb-settings-row`)).toHaveCount(4);
+  // Still exactly five preference rows: the version footer is not one of them.
+  await expect(page.locator(`${POPUP} .pb-settings-row`)).toHaveCount(5);
 
   const version = page.locator(`${POPUP} [data-version]`);
   await expect(version).toBeVisible();
@@ -142,6 +143,7 @@ test('the popup opens with the defaults active: AUTO, vibration on, wake lock on
   await expect(option(page, 'orientation', 'auto')).toHaveClass(/active/);
   await expect(option(page, 'vibration', 'on')).toHaveClass(/active/);
   await expect(option(page, 'wakeLock', 'on')).toHaveClass(/active/);
+  await expect(option(page, 'phosphorColor', 'green')).toHaveClass(/active/);
 });
 
 test('a choice applies on tap, survives ✕ and a reload, and is reflected when reopened', async ({ page }) => {
@@ -200,6 +202,71 @@ test('a preference set on the sheet stays in effect off-sheet', async ({ page })
   const stored = await page.evaluate(() => window.localStorage.getItem('pipboy:prefs'));
   expect(JSON.parse(stored!).orientation).toBe('landscape');
   expect((await readDevice(page)).orientation).toContain('lock:landscape');
+});
+
+// ── the COLORE row (phosphor theme) ─────────────────────────────────
+
+test('selecting each COLORE option applies immediately, with no confirm step', async ({ page }) => {
+  await stubDeviceApis(page);
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  const phosphorRgb = () =>
+    page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--phosphor-rgb').trim());
+
+  expect(await phosphorRgb()).toBe('51, 255, 102');
+
+  await option(page, 'phosphorColor', 'amber').click();
+  await expect(option(page, 'phosphorColor', 'amber')).toHaveClass(/active/);
+  await expect(option(page, 'phosphorColor', 'green')).not.toHaveClass(/active/);
+  expect(await phosphorRgb()).toBe('255, 176, 46');
+
+  await option(page, 'phosphorColor', 'white').click();
+  await expect(option(page, 'phosphorColor', 'white')).toHaveClass(/active/);
+  expect(await phosphorRgb()).toBe('240, 240, 240');
+
+  await option(page, 'phosphorColor', 'green').click();
+  await expect(option(page, 'phosphorColor', 'green')).toHaveClass(/active/);
+  expect(await phosphorRgb()).toBe('51, 255, 102');
+});
+
+test('the COLORE choice survives ✕ and a reload, and is reflected when reopened', async ({ page }) => {
+  await stubDeviceApis(page);
+  await stubEnvironment(page, { lastCampaignId: 'camp-1', lastCharacterId: 'char-1' });
+  await login(page);
+  await page.locator('#pb-sheet-header').waitFor();
+  await openSettings(page);
+
+  await option(page, 'phosphorColor', 'amber').click();
+  await page.locator(`${POPUP} [data-close]`).click();
+
+  await page.reload();
+  await page.locator('#pb-sheet-header').waitFor();
+
+  const phosphorRgb = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue('--phosphor-rgb').trim());
+  expect(phosphorRgb).toBe('255, 176, 46');
+
+  await openSettings(page);
+  await expect(option(page, 'phosphorColor', 'amber')).toHaveClass(/active/);
+
+  const stored = await page.evaluate(() => window.localStorage.getItem('pipboy:prefs'));
+  expect(JSON.parse(stored!).phosphorColor).toBe('amber');
+});
+
+test('an unrecognised stored phosphorColor falls back to green without disturbing other stored preferences', async ({ page }) => {
+  await stubDeviceApis(page);
+  await seedPrefs(page, { orientation: 'landscape', vibration: false, wakeLock: true, phosphorColor: 'ultraviolet' });
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  await expect(option(page, 'phosphorColor', 'green')).toHaveClass(/active/);
+  // The unrecognised field falls back alone — every other stored field survives.
+  await expect(option(page, 'orientation', 'landscape')).toHaveClass(/active/);
+  await expect(option(page, 'vibration', 'off')).toHaveClass(/active/);
+  await expect(option(page, 'wakeLock', 'on')).toHaveClass(/active/);
 });
 
 // ── the audio row ───────────────────────────────────────────────────
