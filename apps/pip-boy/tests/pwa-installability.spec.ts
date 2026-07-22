@@ -92,4 +92,85 @@ test.describe(() => {
       await Promise.all(names.map((n) => caches.delete(n)));
     });
   });
+
+  // The bug this guards against: cache.addAll/cache.add's underlying fetch()
+  // calls can be satisfied by the browser's own HTTP cache — a layer separate
+  // from Cache Storage — so a freshly-versioned shell cache could silently end
+  // up stocked with stale bytes even though CACHE_VERSION correctly changed.
+  // sw.js's install handler now wraps every shell URL in
+  // `new Request(url, { cache: 'reload' })`, which forces the browser to go to
+  // the network. This is exercised against a real HTTP round trip (not
+  // Playwright's `route()` interception, which never touches the browser's
+  // actual HTTP cache — a version relying on it was verified to give false
+  // positives) via static-server.mjs's test-only response-override endpoint:
+  // a shell URL is served with a real `Cache-Control: max-age` header, primed
+  // into the browser's HTTP cache by the app's own module-graph load, then its
+  // content changes server-side before the service worker installs.
+  test('install fetch ignores a stale HTTP cache entry for a shell asset', async ({ page }) => {
+    const shellPath = '/src/tabs/dice.js';
+    const setOverride = (body: string) =>
+      page.request.put('/__test-override__', {
+        data: { path: shellPath, body, headers: { 'Cache-Control': 'max-age=3600' } },
+      });
+    const overrideHitCount = async () => {
+      const res = await page.request.get(`/__test-override__?path=${encodeURIComponent(shellPath)}`);
+      return ((await res.json()) as { count: number }).count;
+    };
+
+    await setOverride('export const BUILD = "old";\n');
+
+    try {
+      await stubEnvironment(page, { allowServiceWorker: true });
+      // main.js statically imports sheet.js, which statically imports
+      // dice.js, so loading the page fetches it for real and primes the
+      // browser's HTTP cache with the "old" response.
+      await page.goto('/index.html');
+      expect(await overrideHitCount()).toBe(1);
+
+      // A subsequent deploy changes the file's content...
+      await setOverride('export const BUILD = "new";\n');
+
+      // ...and the service worker installs fresh, as it would on first
+      // install or after a deploy bumps CACHE_VERSION.
+      await page.evaluate(() => navigator.serviceWorker.register('./sw.js'));
+      await page.evaluate(() => navigator.serviceWorker.ready);
+
+      const cachedText = await page.evaluate(async () => {
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+          const keys = await caches.keys();
+          const shellKey = keys.find((k) => k.startsWith('pipboy-') && k !== 'pipboy-tiles-v2');
+          if (shellKey) {
+            const cache = await caches.open(shellKey);
+            const resp = await cache.match('./src/tabs/dice.js');
+            if (resp) return resp.text();
+          }
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return null;
+      });
+
+      // The versioned cache holds the post-deploy content, not the browser's
+      // HTTP-cache-primed pre-deploy content — proving install fetched from
+      // the network rather than being silently satisfied by the primed
+      // HTTP cache entry.
+      expect(cachedText).toBe('export const BUILD = "new";\n');
+      // A second real request reached the server for install. A plain
+      // default-mode fetch would have been satisfied entirely from the
+      // browser's HTTP cache (no second request at all, as demonstrated by
+      // page load only producing one hit) — this proves the install-time
+      // fetch used `{ cache: 'reload' }` semantics.
+      expect(await overrideHitCount()).toBe(2);
+
+      // Clean up so this SW / its caches don't leak into later specs.
+      await page.evaluate(async () => {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      });
+    } finally {
+      await page.request.delete(`/__test-override__?path=${encodeURIComponent(shellPath)}`);
+    }
+  });
 });

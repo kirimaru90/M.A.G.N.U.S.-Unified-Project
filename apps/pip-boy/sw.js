@@ -8,7 +8,26 @@ const CACHE_VERSION = 'pipboy-__BUILD_ID__';
 // public third-party assets that do not change with a deploy, so re-downloading
 // them on every release would be pure waste. Kept out of CACHE_VERSION so the
 // activate sweep and the logout flush both leave them alone.
-const TILE_CACHE = 'pipboy-tiles-v1';
+//
+// The version segment here is bumped only to force a one-time purge of a
+// previous version's accumulated tiles (the existing activate sweep below
+// already deletes any cache name it doesn't recognise as current) — not on
+// every deploy the way CACHE_VERSION is.
+const TILE_CACHE = 'pipboy-tiles-v2';
+
+// Cache-on-visit with no bound would grow forever (observed: 7GB on one
+// long-running campaign). Entries are capped by count rather than by a byte
+// budget — tiles are roughly uniform in size, and tracking exact response
+// sizes would need a separate ledger Cache Storage doesn't provide for free.
+// Trimming happens as evict-oldest (insertion order, which Cache Storage
+// preserves), not true LRU: a cache hit never rewrites its entry (see
+// tileCacheFirst), since hits are the hot path on every pan/zoom and a tile
+// is cheap enough to re-fetch that recency-of-last-use isn't worth the extra
+// write. Once the cap is exceeded, entries are trimmed down to a lower
+// watermark rather than back to the cap exactly, so a burst of misses during
+// fast panning only pays the keys() enumeration cost once, not per write.
+const TILE_CACHE_MAX_ENTRIES = 4000;
+const TILE_CACHE_WATERMARK = Math.floor(TILE_CACHE_MAX_ENTRIES * 0.9);
 
 // The basemap host used by pipboy-map-tab. Coupled to the tile URL in
 // src/tabs/map.js — change one and you must change the other, along with the
@@ -118,14 +137,23 @@ function classify(request) {
   return 'api';
 }
 
+// cache.addAll/cache.add's underlying fetch() can be satisfied by the
+// browser's own HTTP cache, which is a separate layer from Cache Storage.
+// Forcing { cache: 'reload' } makes every install-time fetch go to the
+// network, so a freshly-versioned cache can never be stocked with a stale
+// response the browser happened to already hold for that URL.
+const toNetworkRequest = (url) => new Request(url, { cache: 'reload' });
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION).then(async (cache) => {
       // Required shell is atomic — only these determine install success.
-      await cache.addAll(REQUIRED_SHELL_URLS);
+      await cache.addAll(REQUIRED_SHELL_URLS.map(toNetworkRequest));
       // Optional assets are best-effort; a failure here does not reject install.
       await Promise.all(
-        OPTIONAL_SHELL_URLS.map((u) => cache.add(u).catch(() => {}))
+        OPTIONAL_SHELL_URLS.map((u) =>
+          cache.add(toNetworkRequest(u)).catch(() => {})
+        )
       );
     }).then(() => self.skipWaiting())
   );
@@ -160,6 +188,18 @@ self.addEventListener('message', (event) => {
       caches.keys().then((keys) =>
         Promise.all(keys.filter((k) => !isKeeper(k)).map((k) => caches.delete(k)))
       )
+    );
+    return;
+  }
+  if (event.data && event.data.type === 'CLEAR_TILE_CACHE') {
+    // Manual escape hatch (settings "SVUOTA CACHE MAPPA"), independent of the
+    // automatic purge that only runs when TILE_CACHE's own version changes.
+    // Acks on the sent port, if any, so the caller can show a confirmation
+    // once the delete has actually completed rather than optimistically.
+    event.waitUntil(
+      caches.delete(TILE_CACHE).then(() => {
+        event.ports?.[0]?.postMessage({ type: 'TILE_CACHE_CLEARED' });
+      })
     );
   }
 });
@@ -198,12 +238,23 @@ async function tileCacheFirst(request) {
     const response = await fetch(request);
     // Opaque cross-origin responses are still worth keeping: they render fine.
     if (response.ok || response.type === 'opaque') {
-      cache.put(request, response.clone());
+      await cache.put(request, response.clone());
+      await trimTileCache(cache);
     }
     return response;
   } catch (_) {
     return Response.error();
   }
+}
+
+/** Evict-oldest down to the watermark once the cap is exceeded — see the
+ * TILE_CACHE_MAX_ENTRIES comment above for why this is count-based and
+ * insertion-order-based rather than a byte budget or true LRU. */
+async function trimTileCache(cache) {
+  const keys = await cache.keys();
+  if (keys.length <= TILE_CACHE_MAX_ENTRIES) return;
+  const excess = keys.length - TILE_CACHE_WATERMARK;
+  await Promise.all(keys.slice(0, excess).map((key) => cache.delete(key)));
 }
 
 self.addEventListener('fetch', (event) => {

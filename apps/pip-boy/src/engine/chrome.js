@@ -48,7 +48,7 @@ export function setCaseNav({ back, exit }) {
     const exitBtn = navExitEl();
     if (exitBtn) {
         if (boundNavExit) exitBtn.removeEventListener('click', boundNavExit);
-        exitBtn.textContent = exit ? '⏻' : '';
+        exitBtn.textContent = exit ? '✕' : '';
         exitBtn.title = exit ? exit.label : '';
         exitBtn.setAttribute('aria-label', exit ? exit.label : '');
         exitBtn.disabled = !exit;

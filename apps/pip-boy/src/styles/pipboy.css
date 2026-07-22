@@ -379,6 +379,16 @@ body {
     opacity: 0.5;
 }
 
+/* The exit nub's glyph is permanently critical-red whenever enabled — marking
+   logout as the case's one destructive one-shot action — independent of the
+   character's own critical state and of the lit-state mechanism above (it
+   never gains .on or a solid fill; only the idle glyph color departs from the
+   shared .pb-nub body). :disabled dimming still applies on top. */
+#pb-nav-exit:not(:disabled) {
+    color: var(--critical);
+    text-shadow: var(--critical-glow);
+}
+
 /* Lit state, shared by both bezel controls: each carries its own "on" light
    directly on its own body — solid phosphor fill with a glow — rather than
    pairing with a separate LED element. The glyph swaps to the dark

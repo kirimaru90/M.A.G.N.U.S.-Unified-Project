@@ -127,7 +127,11 @@ function openCreditsPopup() {
 // deployed commit at image-build time. Reading the cache name back is how the app
 // learns which build it is running without a second source of truth. A local dev
 // build (or a browser with no Cache Storage) has no stamped id, shown as such.
-const TILE_CACHE_NAME = 'pipboy-tiles-v1';
+//
+// Must stay in sync with sw.js's TILE_CACHE constant — it exists only so this
+// module can exclude the tile cache from that lookup, not as its own source
+// of truth for the name.
+const TILE_CACHE_NAME = 'pipboy-tiles-v2';
 
 async function readBuildId() {
     try {
@@ -211,6 +215,36 @@ async function checkForUpdate(btn) {
     }
 }
 
+/**
+ * Clear the map tile cache on demand. Unlike the shell cache, the tile cache
+ * has no per-deploy purge — its version only bumps when sw.js's own cap/
+ * eviction logic changes (see TILE_CACHE_MAX_ENTRIES in sw.js) — so this is
+ * the only way for a player to reclaim its storage between deploys.
+ */
+async function clearTileCache(btn) {
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) {
+        btn.textContent = 'NON DISPONIBILE';
+        return;
+    }
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'SVUOTAMENTO…';
+
+    const channel = new MessageChannel();
+    const acked = new Promise((resolve) => { channel.port1.onmessage = () => resolve(); });
+    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_TILE_CACHE' }, [channel.port2]);
+
+    // Safety net: the worker always replies once caches.delete resolves, but
+    // don't sit on SVUOTAMENTO… forever if a controller change races the message.
+    await Promise.race([acked, new Promise((resolve) => setTimeout(resolve, 5000))]);
+
+    btn.textContent = 'CACHE SVUOTATA';
+    setTimeout(() => {
+        btn.textContent = original;
+        btn.disabled = false;
+    }, 2500);
+}
+
 export function openSettingsPopup(onClose) {
     const prefs = getPrefs();
 
@@ -242,6 +276,7 @@ export function openSettingsPopup(onClose) {
                         <span class="pb-settings-version-value" data-version>…</span>
                     </div>
                     <button class="pb-btn pb-settings-action" data-update>CERCA AGGIORNAMENTI</button>
+                    <button class="pb-btn pb-settings-action" data-clear-tiles>SVUOTA CACHE MAPPA</button>
                 </div>
             </div>
         </div>
@@ -267,6 +302,9 @@ export function openSettingsPopup(onClose) {
     });
     overlay.querySelector('[data-update]').addEventListener('click', (e) => {
         void checkForUpdate(e.currentTarget);
+    });
+    overlay.querySelector('[data-clear-tiles]').addEventListener('click', (e) => {
+        void clearTileCache(e.currentTarget);
     });
 
     for (const row of ROWS) {

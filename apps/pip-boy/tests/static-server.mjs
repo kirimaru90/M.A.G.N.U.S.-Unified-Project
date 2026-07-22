@@ -22,11 +22,61 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
+// Test-only per-path response overrides, controllable via a tiny JSON API so
+// specs can exercise real browser HTTP-cache behavior (Cache-Control headers
+// only take effect over a genuine network round trip — Playwright's
+// context.route interception bypasses the HTTP cache entirely) without
+// mutating files on disk. Keyed by pathname; a spec sets one, asserts, then
+// clears it so state never leaks into later tests. `count` lets a spec tell
+// whether a given request actually reached the server or was served from the
+// browser's own HTTP cache without a network round trip.
+const overrides = new Map();
+
 createServer(async (req, res) => {
   try {
-    let pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-    if (pathname === '/' || pathname.endsWith('/')) pathname += 'index.html';
-    const filePath = normalize(join(ROOT, pathname));
+    const url = new URL(req.url, 'http://localhost');
+    const pathname = decodeURIComponent(url.pathname);
+
+    if (pathname === '/__test-override__') {
+      if (req.method === 'PUT') {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        const { path, body, headers } = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        // Preserve the hit counter across body updates for the same path — a
+        // spec updates the body mid-test to simulate a deploy, and needs the
+        // count to keep accumulating so it can tell whether a later request
+        // actually reached the server.
+        const count = overrides.get(path)?.count ?? 0;
+        overrides.set(path, { body, headers: headers || {}, count });
+        res.writeHead(204).end();
+        return;
+      }
+      if (req.method === 'DELETE') {
+        overrides.delete(url.searchParams.get('path'));
+        res.writeHead(204).end();
+        return;
+      }
+      if (req.method === 'GET') {
+        const entry = overrides.get(url.searchParams.get('path'));
+        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ count: entry?.count ?? 0 }));
+        return;
+      }
+    }
+
+    const override = overrides.get(pathname);
+    if (override) {
+      override.count += 1;
+      res.writeHead(200, {
+        'Content-Type': MIME[extname(pathname).toLowerCase()] || 'application/octet-stream',
+        ...override.headers,
+      });
+      res.end(override.body);
+      return;
+    }
+
+    let filePathname = pathname;
+    if (filePathname === '/' || filePathname.endsWith('/')) filePathname += 'index.html';
+    const filePath = normalize(join(ROOT, filePathname));
     // Path-traversal guard: resolved file must stay under ROOT.
     if (filePath !== ROOT.slice(0, -1) && !filePath.startsWith(ROOT.endsWith(sep) ? ROOT : ROOT + sep)) {
       res.writeHead(403).end('Forbidden');

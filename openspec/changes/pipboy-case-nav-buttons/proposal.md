@@ -15,6 +15,7 @@ Today `◄ DOSSIER`/`ESCI`/`◄ CAMBIA CAMPAGNA` are on-screen `pb-btn`/`pb-stat
   - campaign-select / character-select / sheet: functional
 - Neither new nub ever receives the `.on` lit-LED treatment `#pb-editor-toggle` carries — that persistent glow stays reserved for a mode indicator that survives on the same screen; back/exit are one-shot actions that immediately navigate away, so only ordinary `:active` press feedback applies, never a sticky glow.
 - `chrome.js`'s sheet-only `showSheetNav`/`hideSheetNav` API is replaced by a case-nav API every screen drives (its own back-target/label/enabled state and exit-enabled state), rather than only the sheet screen calling it and every other screen only hiding it.
+- **Amendment (2026-07-23):** the exit nub's glyph changes from `⏻` to `✕`, and its glyph renders permanently critical-red (`var(--critical)`) whenever enabled — independent of the character's own critical state. The back nub is unaffected. See design.md's amendment section for full rationale.
 
 ## Capabilities
 

@@ -11,6 +11,8 @@ The page SHALL centre a fixed-aspect portrait terminal case:
 
 The status bar's back and exit nubs SHALL share the bottom bezel nub's fixed sizing and visual body (background gradient, border, border-radius) regardless of whether either currently renders a glyph — the same physical control repeated three times across the case (back, exit, editor toggle), never resized by its own content.
 
+The exit nub renders `✕`, and its glyph SHALL always render in the critical-red token (`var(--critical)`, with `var(--critical-glow)`) whenever the nub is enabled — marking logout as the case's one permanently-destructive one-shot action. This is independent of the character's own critical state: the exit nub reads critical-red on every screen where it is functional, not only while a character is critical. The back nub keeps the active phosphor theme color for its `◄` glyph, unchanged. Both nubs' body, border, and background stay the shared `.pb-nub` styling — only the exit nub's glyph color departs from it.
+
 The bottom bezel SHALL be rendered on every screen, and SHALL live **inside** the constraints of `pipboy-responsive-shell`: it must not cause page-level scroll, and `.pb-case`'s rendered bounding box must remain a function of viewport size and orientation only, never of which screen is mounted. Growing the nub to hold the `✎` glyph SHALL NOT change the bezel's rendered height, since the knob (unchanged at its current height) already governs it.
 
 #### Scenario: Bottom bezel is rendered
@@ -83,7 +85,7 @@ The bezel's two interactive **lit** controls — the config knob and the editor 
 
 Idle (unlit), a control SHALL render its glyph (`⚙` or `✎`) dim in the active phosphor theme color on the control's normal dark body, fully contained within the control's bounds. Lit, the control's body SHALL fill solid with the active phosphor theme color (matching the intensity the former standalone LED used) with a matching glow, and its glyph SHALL switch to the dark screen-background ink color (`--screen-bg`) so it remains legible against its own bright fill — never phosphor-on-phosphor.
 
-The lit color SHALL always be the active phosphor theme color, never critical-red: critical-red remains reserved for the critical state (the critical ring and the critical status dot/label), so a lit bezel control is never mistakable for a critical signal, and both may be shown at once without conflict, regardless of which phosphor theme is active.
+The lit color SHALL always be the active phosphor theme color, never critical-red: critical-red remains reserved for the critical state (the critical ring and the critical status dot/label) among the config knob and editor nub's *lit* treatment specifically, so a lit bezel control is never mistakable for a critical signal, and both may be shown at once without conflict, regardless of which phosphor theme is active. This reservation does not extend to the exit nub's glyph color (above) — the exit nub has no lit state at all (per the scenario below) and its permanent critical-red glyph marks a destructive *action*, not the character's critical *state*; the two remain visually distinguishable because the critical ring/dot/label activate only during critical state while the exit nub's color is constant.
 
 What triggers each control's lit state is defined by the capability that owns that control: the editor nub lights per the editor-mode on/off state (mirroring the phosphor-colored editor-mode ring, above); the config knob's trigger is defined by `pipboy-settings`.
 
@@ -119,3 +121,14 @@ What triggers each control's lit state is defined by the capability that owns th
 - **GIVEN** either the back nub or the exit nub is enabled
 - **WHEN** it is activated, on any screen
 - **THEN** it never gains a lit/"on" class or the solid-fill treatment, unlike the config knob and editor nub
+
+#### Scenario: The exit nub's glyph is always critical-red when enabled
+
+- **GIVEN** the exit nub is enabled, and the character (if any is open) is NOT in critical state
+- **WHEN** the status bar renders
+- **THEN** the exit nub's glyph (`✕`) renders in the critical-red token, the same as it would during critical state, and the back nub's `◄` renders in the active phosphor theme color, unaffected
+
+#### Scenario: The exit nub's critical-red color is unrelated to the lit-state mechanism
+- **GIVEN** the exit nub is enabled and rendering critical-red
+- **WHEN** the nub is activated
+- **THEN** it does not gain a lit/"on" class or solid-fill treatment — its color is a constant idle-state property, not a triggered lit state

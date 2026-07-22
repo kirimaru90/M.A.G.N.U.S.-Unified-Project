@@ -134,6 +134,23 @@ test('a VERSIONE footer shows the build and offers an update check, outside the 
   expect(insideRow).toBe(false);
 });
 
+test('a SVUOTA CACHE MAPPA action sits alongside the update check, outside the five rows', async ({ page }) => {
+  await stubDeviceApis(page);
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  // Still exactly five preference rows: the clear action is not one of them.
+  await expect(page.locator(`${POPUP} .pb-settings-row`)).toHaveCount(5);
+
+  const clear = page.locator(`${POPUP} [data-clear-tiles]`);
+  await expect(clear).toHaveText('SVUOTA CACHE MAPPA');
+  const insideRow = await page.evaluate(
+    () => !!document.querySelector('[data-clear-tiles]')!.closest('.pb-settings-row'),
+  );
+  expect(insideRow).toBe(false);
+});
+
 test('the popup opens with the defaults active: AUTO, vibration on, wake lock on', async ({ page }) => {
   await stubDeviceApis(page);
   await stubEnvironment(page);

@@ -346,7 +346,7 @@ test('campaign selection: the back nub is inert, the exit nub is ESCI', async ({
 
   await expect(page.locator('#pb-nav-back')).toHaveText('');
   await expect(page.locator('#pb-nav-back')).toBeDisabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('⏻');
+  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
   await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
   await expect(page.locator('#pb-nav-exit')).toBeEnabled();
 });
@@ -359,7 +359,7 @@ test('character selection (DOSSIER): the back nub is CAMPAGNA, the exit nub is E
   await expect(page.locator('#pb-nav-back')).toHaveText('◄');
   await expect(page.locator('#pb-nav-back')).toHaveAttribute('title', 'CAMPAGNA');
   await expect(page.locator('#pb-nav-back')).toBeEnabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('⏻');
+  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
   await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
   await expect(page.locator('#pb-nav-exit')).toBeEnabled();
 });
@@ -371,7 +371,7 @@ test('sheet: the back nub is DOSSIER, the exit nub is ESCI', async ({ page }) =>
   await expect(page.locator('#pb-nav-back')).toHaveText('◄');
   await expect(page.locator('#pb-nav-back')).toHaveAttribute('title', 'DOSSIER');
   await expect(page.locator('#pb-nav-back')).toBeEnabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('⏻');
+  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
   await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
   await expect(page.locator('#pb-nav-exit')).toBeEnabled();
   await expect(page.locator('.pb-statusbar')).toContainText('PIP-BOY OS');
@@ -379,6 +379,21 @@ test('sheet: the back nub is DOSSIER, the exit nub is ESCI', async ({ page }) =>
   // the sheet header no longer carries the old bracket controls
   await expect(page.locator('.pb-header')).not.toContainText('Personaggi');
   await expect(page.locator('.pb-header')).not.toContainText('Campagna');
+});
+
+test('the exit nub glyph is always critical-red when enabled, even on a non-critical character; the back nub is unaffected', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const [exitColor, exitShadow, backColor] = await Promise.all([
+    page.locator('#pb-nav-exit').evaluate((el) => getComputedStyle(el).color),
+    page.locator('#pb-nav-exit').evaluate((el) => getComputedStyle(el).textShadow),
+    page.locator('#pb-nav-back').evaluate((el) => getComputedStyle(el).color),
+  ]);
+
+  expect(exitColor).toBe('rgb(255, 59, 59)');
+  expect(exitShadow).not.toBe('none');
+  expect(backColor).not.toBe('rgb(255, 59, 59)');
 });
 
 test('back-nub activation from character selection returns to campaign selection, without logging out', async ({ page }) => {

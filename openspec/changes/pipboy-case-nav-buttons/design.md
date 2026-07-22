@@ -74,3 +74,16 @@ The design deliberately does not add any JS-driven lit state to the back/exit nu
 ## Migration Plan
 
 No data migration; this is a pure UI/DOM change with no persisted state. Rollout is a single change: land the new nubs, `chrome.js` API, and screen wiring together, since the old and new nav mechanisms can't coexist without duplicate exit paths. Rollback is reverting the commit(s); nothing to undo server-side.
+
+## Amendment (2026-07-23): exit-nub icon and critical-red color
+
+The day after this change shipped, the user asked for the back/exit nubs to be "wider and contain their label" — i.e. show visible on-screen text, reversing this design's central trade-off (icon-only case furniture over on-screen labels, see the Risks/Trade-offs section above). Talking it through (via `/opsx:explore`) surfaced the direct conflict with that trade-off and the ~15 Playwright assertions pinning glyph-only text, at which point the user reconsidered and landed on a narrower change instead:
+
+- **Back nub: unchanged.** Still `◄`, no visible text, phosphor-colored. The "wider + label" idea is dropped entirely, not just deferred.
+- **Exit nub: glyph swaps `⏻` → `✕`; its glyph color becomes permanently critical-red** (`var(--critical)`/`var(--critical-glow)`), whenever the nub is enabled — not conditional on the character being in critical state. Size (40×20) is explicitly unchanged.
+
+Why `✕` over `⏻`: the power-off glyph read as a neutral "quit" action; `✕` reads as a cancel/close/danger action, consistent with how `✕` is already used elsewhere in the app (delete buttons on cards/chips/tags — see `pipboy-terminal-chrome`'s glyph vocabulary, which already included `✕`, so no new glyph is introduced). Combined with the color change, the exit nub now visually reads as "the destructive one" without needing text.
+
+Why critical-red rather than a new color token: `var(--critical)` is already the app's single "something serious" signal (critical-state ring, status dot/label). Reusing it avoids inventing a second red. The trade-off, called out explicitly in the amended `pipboy-terminal-chrome` spec, is that critical-red now appears in two unrelated contexts — the character's critical *state* (dynamic, ring/dot/label) and the exit nub's destructive *action* (static, always-on when enabled). They stay distinguishable because the exit nub's color never changes with character state — it reads red on a perfectly healthy character too — so a user isn't misled into thinking the character is critical when they see it.
+
+This amendment does not touch: the back nub, nub sizing, the lit-state mechanism (`.on`, config knob, editor toggle), or any of the screen-wiring/case-nav-API work from the original change — all of that stands as shipped.

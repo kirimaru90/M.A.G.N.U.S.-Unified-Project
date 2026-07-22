@@ -28,3 +28,12 @@
 ## 5. Manual verification
 
 - [x] 5.1 Open the app in a browser and walk login → campaign-select → character-select (dossier) → sheet → back to dossier → back to campaign-select → exit, confirming both case nubs show the right glyph/label/enabled state at each step and neither ever lights up like the editor toggle. (Verified via the Playwright case-nav matrix/activation/`.on` tests in `terminal-chrome.spec.ts`, which exercise this exact walk in a real Chromium instance, plus real-browser screenshots of the status bar on login/dossier/sheet confirming the nubs render centered, dim-and-glyph-less when disabled, and `◄`/`⏻` when active — no standalone dev backend was available to click through by hand.)
+
+## 6. Amendment (2026-07-23): exit-nub icon and critical-red color
+
+Reopened after completion — the exit nub's glyph and idle color are revised; scope stays confined to that one control (back nub, sizing, and every other decision above are unchanged). See design.md's amendment section for rationale.
+
+- [x] 6.1 In `apps/pip-boy/src/engine/chrome.js`'s `setCaseNav`, change the exit nub's glyph from `⏻` to `✕` (the `textContent` assignment for `exitBtn`); the back nub's `◄` is untouched.
+- [x] 6.2 In `apps/pip-boy/src/styles/pipboy.css`, give `#pb-nav-exit` a critical-red idle glyph: `color: var(--critical)` and `text-shadow: var(--critical-glow)` (matching the status-bar label's existing critical treatment), applied whenever the nub is enabled — not conditional on the character's own critical state. Body/border/background stay the shared `.pb-nub` styling (dark gradient, `#444a37` border) — only the glyph color changes, so the nub still reads as the same physical hardware as the back nub and editor toggle, just marked destructive. `:disabled` dimming (`opacity: 0.5`) continues to apply on top, per the existing `.pb-nub:disabled` rule.
+- [x] 6.3 In `apps/pip-boy/tests/terminal-chrome.spec.ts`, update every assertion expecting `#pb-nav-exit` to have text `'⏻'` to expect `'✕'` instead; add a color assertion (computed `color`/`text-shadow` equals the critical-red token) for the exit nub, scoped so it does NOT assert the same for `#pb-nav-back`.
+- [x] 6.4 Run `npx playwright test` from `apps/pip-boy` and confirm all tests pass. (346 passed.)
