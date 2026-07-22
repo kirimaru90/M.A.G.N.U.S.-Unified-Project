@@ -195,7 +195,7 @@ test('a preference set on the sheet stays in effect off-sheet', async ({ page })
 
   // Prefs are edited and applied globally: navigating off the sheet, where the
   // settings control still lives in the bezel, must not drop the lock.
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await expect(page.locator('#pb-config-knob')).toBeVisible();
 
@@ -348,7 +348,7 @@ test('the wake lock is held while the sheet is mounted and released on leaving i
 
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('request:screen');
 
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('release');
 });
@@ -363,7 +363,7 @@ test('leaving the sheet while the request is still in flight still releases the 
 
   // The sentinel must not arrive after the release and leave the screen locked
   // awake for the rest of the session with no handle left to free it.
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
 
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('release');

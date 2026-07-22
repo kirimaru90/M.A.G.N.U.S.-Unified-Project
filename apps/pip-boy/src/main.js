@@ -6,6 +6,7 @@ import { getStarterEquipment } from './api/equipment.js';
 import { getCampaign, listCampaigns } from './api/campaigns.js';
 import { getCharacter } from './api/characters.js';
 import { setLastSelection } from './api/last-selection.js';
+import { logout } from './api/session.js';
 import { state, setCampaign, resetSelection } from './state/store.js';
 import { renderLogin } from './screens/login.js';
 import { renderCampaignSelect } from './screens/campaign-select.js';
@@ -13,7 +14,7 @@ import { renderCharacterSelect } from './screens/character-select.js';
 import { renderCreate } from './screens/create.js';
 import { renderSheet, stopSheetWakeLock } from './screens/sheet.js';
 import { mount } from './engine/render.js';
-import { hideSheetNav, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
+import { setCaseNav, setEditorToggle, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
 import { getPrefs } from './state/prefs.js';
 import { applyOrientation } from './engine/device.js';
 import { applyPhosphorTheme } from './engine/theme.js';
@@ -25,10 +26,13 @@ const root = document.getElementById('app');
 // screen mounts (every such screen calls resetChrome()).
 let mountedSheet = null;
 
-/** The status-bar nav and the critical/editor rings belong to the sheet alone. */
+/** The editor toggle and the critical/editor rings belong to the sheet alone. */
 function resetChrome() {
     mountedSheet = null;
-    hideSheetNav();
+    // Off-sheet, the editor toggle has nothing to do — disable it and drop its
+    // handler, mirroring what every non-sheet caller of `setCaseNav` (below)
+    // already does for the back/exit nubs.
+    setEditorToggle({ canEdit: false, onToggleEdit: null });
     setCriticalChrome(false);
     setEditorChrome(false);
     // Immersive-map mode rides a class on the shell root (#app); the statusbar
@@ -39,6 +43,12 @@ function resetChrome() {
     // Every non-sheet screen calls this, so it is also where "left the sheet"
     // is observable — and therefore where the sheet's wake lock is released.
     stopSheetWakeLock();
+}
+
+/** Centralized logout: clears the session, then returns to login via the case exit nub. */
+async function doLogout() {
+    await logout();
+    showLogin();
 }
 
 /**
@@ -71,6 +81,8 @@ async function ensureCatalogs() {
 function showLogin() {
     resetSelection();
     resetChrome();
+    // Nothing above login, no session to exit — both nubs inert.
+    setCaseNav({ back: null, exit: null });
     renderLogin(root, { onSuccess: goPostLogin });
 }
 
@@ -91,18 +103,23 @@ async function showCampaignSelect() {
         return showCharacterSelect(only.id, only.name);
     }
 
+    // Nothing above campaign selection to go back to; exit logs out.
+    setCaseNav({ back: null, exit: { label: 'ESCI', onActivate: doLogout } });
     await renderCampaignSelect(root, {
         campaigns,
         onSelect: (id, name) => {
             setCampaign(id, name);
             showCharacterSelect(id, name);
         },
-        onLogout: showLogin,
     });
 }
 
 async function showCharacterSelect(campaignId, campaignName) {
     resetChrome();
+    setCaseNav({
+        back: { label: 'CAMPAGNA', onActivate: showCampaignSelect },
+        exit: { label: 'ESCI', onActivate: doLogout },
+    });
     await renderCharacterSelect(root, {
         campaignId,
         campaignName,
@@ -116,8 +133,6 @@ async function showCharacterSelect(campaignId, campaignName) {
             showSheet(campaignId, campaignName, character);
         },
         onCreate: (ownerUserId) => showCreate(campaignId, campaignName, ownerUserId),
-        onBack: showCampaignSelect,
-        onLogout: showLogin,
     });
 }
 
@@ -145,14 +160,16 @@ function showSheet(campaignId, campaignName, character, warning) {
     setCampaign(campaignId, campaignName);
     // Remember the mounted sheet so a resume re-verify can reload it in place.
     mountedSheet = { campaignId, campaignName, characterId: character.id };
+    setCaseNav({
+        back: { label: 'DOSSIER', onActivate: () => showCharacterSelect(campaignId, campaignName) },
+        exit: { label: 'ESCI', onActivate: doLogout },
+    });
     renderSheet(root, {
         campaignId,
         character,
         warning,
         skillsCatalog: state.skillsCatalog,
         conditionsCatalog: state.conditionsCatalog,
-        onBackToCharacters: () => showCharacterSelect(campaignId, campaignName),
-        onLogout: showLogin,
     });
 }
 

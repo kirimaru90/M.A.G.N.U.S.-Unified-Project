@@ -29,9 +29,14 @@
     <div class="pb-case">
         <div class="pb-statusbar" id="pb-statusbar">
             <span class="pb-status-id"><span class="dot" id="pb-status-dot"></span><span id="pb-status-label">M.A.G.N.U.S.</span></span>
-            <span class="pb-statusbar-nav" id="pb-statusbar-nav" hidden>
-                <button class="pb-statusbar-btn" id="pb-nav-dossier" type="button">&#9668; DOSSIER</button>
-                <button class="pb-statusbar-btn" id="pb-nav-logout" type="button">ESCI</button>
+            <span class="pb-statusbar-nav">
+                <!-- Permanent case furniture, same convention as the bezel's ✎
+                     editor toggle: always rendered, fixed 40×20 size, disabled
+                     and glyph-less when the current screen has nothing to do
+                     here (driven by chrome.js's setCaseNav, called by every
+                     screen transition in main.js). -->
+                <button class="pb-nub" id="pb-nav-back" type="button" disabled></button>
+                <button class="pb-nub" id="pb-nav-exit" type="button" disabled></button>
             </span>
             <span class="pb-status-os">PIP-BOY OS</span>
         </div>

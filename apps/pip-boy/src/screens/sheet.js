@@ -1,6 +1,6 @@
 import { mount, esc } from '../engine/render.js';
-import { showSheetNav, setCriticalChrome, setEditorChrome } from '../engine/chrome.js';
-import { isAdmin, logout, getUser } from '../api/session.js';
+import { setEditorToggle, setCriticalChrome, setEditorChrome } from '../engine/chrome.js';
+import { isAdmin, getUser } from '../api/session.js';
 import { patchActionPoints, patchResources } from '../api/characters.js';
 import { getEquipmentCatalog } from '../api/equipment.js';
 import { getTagCatalog } from '../api/catalogs.js';
@@ -104,9 +104,9 @@ function startSheetWakeLock() {
 }
 
 export function renderSheet(root, opts) {
-    // Changing campaign stays on the dossier screen, keeping the sheet's status
-    // bar to the two reference controls.
-    const { campaignId, character, skillsCatalog, conditionsCatalog, warning, onBackToCharacters, onLogout } = opts;
+    // Back/exit navigation is driven by the case nubs (`main.js`'s `setCaseNav`,
+    // called before this mounts); only the editor toggle's wiring stays here.
+    const { campaignId, character, skillsCatalog, conditionsCatalog, warning } = opts;
 
     // Navigation: which first-level tab, plus the last-active subtab per section.
     let activeTop = 'stats';
@@ -165,20 +165,15 @@ export function renderSheet(root, opts) {
     // immersive truly defaults to off on every sheet open (task 1.4).
     root.classList.remove('pb-immersive');
 
-    // The reference puts navigation — and the owner/admin `✎` toggle — in the
-    // case status bar, not the sheet header.
-    showSheetNav({
-        onBack: onBackToCharacters,
-        onLogout: async () => {
-            await logout();
-            onLogout();
-        },
+    // The reference puts the owner/admin `✎` toggle in the bottom bezel, not
+    // the sheet header.
+    setEditorToggle({
+        canEdit,
         onToggleEdit: () => {
             editMode = !editMode;
             renderStrip();
             renderActiveTab();
         },
-        canEdit,
     });
 
     const headerEl = root.querySelector('#pb-sheet-header');

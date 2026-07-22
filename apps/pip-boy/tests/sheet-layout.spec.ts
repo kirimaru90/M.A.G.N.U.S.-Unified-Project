@@ -93,7 +93,7 @@ test('editor mode is off again after leaving and reopening the sheet', async ({ 
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('.pb-editor-strip')).toBeVisible();
 
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
 

@@ -184,7 +184,7 @@ test('immersive resets to off when the sheet is re-opened', async ({ page }) => 
 
   // The statusbar stays visible in immersive, so DOSSIER is reachable — leaving
   // the sheet and re-opening it must land in normal mode.
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await page.locator('#pb-sheet-header').waitFor();
 

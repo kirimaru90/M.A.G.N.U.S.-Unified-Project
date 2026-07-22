@@ -1,18 +1,18 @@
 import { mount, esc } from '../engine/render.js';
 import { listCampaigns } from '../api/campaigns.js';
-import { logout } from '../api/session.js';
 
 /**
  * Rendered only when two or more campaigns are accessible — a lone campaign is
  * auto-selected upstream. `campaigns` may be passed in to reuse that lookup;
  * `null` means the caller's fetch failed, `undefined` means it never ran.
+ * Logout is driven by the case exit nub (`main.js`'s `setCaseNav`), not a
+ * button rendered here.
  */
-export async function renderCampaignSelect(root, { campaigns, onSelect, onLogout }) {
+export async function renderCampaignSelect(root, { campaigns, onSelect }) {
     mount(root, `
         <div class="pb-header">
             <div class="pb-header-top">
                 <h2>SELEZIONA CAMPAGNA</h2>
-                <button class="pb-btn" id="pb-camp-logout">ESCI</button>
             </div>
         </div>
         <div class="pb-screen-content">
@@ -21,11 +21,6 @@ export async function renderCampaignSelect(root, { campaigns, onSelect, onLogout
             </div>
         </div>
     `);
-
-    root.querySelector('#pb-camp-logout').addEventListener('click', async () => {
-        await logout();
-        onLogout();
-    });
 
     const listEl = root.querySelector('#pb-camp-list');
 

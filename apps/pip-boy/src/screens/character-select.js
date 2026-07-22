@@ -1,7 +1,7 @@
 import { mount, esc } from '../engine/render.js';
 import { listCharacters, getCharacter, deleteCharacter } from '../api/characters.js';
 import { listPlayers } from '../api/campaigns.js';
-import { logout, isAdmin } from '../api/session.js';
+import { isAdmin } from '../api/session.js';
 import { APPROACHES } from '../sheet/model.js';
 
 function miniSpecial(special = {}) {
@@ -38,14 +38,14 @@ function characterCard(c, skillsCatalog) {
     `;
 }
 
+/** Logout and back-to-campaign are driven by the case nubs (`main.js`'s `setCaseNav`), not buttons rendered here. */
 export async function renderCharacterSelect(root, opts) {
-    const { campaignId, campaignName, skillsCatalog = [], onSelect, onCreate, onBack, onLogout } = opts;
+    const { campaignId, campaignName, skillsCatalog = [], onSelect, onCreate } = opts;
 
     mount(root, `
         <div class="pb-header">
             <div class="pb-header-top">
                 <h2>${esc(campaignName)}</h2>
-                <button class="pb-btn" id="pb-char-logout">ESCI</button>
             </div>
             <div class="pb-label">DOSSIER</div>
         </div>
@@ -54,15 +54,8 @@ export async function renderCharacterSelect(root, opts) {
                 <div class="pb-label">Caricamento…</div>
             </div>
             <button class="pb-btn pb-btn--dashed pb-btn--block" id="pb-char-create" style="margin-top:10px;">+ NUOVO PERSONAGGIO</button>
-            <button class="pb-btn" id="pb-char-back" style="margin-top:14px;">◄ CAMBIA CAMPAGNA</button>
         </div>
     `);
-
-    root.querySelector('#pb-char-logout').addEventListener('click', async () => {
-        await logout();
-        onLogout();
-    });
-    root.querySelector('#pb-char-back').addEventListener('click', onBack);
 
     const listEl = root.querySelector('#pb-char-list');
     const createBtn = root.querySelector('#pb-char-create');

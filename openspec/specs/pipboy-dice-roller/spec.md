@@ -53,7 +53,7 @@ When `SVANTAGGIO` is active, the single highest-value die SHALL be dropped **bef
 
 Once a roll has **settled**, the dice SHALL render sorted from highest face value to lowest. This ordering is a display concern only: each die's identity for the purposes of reroll selection and the `SVANTAGGIO` drop SHALL remain tied to the die itself, independent of its rendered position — sorting the display SHALL NOT change which die is selected, dropped, or rerolled. While the tumble animation is playing, faces SHALL render in place and SHALL NOT be sorted.
 
-Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. **Before the first roll no result box SHALL be rendered at all** — there SHALL be no `— TIRA I DADI —` placeholder box and no outcome-label slot occupying space. The result box SHALL appear only once a roll has settled, at which point it shows the resolved outcome (`SUCCESSO PIENO` / `SUCCESSO CON COSTO` / `FALLIMENTO`).
+Dice faces SHALL render as bordered squares: a `6` glows bright with a tinted background, `4` and `5` render plain green, and `1`–`3` render dim green. The result box (`#pb-dice-result`) SHALL always be present in the DOM at full opacity, reserving its layout space. Its content SHALL be driven purely by whether a result exists: with no result it renders a `-` placeholder; once a result exists it renders the resolved outcome (`SUCCESSO PIENO` / `SUCCESSO CON COSTO` / `FALLIMENTO`). This content SHALL depend only on whether a result exists, not on whether the tumble animation is currently playing — so during a reroll's tumble the box SHALL continue showing the previous result until the new one settles, rather than reverting to `-` mid-animation.
 
 The roller's random source SHALL be injectable, so that automated tests can assert on seeded outcomes rather than on real randomness.
 
@@ -91,14 +91,49 @@ The roller's random source SHALL be injectable, so that automated tests can asse
 - **WHEN** the tumble animation is playing
 - **THEN** tapping a die does not select it for reroll
 
-#### Scenario: No result box before the first roll
+#### Scenario: Result box shows a dash before the first roll
 - **WHEN** the `DADI` tab opens before any roll
-- **THEN** no result box element is rendered — there is neither a `— TIRA I DADI —` placeholder nor an empty outcome slot
+- **THEN** the `#pb-dice-result` element is present in the DOM at full opacity, showing `-`, reserving its layout space
 
-#### Scenario: Result box appears once a roll settles
-- **GIVEN** the `DADI` tab was opened with no result box shown
+#### Scenario: Result box shows the outcome once a roll settles
+- **GIVEN** the `DADI` tab was opened with no roll yet, so the result box shows `-`
 - **WHEN** the player rolls and the tumble settles
-- **THEN** the result box now renders, showing the resolved outcome label
+- **THEN** the result box shows the resolved outcome label
+
+#### Scenario: Result box holds the previous outcome through a reroll's tumble
+- **GIVEN** a settled roll whose outcome is showing in the result box
+- **WHEN** the player rerolls selected dice and the reroll's tumble animation plays
+- **THEN** the result box continues showing the previous outcome, unchanged, until the reroll settles, at which point it updates to the newly resolved outcome
+
+### Requirement: Idle dice-pool preview
+
+Before any roll has happened on a `DADI` tab mount, the dice grid SHALL render exactly `poolSize()` decorative placeholder dice, each showing face value `6`. These placeholder dice SHALL NOT be produced by the random source and SHALL NOT be selectable or clickable — they carry no reroll semantics.
+
+Placeholder dice SHALL render visually dimmed and SHALL be distinguishable from both a real settled `6` (which glows bright) and a `SVANTAGGIO`-dropped die (which is struck-through) — a placeholder die is dimmed only, with no strikethrough.
+
+The number of placeholder dice SHALL track the live pool size: changing the selected approach, toggling `VANTAGGIO`/`SVANTAGGIO`, or adjusting the modifier before the first roll SHALL immediately change the placeholder count to match the current `{n}d6` readout.
+
+Once the first roll occurs on a mount, placeholder dice SHALL NOT be shown again for the remainder of that mount — the grid shows only real dice (tumbling, then settled) from that point on, even if the pool size is subsequently changed.
+
+#### Scenario: Idle grid previews the pool size
+- **GIVEN** the `DADI` tab opens with the selected approach valued at `3` and no roll has occurred
+- **WHEN** the dice grid renders
+- **THEN** exactly `3` placeholder dice are shown, each displaying `6`
+
+#### Scenario: Placeholder dice are dimmed and non-interactive
+- **GIVEN** the idle placeholder dice are shown
+- **WHEN** the player taps one
+- **THEN** nothing is selected and no reroll state changes; the die renders dimmed, distinct from a bright settled `6` and from a struck-through dropped die
+
+#### Scenario: Placeholder count tracks pool-size changes before rolling
+- **GIVEN** the idle grid shows `3` placeholder dice
+- **WHEN** the player activates `VANTAGGIO` before rolling
+- **THEN** the idle grid now shows `4` placeholder dice, matching the updated `{n}d6` readout
+
+#### Scenario: Placeholder dice never return after the first roll
+- **GIVEN** a roll has settled on the current mount
+- **WHEN** the player changes the approach or modifier afterward, before rolling again
+- **THEN** the dice grid continues showing the previous roll's real dice, not placeholder dice, regardless of the new pool size
 
 ### Requirement: Action-point refunds from sixes
 

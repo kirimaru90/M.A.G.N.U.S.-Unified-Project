@@ -385,7 +385,7 @@ test('the register is empty after reopening the sheet, and no roll is ever persi
   await expect(page.locator('#pb-dice-register .pb-spend-row')).toHaveCount(1);
 
   // ...but dies with the sheet
-  await page.locator('#pb-nav-dossier').click();
+  await page.locator('#pb-nav-back').click();
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
   await expect(page.locator('#pb-dice-register')).toContainText('Nessun tiro');

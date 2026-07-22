@@ -157,10 +157,12 @@ body {
     gap: 10px;
 }
 
+/* Grid (not flex space-between) so the nav nubs sit truly centered between
+   the status id and the OS label regardless of either group's own width. */
 .pb-statusbar {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     gap: 8px;
     font-size: 10px;
     letter-spacing: 1px;
@@ -170,6 +172,7 @@ body {
        under the notch when the case bleeds toward the display edge. */
     padding: var(--pb-safe-top) 4px 0;
 }
+.pb-statusbar .pb-status-os { justify-self: end; }
 
 /* The status LED is round, per the reference; see the case/screen/bezel
    exceptions to the no-border-radius rule. */
@@ -182,22 +185,10 @@ body {
     margin-right: 7px;
 }
 
-.pb-statusbar-nav { display: flex; gap: 6px; }
-.pb-statusbar-nav[hidden] { display: none; }
-
-.pb-statusbar-btn {
-    background: transparent;
-    border: 1px solid var(--green-border);
-    color: var(--phosphor);
-    font-family: var(--font-body);
-    font-size: 9px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 2px 6px;
-    cursor: pointer;
-}
-.pb-statusbar-btn:hover { background: var(--green-fill); }
-.pb-statusbar-btn[hidden] { display: none; }
+/* The back/exit case nubs sit centered between the status id and the OS
+   label; .pb-nub (below, shared with the bottom bezel's editor toggle) gives
+   them their fixed size and body styling. */
+.pb-statusbar-nav { display: flex; gap: 6px; flex: none; }
 
 /* Critical state swaps the status dot and label to critical-red, in every
    phosphor theme. */
@@ -356,13 +347,15 @@ body {
     background: repeating-linear-gradient(90deg, #2a2f22 0 3px, #12140d 3px 6px);
 }
 
-/* The nub doubles as the ✎ editor-mode toggle. It grows in height (bounded by
-   the knob's own 22px, which still governs the bezel's rendered height — see
-   pipboy-terminal-chrome) to hold the glyph and a workable tap target; width
-   grows modestly alongside it. It is permanent bezel furniture — present on
-   every screen, never `hidden` — but `disabled` off-sheet and for a sheet
-   viewer without write permission, which keeps it out of the tab order and
-   blocks activation (and hover/press feedback) natively. */
+/* .pb-nub is the one physical control body, repeated three times: the bottom
+   bezel's ✎ editor-mode toggle here, and the status bar's back/exit nubs
+   above. All three are permanent case furniture — present on every screen,
+   never `hidden` — but `disabled` (dim, out of the tab order, activation
+   blocked natively) whenever there's nothing to do: off-sheet or without
+   write permission for the editor toggle, per-screen for back/exit. The
+   editor toggle grows in height (bounded by the knob's own 22px, which still
+   governs the bezel's rendered height — see pipboy-terminal-chrome) to hold
+   its glyph and a workable tap target; width grows modestly alongside it. */
 .pb-nub {
     width: 40px; height: 20px;
     flex: none;
@@ -380,8 +373,8 @@ body {
     color: var(--green-border-strong);
     cursor: pointer;
 }
-#pb-editor-toggle:hover { background: linear-gradient(#454c3b, #1a1e13); }
-#pb-editor-toggle:disabled {
+.pb-nub:hover:not(:disabled) { background: linear-gradient(#454c3b, #1a1e13); }
+.pb-nub:disabled {
     cursor: default;
     opacity: 0.5;
 }

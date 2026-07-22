@@ -1,12 +1,13 @@
 // Controls the case chrome that lives *outside* `#app`: the status bar (dot,
-// label, sheet-only nav, OS label) and the critical-red ring overlay. Screens
+// label, back/exit nubs, OS label) and the critical-red ring overlay. Screens
 // mount into `#app` and cannot reach these, so they drive them through here.
 
 import { openSettingsPopup } from './settings-popup.js';
 
 const statusbar = () => document.getElementById('pb-statusbar');
 const screenEl = () => document.getElementById('pb-screen');
-const navEl = () => document.getElementById('pb-statusbar-nav');
+const navBackEl = () => document.getElementById('pb-nav-back');
+const navExitEl = () => document.getElementById('pb-nav-exit');
 const ringEl = () => document.getElementById('pb-critical-ring');
 const editorRingEl = () => document.getElementById('pb-editor-ring');
 // The `✎` toggle is the bottom bezel's nub, resolved by id; it carries its own
@@ -16,8 +17,8 @@ const editorToggleEl = () => document.getElementById('pb-editor-toggle');
 // so it is wired once below rather than per sheet-mount.
 const configKnobEl = () => document.getElementById('pb-config-knob');
 
-let boundBack = null;
-let boundLogout = null;
+let boundNavBack = null;
+let boundNavExit = null;
 let boundToggleEdit = null;
 // The critical-red ring takes precedence over the phosphor-colored editor
 // ring, so setEditorChrome must know the current critical state to decide
@@ -25,50 +26,57 @@ let boundToggleEdit = null;
 let criticalActive = false;
 
 /**
- * Show the `[◄ DOSSIER][ESCI]` controls, which appear only while the sheet is
- * mounted, plus the `✎` editor toggle for a user who may write the character.
- * Call `hideSheetNav()` on every other screen.
+ * Set the two permanent status-bar case nubs — back and exit — for the
+ * current screen. `back`/`exit` are each either `{ label, onActivate }` or
+ * `null`; `null` means no glyph and disabled, since every screen in this app
+ * that has nothing to do there has nothing to show either (design.md). Called
+ * by every screen transition in `main.js`, so both nubs always change state
+ * together, atomically, on every navigation.
  */
-export function showSheetNav({ onBack, onLogout, onToggleEdit, canEdit }) {
-    const nav = navEl();
-    if (!nav) return;
+export function setCaseNav({ back, exit }) {
+    const backBtn = navBackEl();
+    if (backBtn) {
+        if (boundNavBack) backBtn.removeEventListener('click', boundNavBack);
+        backBtn.textContent = back ? '◄' : '';
+        backBtn.title = back ? back.label : '';
+        backBtn.setAttribute('aria-label', back ? back.label : '');
+        backBtn.disabled = !back;
+        boundNavBack = back ? back.onActivate : null;
+        if (boundNavBack) backBtn.addEventListener('click', boundNavBack);
+    }
 
-    const backBtn = document.getElementById('pb-nav-dossier');
-    const logoutBtn = document.getElementById('pb-nav-logout');
+    const exitBtn = navExitEl();
+    if (exitBtn) {
+        if (boundNavExit) exitBtn.removeEventListener('click', boundNavExit);
+        exitBtn.textContent = exit ? '⏻' : '';
+        exitBtn.title = exit ? exit.label : '';
+        exitBtn.setAttribute('aria-label', exit ? exit.label : '');
+        exitBtn.disabled = !exit;
+        boundNavExit = exit ? exit.onActivate : null;
+        if (boundNavExit) exitBtn.addEventListener('click', boundNavExit);
+    }
+}
+
+/**
+ * Wire the `✎` editor toggle's enabled state and click handler — separate
+ * from `setCaseNav` because, unlike back/exit, it is only ever driven by the
+ * sheet screen itself (its lit state is handled by `setEditorChrome`, below).
+ */
+export function setEditorToggle({ canEdit, onToggleEdit }) {
     const toggleBtn = editorToggleEl();
+    if (!toggleBtn) return;
 
-    // Re-mounting the sheet re-binds these, so drop the previous handlers first.
-    if (boundBack) backBtn.removeEventListener('click', boundBack);
-    if (boundLogout) logoutBtn.removeEventListener('click', boundLogout);
-    if (boundToggleEdit && toggleBtn) toggleBtn.removeEventListener('click', boundToggleEdit);
-
-    boundBack = onBack;
-    boundLogout = onLogout;
-    backBtn.addEventListener('click', boundBack);
-    logoutBtn.addEventListener('click', boundLogout);
+    // Re-mounting the sheet re-binds this, so drop the previous handler first.
+    if (boundToggleEdit) toggleBtn.removeEventListener('click', boundToggleEdit);
 
     // The nub is permanent bezel furniture: a viewer who may not write the
     // character still sees the ✎ glyph, just inert — `disabled` keeps it out of
     // the tab order and blocks activation in one native property, rather than
     // hiding it. Its lit state is reset each mount (editor mode never persists).
-    if (toggleBtn) {
-        toggleBtn.disabled = !canEdit;
-        toggleBtn.classList.remove('on');
-        boundToggleEdit = canEdit ? onToggleEdit : null;
-        if (boundToggleEdit) toggleBtn.addEventListener('click', boundToggleEdit);
-    }
-
-    nav.hidden = false;
-}
-
-export function hideSheetNav() {
-    const nav = navEl();
-    if (nav) nav.hidden = true;
-    const toggleBtn = editorToggleEl();
-    if (toggleBtn) {
-        toggleBtn.disabled = true;
-        toggleBtn.classList.remove('on');
-    }
+    toggleBtn.disabled = !canEdit;
+    toggleBtn.classList.remove('on');
+    boundToggleEdit = canEdit ? onToggleEdit : null;
+    if (boundToggleEdit) toggleBtn.addEventListener('click', boundToggleEdit);
 }
 
 // The config knob is part of the always-rendered bezel, reachable from every
