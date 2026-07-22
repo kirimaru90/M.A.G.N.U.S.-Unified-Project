@@ -4,8 +4,9 @@ import { stubEnvironment, login, makeCharacter, seedDice } from './fixtures';
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
  * round in the reference design (a 9px circle in the case status bar), so it
- * joins the case, screen, and the three bezel parts as case chrome. The
- * editor-mode case LED is likewise a round indicator (matching the status LED).
+ * joins the case, screen, and the three bezel parts as case chrome. The bezel
+ * knobs and nub carry their own lit state directly — there is no separate LED
+ * element for the editor toggle.
  */
 const ROUNDED_ALLOWLIST = [
   '.pb-case',
@@ -16,7 +17,6 @@ const ROUNDED_ALLOWLIST = [
   '.pb-grille',
   '.pb-nub',
   '.pb-statusbar .dot',
-  '.pb-editor-led',
 ];
 
 async function openSheet(page: Page) {
@@ -42,8 +42,61 @@ test('the bottom bezel renders two knobs, a ridged grille and a slider nub', asy
   expect(knob!.height).toBeCloseTo(22, 0);
 
   const nub = await page.locator('.pb-nub').boundingBox();
-  expect(nub!.width).toBeCloseTo(34, 0);
-  expect(nub!.height).toBeCloseTo(12, 0);
+  expect(nub!.width).toBeCloseTo(40, 0);
+  expect(nub!.height).toBeCloseTo(20, 0);
+});
+
+test('the config knob and editor nub glyphs stay fully contained, and swap color when lit', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const containment = async (controlSel: string) => {
+    const control = await page.locator(controlSel).evaluate((el) => el.getBoundingClientRect());
+    // The glyph is the control's own text node; its rendered extent can't
+    // exceed the control's own box once centered and clipped by it.
+    const overflowsX = await page.locator(controlSel).evaluate((el) => el.scrollWidth > el.clientWidth);
+    const overflowsY = await page.locator(controlSel).evaluate((el) => el.scrollHeight > el.clientHeight);
+    expect(overflowsX, `${controlSel} glyph overflows horizontally`).toBe(false);
+    expect(overflowsY, `${controlSel} glyph overflows vertically`).toBe(false);
+    expect(control.width).toBeGreaterThan(0);
+    expect(control.height).toBeGreaterThan(0);
+  };
+
+  await containment('#pb-config-knob');
+  await containment('#pb-editor-toggle');
+
+  const idleKnobColor = await page.locator('#pb-config-knob').evaluate((el) => getComputedStyle(el).color);
+  const idleNubColor = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).color);
+
+  await page.locator('#pb-config-knob').click();
+  await containment('#pb-config-knob');
+  const litKnobColor = await page.locator('#pb-config-knob').evaluate((el) => getComputedStyle(el).color);
+  expect(litKnobColor).not.toBe(idleKnobColor);
+  expect(litKnobColor).toBe('rgb(6, 17, 10)'); // --screen-bg
+  await page.locator('.pb-popup-overlay').click({ position: { x: 4, y: 4 } });
+
+  await page.locator('#pb-editor-toggle').click();
+  await containment('#pb-editor-toggle');
+  const litNubColor = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).color);
+  expect(litNubColor).not.toBe(idleNubColor);
+  expect(litNubColor).toBe('rgb(6, 17, 10)'); // --screen-bg
+});
+
+test('the right knob stays decorative: non-interactive, aria-hidden, never lit', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const rightKnob = page.locator('.pb-bezel .pb-knob').nth(1);
+  await expect(rightKnob).toHaveAttribute('aria-hidden', 'true');
+  expect(await rightKnob.evaluate((el) => el.tagName)).toBe('SPAN');
+
+  // Lighting the config knob or the editor nub must never touch the right knob.
+  await page.locator('#pb-config-knob').click();
+  await expect(rightKnob).not.toHaveClass(/on/);
+  await page.locator('.pb-popup-overlay').click({ position: { x: 4, y: 4 } });
+
+  await page.locator('#pb-editor-toggle').click();
+  await expect(rightKnob).not.toHaveClass(/on/);
 });
 
 test('the scanline sweep exists and carries an animation', async ({ page }) => {
@@ -150,15 +203,19 @@ test('the case, screen, grille and nub carry their specified radii', async ({ pa
   expect(await radius('.pb-knob')).toBe('50%');
 });
 
-test('buttons and inputs are square-cornered', async ({ page }) => {
+test('buttons and inputs are square-cornered, except the bezel knob and nub controls', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
 
-  const radii = await page.$$eval('button, input, select', (els) =>
-    els.map((el) => getComputedStyle(el).borderRadius),
+  const radii = await page.$$eval(
+    'button:not(#pb-config-knob):not(#pb-editor-toggle), input, select',
+    (els) => els.map((el) => getComputedStyle(el).borderRadius),
   );
   expect(radii.length).toBeGreaterThan(0);
   for (const r of radii) expect(r).toBe('0px');
+
+  expect(await page.locator('#pb-config-knob').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
+  expect(await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('6px');
 });
 
 // ── 4.T.3 glyphs, not emoji ─────────────────────────────────────────
@@ -304,7 +361,7 @@ test('a non-critical character shows no ring and a green status dot', async ({ p
 
 // ── editor toggle in the bezel (sheet-chrome-and-layout) ─────────────
 
-test('the owner sees ◄ DOSSIER and ESCI in the status bar, and the ✎ toggle + LED in the bezel (not the status bar or tab bar)', async ({ page }) => {
+test('the owner sees ◄ DOSSIER and ESCI in the status bar, and the ✎ toggle in the bezel (not the status bar or tab bar)', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
@@ -314,17 +371,17 @@ test('the owner sees ◄ DOSSIER and ESCI in the status bar, and the ✎ toggle 
   // The ✎ toggle no longer lives among the status-bar controls.
   await expect(nav.locator('#pb-editor-toggle')).toHaveCount(0);
 
-  // It seats in the bottom-right of the bezel, alongside its (unlit) green LED.
+  // It seats in the bezel, enabled (and unlit) for the owner — no separate LED.
   await expect(page.locator('.pb-bezel #pb-editor-toggle')).toBeVisible();
-  await expect(page.locator('.pb-bezel #pb-editor-led')).toBeVisible();
-  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
+  await expect(page.locator('#pb-editor-toggle')).toBeEnabled();
+  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 
   // The tab bar returns to exactly six content tabs and carries no toggle.
   await expect(page.locator('.pb-tab[data-top]')).toHaveCount(6);
   await expect(page.locator('#pb-tabs #pb-editor-toggle')).toHaveCount(0);
 });
 
-test('a non-owner viewer sees no ✎ toggle anywhere', async ({ page }) => {
+test('a non-owner viewer sees the ✎ toggle, disabled and inert', async ({ page }) => {
   await stubEnvironment(page, {
     role: 'player',
     userId: 'user-player',
@@ -333,7 +390,14 @@ test('a non-owner viewer sees no ✎ toggle anywhere', async ({ page }) => {
   await openSheet(page);
 
   await expect(page.locator('#pb-nav-dossier')).toBeVisible();
-  await expect(page.locator('#pb-editor-toggle')).toBeHidden();
+  // Permanent bezel furniture: the glyph stays visible, just inert.
+  await expect(page.locator('#pb-editor-toggle')).toBeVisible();
+  await expect(page.locator('#pb-editor-toggle')).toBeDisabled();
+
+  await page.locator('#pb-editor-toggle').click({ force: true });
+  await expect(page.locator('#pb-editor-ring')).toBeHidden();
+  await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
+  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 });
 
 test('toggling editor mode adds and removes the green ring and the ◉ EDITOR strip', async ({ page }) => {
@@ -343,14 +407,14 @@ test('toggling editor mode adds and removes the green ring and the ◉ EDITOR st
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
   await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
 
-  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
+  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-editor-ring')).toBeVisible();
   await expect(page.locator('.pb-editor-strip')).toContainText('◉ EDITOR');
-  await expect(page.locator('#pb-editor-toggle')).toHaveClass(/active/);
-  // The green case LED lights alongside the active toggle.
-  await expect(page.locator('#pb-editor-led')).toHaveClass(/on/);
+  // The nub itself lights — no separate LED element.
+  await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
+  await expect(page.locator('#pb-editor-led')).toHaveCount(0);
 
   const ring = await page.locator('#pb-editor-ring').evaluate((el) => {
     const cs = getComputedStyle(el);
@@ -363,8 +427,7 @@ test('toggling editor mode adds and removes the green ring and the ◉ EDITOR st
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
   await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
-  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/active/);
-  await expect(page.locator('#pb-editor-led')).not.toHaveClass(/on/);
+  await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 });
 
 test('a critical character in editor mode shows the amber ring, not the green one', async ({ page }) => {
@@ -379,9 +442,9 @@ test('a critical character in editor mode shows the amber ring, not the green on
 
   await expect(page.locator('#pb-critical-ring')).toBeVisible();
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
-  // The editor LED stays green even while critical — the amber critical ring and
-  // the green LED never share a color, and both may show at once.
-  await expect(page.locator('#pb-editor-led')).toHaveClass(/on/);
+  // The nub stays lit green even while critical — the amber critical ring and
+  // the green nub never share a color, and both may show at once.
+  await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
 });
 
 test('a select option renders on the dark screen theme, not white', async ({ page }) => {

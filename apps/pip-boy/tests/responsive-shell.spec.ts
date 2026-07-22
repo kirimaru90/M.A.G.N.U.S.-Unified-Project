@@ -78,7 +78,7 @@ test('the status bar, tab nav and footer stay visible and hit-testable in landsc
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 
-  for (const sel of ['#pb-statusbar', '#pb-nav-dossier', '#pb-nav-settings', '#pb-nav-logout', '.pb-footer']) {
+  for (const sel of ['#pb-statusbar', '#pb-nav-dossier', '#pb-config-knob', '#pb-nav-logout', '.pb-footer']) {
     await expect(page.locator(sel)).toBeInViewport();
   }
 

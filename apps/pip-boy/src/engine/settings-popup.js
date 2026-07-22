@@ -199,7 +199,7 @@ async function checkForUpdate(btn) {
     }
 }
 
-export function openSettingsPopup() {
+export function openSettingsPopup(onClose) {
     const prefs = getPrefs();
 
     const overlay = document.createElement('div');
@@ -236,7 +236,13 @@ export function openSettingsPopup() {
     `;
     document.body.appendChild(overlay);
 
-    const close = () => overlay.remove();
+    // The single choke point for every dismissal path (✕, click-outside, and
+    // any future path added here) — the caller's onClose fires from here alone,
+    // so the bezel's config knob can never end up stuck lit.
+    const close = () => {
+        overlay.remove();
+        onClose?.();
+    };
     overlay.querySelector('[data-close]').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.querySelector('[data-credits]').addEventListener('click', openCreditsPopup);

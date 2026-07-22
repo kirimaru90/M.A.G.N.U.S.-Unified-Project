@@ -9,22 +9,22 @@ const screenEl = () => document.getElementById('pb-screen');
 const navEl = () => document.getElementById('pb-statusbar-nav');
 const ringEl = () => document.getElementById('pb-critical-ring');
 const editorRingEl = () => document.getElementById('pb-editor-ring');
-// The `✎` toggle and its green LED now live in the bottom-right of the bezel;
-// both are still resolved by id, so their move out of the status bar needs no
-// change here beyond driving the LED alongside the toggle.
+// The `✎` toggle is the bottom bezel's nub, resolved by id; it carries its own
+// lit state directly (no separate LED element).
 const editorToggleEl = () => document.getElementById('pb-editor-toggle');
-const editorLedEl = () => document.getElementById('pb-editor-led');
+// The `⚙` settings control is the bottom bezel's left knob — always rendered,
+// so it is wired once below rather than per sheet-mount.
+const configKnobEl = () => document.getElementById('pb-config-knob');
 
 let boundBack = null;
 let boundLogout = null;
 let boundToggleEdit = null;
-let boundSettings = null;
 // The amber critical ring takes precedence over the green editor ring, so
 // setEditorChrome must know the current critical state to decide which shows.
 let criticalActive = false;
 
 /**
- * Show the `[◄ DOSSIER][⚙][ESCI]` controls, which appear only while the sheet is
+ * Show the `[◄ DOSSIER][ESCI]` controls, which appear only while the sheet is
  * mounted, plus the `✎` editor toggle for a user who may write the character.
  * Call `hideSheetNav()` on every other screen.
  */
@@ -34,13 +34,11 @@ export function showSheetNav({ onBack, onLogout, onToggleEdit, canEdit }) {
 
     const backBtn = document.getElementById('pb-nav-dossier');
     const logoutBtn = document.getElementById('pb-nav-logout');
-    const settingsBtn = document.getElementById('pb-nav-settings');
     const toggleBtn = editorToggleEl();
 
     // Re-mounting the sheet re-binds these, so drop the previous handlers first.
     if (boundBack) backBtn.removeEventListener('click', boundBack);
     if (boundLogout) logoutBtn.removeEventListener('click', boundLogout);
-    if (boundSettings && settingsBtn) settingsBtn.removeEventListener('click', boundSettings);
     if (boundToggleEdit && toggleBtn) toggleBtn.removeEventListener('click', boundToggleEdit);
 
     boundBack = onBack;
@@ -48,27 +46,15 @@ export function showSheetNav({ onBack, onLogout, onToggleEdit, canEdit }) {
     backBtn.addEventListener('click', boundBack);
     logoutBtn.addEventListener('click', boundLogout);
 
-    // Settings need nothing from the screen, so — unlike the nav's other controls
-    // — this one is wired here rather than handed down. It is deliberately not
-    // gated on canEdit: device prefs are the viewer's, not the character's.
-    if (settingsBtn) {
-        boundSettings = openSettingsPopup;
-        settingsBtn.addEventListener('click', boundSettings);
-    }
-
-    // The toggle (and its LED) are hidden entirely for a viewer who may not write
-    // the character, and the toggle's active state is reset each mount (editor
-    // mode never persists). The LED starts unlit; setEditorChrome lights it.
+    // The nub is permanent bezel furniture: a viewer who may not write the
+    // character still sees the ✎ glyph, just inert — `disabled` keeps it out of
+    // the tab order and blocks activation in one native property, rather than
+    // hiding it. Its lit state is reset each mount (editor mode never persists).
     if (toggleBtn) {
-        toggleBtn.hidden = !canEdit;
-        toggleBtn.classList.remove('active');
+        toggleBtn.disabled = !canEdit;
+        toggleBtn.classList.remove('on');
         boundToggleEdit = canEdit ? onToggleEdit : null;
         if (boundToggleEdit) toggleBtn.addEventListener('click', boundToggleEdit);
-    }
-    const led = editorLedEl();
-    if (led) {
-        led.hidden = !canEdit;
-        led.classList.remove('on');
     }
 
     nav.hidden = false;
@@ -79,15 +65,20 @@ export function hideSheetNav() {
     if (nav) nav.hidden = true;
     const toggleBtn = editorToggleEl();
     if (toggleBtn) {
-        toggleBtn.hidden = true;
-        toggleBtn.classList.remove('active');
-    }
-    const led = editorLedEl();
-    if (led) {
-        led.hidden = true;
-        led.classList.remove('on');
+        toggleBtn.disabled = true;
+        toggleBtn.classList.remove('on');
     }
 }
+
+// The config knob is part of the always-rendered bezel, reachable from every
+// screen, so its click handler is bound once here rather than per sheet-mount.
+// It lights for exactly as long as the settings popup is open, going dark the
+// instant it closes via either dismissal path — openSettingsPopup's onClose is
+// the single choke point both paths funnel through.
+configKnobEl()?.addEventListener('click', () => {
+    configKnobEl()?.classList.add('on');
+    openSettingsPopup(() => configKnobEl()?.classList.remove('on'));
+});
 
 /** Critical state rings the screen amber and swaps the status dot and label. */
 export function setCriticalChrome(isCritical) {
@@ -110,13 +101,12 @@ function syncEditorRing() {
     if (ring) ring.hidden = !(editorActive && !criticalActive);
 }
 
-/** Reflect editor mode: the green ring, the active toggle state, and the LED. */
+/** Reflect editor mode: the green ring and the nub's own lit state. */
 export function setEditorChrome(on) {
     editorActive = !!on;
-    editorToggleEl()?.classList.toggle('active', !!on);
-    // The green case LED mirrors editor mode 1:1 (unlike the ring, it is not
+    // The nub's lit state mirrors editor mode 1:1 (unlike the ring, it is not
     // suppressed while critical — green never collides with the amber critical
     // treatment, so both may show at once).
-    editorLedEl()?.classList.toggle('on', !!on);
+    editorToggleEl()?.classList.toggle('on', !!on);
     syncEditorRing();
 }

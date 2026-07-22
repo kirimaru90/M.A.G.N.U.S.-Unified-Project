@@ -16,46 +16,43 @@ const option = (page: Page, key: string, value: string) =>
   row(page, key).locator(`[data-value="${value}"]`);
 
 const openSettings = async (page: Page) => {
-  await page.locator('#pb-nav-settings').click();
+  await page.locator('#pb-config-knob').click();
   await expect(page.locator(POPUP)).toBeVisible();
 };
 
 // ── entry point ─────────────────────────────────────────────────────
 
-test('the settings control renders between ◄ DOSSIER and ESCI on the sheet', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
-
-  const ids = await page.locator('#pb-statusbar-nav button').evaluateAll((els) => els.map((e) => e.id));
-  expect(ids).toEqual(['pb-nav-dossier', 'pb-nav-settings', 'pb-nav-logout']);
-  await expect(page.locator('#pb-nav-settings')).toHaveAttribute('aria-label', 'Impostazioni');
-});
-
-test('the settings control is absent off-sheet', async ({ page }) => {
+test('the settings control is the bezel config knob, reachable on every screen', async ({ page }) => {
   await stubEnvironment(page, { campaigns: [{ id: 'camp-1', name: 'Vault 111' }, { id: 'camp-2', name: 'Vault 88' }] });
 
   // login
   await page.goto('/index.html');
-  await expect(page.locator('#pb-nav-settings')).toBeHidden();
+  await expect(page.locator('#pb-config-knob')).toBeVisible();
+  await expect(page.locator('#pb-config-knob')).toHaveAttribute('aria-label', 'Impostazioni');
+  await openSettings(page);
+  await page.locator(`${POPUP} [data-close]`).click();
 
   // campaign-select
   await page.locator('#pb-login-username').fill('player1');
   await page.locator('#pb-login-password').fill('pass');
   await page.locator('#pb-login-submit').click();
   await expect(page.getByRole('heading', { name: 'SELEZIONA CAMPAGNA' })).toBeVisible();
-  await expect(page.locator('#pb-nav-settings')).toBeHidden();
+  await openSettings(page);
+  await page.locator(`${POPUP} [data-close]`).click();
 
   // character-select
   await page.getByText('Vault 111').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
-  await expect(page.locator('#pb-nav-settings')).toBeHidden();
+  await openSettings(page);
+  await page.locator(`${POPUP} [data-close]`).click();
 
-  // ...and back on the sheet it returns
+  // ...and on the sheet
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
-  await expect(page.locator('#pb-nav-settings')).toBeVisible();
+  await expect(page.locator('#pb-sheet-header')).toBeVisible();
+  await openSettings(page);
 });
 
-test('a read-only viewer, whose ✎ toggle is hidden, can still open settings', async ({ page }) => {
+test('a read-only viewer, whose ✎ toggle is inert, can still open settings', async ({ page }) => {
   await stubEnvironment(page, {
     role: 'player',
     userId: 'user-player-2',
@@ -65,9 +62,32 @@ test('a read-only viewer, whose ✎ toggle is hidden, can still open settings', 
 
   // Device prefs are the viewer's, not the character's — so unlike ✎, the
   // settings control is never permission-gated.
-  await expect(page.locator('#pb-editor-toggle')).toBeHidden();
-  await expect(page.locator('#pb-nav-settings')).toBeVisible();
+  await expect(page.locator('#pb-editor-toggle')).toBeDisabled();
+  await expect(page.locator('#pb-config-knob')).toBeEnabled();
   await openSettings(page);
+});
+
+test('the config knob lights while the popup is open, and darkens on close via either path', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const knob = page.locator('#pb-config-knob');
+  await expect(knob).not.toHaveClass(/on/);
+
+  await openSettings(page);
+  await expect(knob).toHaveClass(/on/);
+
+  // Dismissal via the ✕ control.
+  await page.locator(`${POPUP} [data-close]`).click();
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await expect(knob).not.toHaveClass(/on/);
+
+  // Dismissal via a click outside the popup.
+  await openSettings(page);
+  await expect(knob).toHaveClass(/on/);
+  await page.locator('.pb-popup-overlay').click({ position: { x: 4, y: 4 } });
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await expect(knob).not.toHaveClass(/on/);
 });
 
 // ── popup shape and apply-on-tap ────────────────────────────────────
@@ -171,11 +191,11 @@ test('a preference set on the sheet stays in effect off-sheet', async ({ page })
   await option(page, 'orientation', 'landscape').click();
   await page.locator(`${POPUP} [data-close]`).click();
 
-  // Prefs are edited only from the sheet but applied globally: navigating to a
-  // screen with no settings control must not drop the lock.
+  // Prefs are edited and applied globally: navigating off the sheet, where the
+  // settings control still lives in the bezel, must not drop the lock.
   await page.locator('#pb-nav-dossier').click();
   await expect(page.locator('#pb-char-list')).toBeVisible();
-  await expect(page.locator('#pb-nav-settings')).toBeHidden();
+  await expect(page.locator('#pb-config-knob')).toBeVisible();
 
   const stored = await page.evaluate(() => window.localStorage.getItem('pipboy:prefs'));
   expect(JSON.parse(stored!).orientation).toBe('landscape');

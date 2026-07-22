@@ -311,6 +311,23 @@ body {
     box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.6);
 }
 
+/* The left knob doubles as the settings control (pipboy-settings): same
+   class, same slot in the bezel, upgraded from <span> to <button> carrying
+   its own glyph. The right .pb-knob stays a plain, non-interactive span. */
+#pb-config-knob {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 12px;
+    line-height: 1;
+    color: var(--green-border-strong);
+    cursor: pointer;
+}
+#pb-config-knob:hover { background: radial-gradient(circle at 35% 30%, #454c3b, #1a1e13); }
+
 .pb-grille {
     flex: 1;
     height: 6px;
@@ -319,61 +336,48 @@ body {
     background: repeating-linear-gradient(90deg, #2a2f22 0 3px, #12140d 3px 6px);
 }
 
+/* The nub doubles as the ✎ editor-mode toggle. It grows in height (bounded by
+   the knob's own 22px, which still governs the bezel's rendered height — see
+   pipboy-terminal-chrome) to hold the glyph and a workable tap target; width
+   grows modestly alongside it. It is permanent bezel furniture — present on
+   every screen, never `hidden` — but `disabled` off-sheet and for a sheet
+   viewer without write permission, which keeps it out of the tab order and
+   blocks activation (and hover/press feedback) natively. */
 .pb-nub {
-    width: 34px; height: 12px;
+    width: 40px; height: 20px;
     flex: none;
     border-radius: 6px;
     background: linear-gradient(#3a4030, #14170f);
     border: 1px solid #444a37;
-}
-
-/* Sheet-only editor toggle + LED, seated in the bottom-right of the bezel. The
-   controls sit within the existing bezel band (short, no extra row) so the
-   bezel's rendered height is unchanged. Both are hidden off-sheet / for viewers
-   who may not write the character. */
-.pb-bezel-editor {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: 12px;
-    flex: none;
-}
-.pb-bezel-toggle {
-    background: transparent;
-    border: 1px solid var(--green-border);
-    color: var(--phosphor);
-    font-family: var(--font-body);
-    font-size: 13px;
-    line-height: 1;
-    width: 26px; height: 22px;
+    justify-content: center;
     padding: 0;
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 12px;
+    line-height: 1;
+    color: var(--green-border-strong);
     cursor: pointer;
 }
-.pb-bezel-toggle[hidden] { display: none; }
-.pb-bezel-toggle:hover { background: var(--green-fill); }
-/* Active/pressed look while editor mode is on. */
-.pb-bezel-toggle.active {
-    background: var(--green-fill);
-    border-color: var(--green-border-strong);
-    color: var(--phosphor-bright);
-    text-shadow: 0 0 6px var(--phosphor-bright);
+#pb-editor-toggle:hover { background: linear-gradient(#454c3b, #1a1e13); }
+#pb-editor-toggle:disabled {
+    cursor: default;
+    opacity: 0.5;
 }
-/* Small round case LED. Green only — amber stays critical-only, so the editor
-   LED and the amber critical dot/ring never share a color. Dark/unlit by
-   default; a phosphor-green glow when editor mode is on. A round indicator, so
-   it joins the border-radius exception set. */
-.pb-editor-led {
-    width: 9px; height: 9px;
-    flex: none;
-    border-radius: 50%;
-    background: rgba(51, 255, 102, 0.12);
-    border: 1px solid var(--green-border-soft);
-}
-.pb-editor-led[hidden] { display: none; }
-.pb-editor-led.on {
+
+/* Lit state, shared by both bezel controls: each carries its own "on" light
+   directly on its own body — solid phosphor fill with a glow — rather than
+   pairing with a separate LED element. The glyph swaps to the dark
+   screen-background ink so it stays legible against its own bright fill
+   instead of disappearing into it. Green only — amber stays reserved for the
+   critical state, so a lit control is never mistakable for a critical signal. */
+#pb-config-knob.on,
+#pb-editor-toggle.on {
     background: var(--phosphor);
     border-color: var(--phosphor);
     box-shadow: 0 0 6px var(--phosphor), 0 0 10px rgba(51, 255, 102, 0.6);
+    color: var(--screen-bg);
 }
 
 /* ── Typography ─────────────────────────────────────────────────── */

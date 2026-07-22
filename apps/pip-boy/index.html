@@ -31,10 +31,6 @@
             <span class="pb-status-id"><span class="dot" id="pb-status-dot"></span><span id="pb-status-label">M.A.G.N.U.S.</span></span>
             <span class="pb-statusbar-nav" id="pb-statusbar-nav" hidden>
                 <button class="pb-statusbar-btn" id="pb-nav-dossier" type="button">&#9668; DOSSIER</button>
-                <!-- Sheet-only by construction: it inherits this container's
-                     show/hide. Unlike the `✎` toggle it is never permission-gated
-                     — a read-only viewer still controls their own device. -->
-                <button class="pb-statusbar-btn" id="pb-nav-settings" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
                 <button class="pb-statusbar-btn" id="pb-nav-logout" type="button">ESCI</button>
             </span>
             <span class="pb-status-os">PIP-BOY OS</span>
@@ -55,20 +51,22 @@
         </div>
 
         <div class="pb-bezel">
-            <span class="pb-knobs" aria-hidden="true">
-                <span class="pb-knob"></span>
-                <span class="pb-knob"></span>
+            <span class="pb-knobs">
+                <!-- The left knob doubles as the settings control (pipboy-settings):
+                     reachable on every screen, never permission-gated — a read-only
+                     viewer still controls their own device. It lights while the
+                     popup is open (chrome.js) and carries its own lit state; no
+                     separate LED. -->
+                <button class="pb-knob" id="pb-config-knob" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
+                <span class="pb-knob" aria-hidden="true"></span>
             </span>
             <span class="pb-grille" aria-hidden="true"></span>
-            <span class="pb-nub" aria-hidden="true"></span>
-            <!-- The sheet-only `✎` editor toggle and its green case LED. Both are
-                 hidden off-sheet and for viewers who may not write the character
-                 (driven by chrome.js). They occupy the existing bezel band so the
-                 bezel height is unchanged. -->
-            <span class="pb-bezel-editor">
-                <span class="pb-editor-led" id="pb-editor-led" aria-hidden="true" hidden></span>
-                <button class="pb-bezel-toggle" id="pb-editor-toggle" type="button" title="Modalità editor" hidden>&#9998;</button>
-            </span>
+            <!-- The nub doubles as the `✎` editor-mode toggle. It is permanent
+                 bezel furniture — always visible, never `hidden` — but `disabled`
+                 off-sheet and for a sheet viewer without write permission
+                 (driven by chrome.js), which keeps it out of the tab order and
+                 blocks activation natively. -->
+            <button class="pb-nub" id="pb-editor-toggle" type="button" title="Modalità editor" disabled>&#9998;</button>
         </div>
     </div>
 

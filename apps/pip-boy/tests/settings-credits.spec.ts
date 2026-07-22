@@ -18,7 +18,7 @@ async function openSettings(page: Page) {
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await page.locator('#pb-nav-settings').click();
+  await page.locator('#pb-config-knob').click();
   await expect(page.locator('#pb-settings-popup')).toBeVisible();
 }
 
