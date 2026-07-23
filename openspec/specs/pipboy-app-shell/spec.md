@@ -120,52 +120,94 @@ Whenever the user opens a character's sheet via campaign+character selection (i.
 
 ### Requirement: Navigation between sheet, character selection, campaign selection, and logout
 
-From an open character sheet, the app SHALL present the navigation controls in the **case status bar** (not the sheet header), per the reference layout: a status dot and label on the left, `[◄ DOSSIER]` and `[ESCI]` controls on the right of the sheet screen only, and an OS label. `◄ DOSSIER` returns to character selection for the current campaign; `ESCI` opens a confirmation dialog and, only on confirming, clears the local session and returns to login. Cancelling the `ESCI` confirmation (via its cancel action or its backdrop) SHALL leave the current session and screen unchanged. These two controls SHALL appear only while the sheet screen is mounted.
+The app SHALL present navigation and logout through two permanent physical case controls in the **case status bar** — a **back nub** and an **exit nub** — rendered per `pipboy-terminal-chrome`, present in the DOM on **every** screen (login, campaign selection, character selection/dossier, and the sheet), never only some of them. Both nubs SHALL be fixed-size regardless of whether they currently render a glyph.
 
-For a user who may write the character (its owner, or an admin), the app SHALL additionally present the `✎` editor-mode toggle in the **bottom-right of the case bezel** (not in the status-bar control cluster), styled with the case control theme. For any other viewer the `✎` toggle SHALL NOT be rendered. The toggle's placement, its green case LED, and its behaviour are specified by `pipboy-terminal-chrome` and `pipboy-character-sheet`; this requirement fixes only that the `◄ DOSSIER`/`ESCI` cluster lives in the status bar and that the editor toggle no longer sits among them.
+The back nub's glyph, accessible name, and activation target SHALL be contextual to the current screen, never a single fixed destination:
 
-Changing campaign SHALL remain reachable from the dossier screen (not the sheet), keeping the sheet's status bar to these reference controls.
+- On **login** and **campaign selection**, the back nub SHALL render with no glyph and SHALL be disabled — there is nothing above either screen to return to.
+- On **character selection** (the DOSSIER screen), the back nub SHALL render `◄`, carry the accessible name `CAMPAGNA`, and activating it SHALL return to campaign selection.
+- On the **sheet**, the back nub SHALL render `◄`, carry the accessible name `DOSSIER`, and activating it SHALL return to character selection for the current campaign.
 
-Copy SHALL follow the established terminal voice (Italian, uppercase labels, terse status phrasing). Controls SHALL use the design's glyph vocabulary (`◄ ✎ ✕ ⚠ ◉ ▸ − +`), never bracketed ASCII labels such as `[ Personaggi ]`. The `ESCI` control's existing permanent critical-red glyph styling is unchanged by the addition of the confirmation step — it remains the visual cue that the control is destructive; the confirmation dialog's own confirm button SHALL NOT additionally be styled as danger/critical.
+The exit nub SHALL log the user out and return to login wherever it is functional, but only after confirmation:
 
-#### Scenario: Sheet status bar carries the two reference controls
+- On **login**, the exit nub SHALL render with no glyph and SHALL be disabled — there is no session to exit.
+- On **campaign selection**, **character selection**, and the **sheet**, the exit nub SHALL render its glyph, carry the accessible name `ESCI`, and activating it SHALL open a confirmation dialog before any session change; only confirming SHALL clear the local session and return to the login screen. Cancelling the confirmation (via its cancel action or its backdrop) SHALL leave the current session and screen unchanged.
+
+Neither nub SHALL ever carry a persistent lit ("on") state: both are one-shot navigation actions that immediately leave the current screen (once confirmed, for the exit nub), unlike the `✎` editor toggle's persistent mode indicator (`pipboy-terminal-chrome`). Ordinary press feedback (e.g. `:active`) MAY apply, but no class equivalent to the editor toggle's `.on` SHALL be added to either nub.
+
+For a user who may write the character (its owner, or an admin), the app SHALL additionally present the `✎` editor-mode toggle in the **bottom-right of the case bezel** (not in the status-bar control cluster, and not one of the two nubs above). For any other viewer the `✎` toggle SHALL NOT be rendered. The toggle's placement, its lit state, and its behaviour are specified by `pipboy-terminal-chrome` and `pipboy-character-sheet`; this requirement fixes only that the back/exit nubs live in the status bar, are present on every screen, and that the editor toggle is a separate, unrelated bezel control.
+
+Copy SHALL follow the established terminal voice (Italian, uppercase labels, terse status phrasing). Controls SHALL use the design's glyph vocabulary (`◄ ✎ ✕ ⚠ ◉ ▸ − + ⏻`), never bracketed ASCII labels such as `[ Personaggi ]`, and never on-screen text buttons for back/exit navigation. The exit nub's permanent critical-red glyph styling (`pipboy-terminal-chrome`) is unchanged by the confirmation step — it remains the visual cue that the control is destructive; the confirmation dialog's own confirm button SHALL NOT additionally be styled as danger/critical.
+
+#### Scenario: Both case nubs are present on every screen
+
+- **WHEN** the login, campaign-selection, character-selection, or sheet screen is mounted
+- **THEN** the case status bar renders both the back nub and the exit nub, each at their fixed size, regardless of whether either currently shows a glyph
+
+#### Scenario: Back and exit are inert with no glyph on login
+
+- **WHEN** the login screen is mounted
+- **THEN** both the back nub and the exit nub render with no glyph and are disabled
+
+#### Scenario: Campaign selection offers only exit
+
+- **WHEN** the campaign-selection screen is mounted
+- **THEN** the back nub renders with no glyph and is disabled, and the exit nub renders its glyph, is enabled, and carries the accessible name `ESCI`
+
+#### Scenario: Character selection (DOSSIER) offers back-to-campaign and exit
+
+- **WHEN** the character-selection screen is mounted
+- **THEN** the back nub renders `◄`, carries the accessible name `CAMPAGNA`, and is enabled; the exit nub renders its glyph, is enabled, and carries the accessible name `ESCI`
+
+#### Scenario: Sheet offers back-to-dossier and exit
+
 - **WHEN** a character sheet is open
-- **THEN** the case status bar shows a status dot and label, a `◄ DOSSIER` control, an `ESCI` control, and an OS label, and no `✎` toggle among them
+- **THEN** the back nub renders `◄`, carries the accessible name `DOSSIER`, and is enabled; the exit nub renders its glyph, is enabled, and carries the accessible name `ESCI`
 
-#### Scenario: Owner sees the editor toggle in the bezel
-- **WHEN** the owning player (or an admin) opens a character sheet
-- **THEN** the `✎` editor-mode toggle is rendered in the bottom-right of the case bezel
+#### Scenario: Back-nub activation returns to the correct screen
 
-#### Scenario: Non-writer does not see the editor toggle
-- **WHEN** a viewer who may not write the character opens the sheet
-- **THEN** no `✎` toggle is rendered anywhere on the sheet
+- **GIVEN** the character-selection screen is mounted
+- **WHEN** the user activates the back nub
+- **THEN** the app returns to campaign selection without logging out
 
-#### Scenario: Nav controls absent outside the sheet
-- **WHEN** the login, campaign-selection, or dossier screen is mounted
-- **THEN** neither `◄ DOSSIER` nor `ESCI` is rendered in the status bar, and no `✎` toggle is rendered in the bezel
+#### Scenario: Back-nub activation from the sheet returns to the dossier
 
-#### Scenario: Back to the dossier
-- **WHEN** a user activates `◄ DOSSIER` from an open sheet
+- **GIVEN** a character sheet is open
+- **WHEN** the user activates the back nub
 - **THEN** the app returns to character selection for the current campaign without logging out
 
-#### Scenario: Logout requires confirmation
-- **WHEN** a user activates `ESCI`
+#### Scenario: Exit-nub activation opens a confirmation dialog
+
+- **GIVEN** the exit nub is enabled on any screen
+- **WHEN** the user activates it
 - **THEN** a confirmation dialog opens and no session/JWT clearing occurs yet
 
-#### Scenario: Confirming logout clears the session
-- **GIVEN** the logout confirmation dialog is open
+#### Scenario: Confirming exit-nub logout clears the session
+
+- **GIVEN** the exit-nub confirmation dialog is open
 - **WHEN** the user confirms
 - **THEN** the local session/JWT is cleared and the app returns to the login screen
 
-#### Scenario: Cancelling logout keeps the session
-- **GIVEN** the logout confirmation dialog is open
-- **WHEN** the user cancels (via the dialog's cancel action or its backdrop)
-- **THEN** the session/JWT is left intact and the sheet remains open
+#### Scenario: Cancelling exit-nub logout keeps the session
 
-#### Scenario: Changing campaign is reachable from the dossier
-- **GIVEN** a user with access to two campaigns
-- **WHEN** they are on the dossier screen
-- **THEN** a control returning to campaign selection is available
+- **GIVEN** the exit-nub confirmation dialog is open
+- **WHEN** the user cancels (via the dialog's cancel action or its backdrop)
+- **THEN** the session/JWT is left intact and the current screen remains unchanged
+
+#### Scenario: Neither nub ever carries a persistent lit state
+
+- **WHEN** the back nub or the exit nub is activated, on any screen where it is enabled
+- **THEN** neither control gains a persistent "on"/lit class as a result of the activation
+
+#### Scenario: Owner sees the editor toggle in the bezel, unrelated to the two nubs
+
+- **WHEN** the owning player (or an admin) opens a character sheet
+- **THEN** the `✎` editor-mode toggle is rendered in the bottom-right of the case bezel, separately from the back and exit nubs in the status bar
+
+#### Scenario: Non-writer does not see the editor toggle
+
+- **WHEN** a viewer who may not write the character opens the sheet
+- **THEN** no `✎` toggle is rendered anywhere on the sheet
 
 ### Requirement: Session re-verification on resume
 

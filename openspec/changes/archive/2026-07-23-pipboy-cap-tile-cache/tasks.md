@@ -30,6 +30,6 @@
 
 ## 6. Manual verification
 
-- [ ] 6.1 On an Android device with a previously-installed pip-boy PWA already holding a large tile cache, deploy this change, relaunch (or tap `CERCA AGGIORNAMENTI`), and confirm site storage drops back to a small footprint after the worker activates.
-- [ ] 6.2 On the same or another device, pan/zoom the map tab enough to approach the new cap, and confirm the app keeps working smoothly (no visible stutter from the trim pass) and that storage growth levels off rather than continuing unbounded.
-- [ ] 6.3 Tap `SVUOTA CACHE MAPPA` in settings and confirm the map re-fetches tiles from the network on the next pan, with no effect on login state or other preferences.
+- [x] 6.1 On an Android device with a previously-installed pip-boy PWA already holding a large tile cache, deploy this change, relaunch (or tap `CERCA AGGIORNAMENTI`), and confirm site storage drops back to a small footprint after the worker activates.
+- [x] 6.2 On the same or another device, pan/zoom the map tab enough to approach the new cap, and confirm the app keeps working smoothly (no visible stutter from the trim pass) and that storage growth levels off rather than continuing unbounded.
+- [x] 6.3 Tap `SVUOTA CACHE MAPPA` in settings and confirm the map re-fetches tiles from the network on the next pan, with no effect on login state or other preferences.

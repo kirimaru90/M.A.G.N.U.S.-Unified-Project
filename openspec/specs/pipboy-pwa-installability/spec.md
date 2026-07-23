@@ -43,6 +43,8 @@ A service worker (`sw.js`) SHALL be served at the project root and registered on
 
 Because the shell list enumerates module paths explicitly, every new module under `src/` — including `src/tabs/map.js` and `src/api/campaign-map.js` — SHALL be added to it, or the app's offline install is silently incomplete.
 
+Every `install`-time fetch for a shell URL SHALL be issued in a way that bypasses the browser's own HTTP cache (e.g. a `Request` constructed with `cache: 'reload'`), so that the versioned cache being populated can never be stocked with a stale response the browser happened to already hold for that URL. Without this, a deploy that changes a shell file's content can still leave an installed client running old code under a correctly-updated cache name — the cache-version bump alone is not sufficient, because it is `cache.addAll`/`cache.add`'s underlying `fetch()` calls, not the cache name, that determine whether the content is fresh.
+
 #### Scenario: Install populates the shell cache
 - **WHEN** the service worker installs
 - **THEN** `sw.js` registers with scope `./` and its `install` step populates the versioned cache with the full required shell set
@@ -50,6 +52,11 @@ Because the shell list enumerates module paths explicitly, every new module unde
 #### Scenario: Vendored Leaflet is part of the shell
 - **WHEN** the service worker installs
 - **THEN** the vendored Leaflet module and stylesheet under `src/vendor/` are present in the versioned shell cache
+
+#### Scenario: Install fetch ignores a stale HTTP cache entry
+- **GIVEN** the browser's HTTP cache already holds a response for a shell URL from a previous version of that file
+- **WHEN** the service worker installs and pre-caches that URL
+- **THEN** the content written into the versioned cache reflects the current network response, not the browser's previously-cached response
 
 ### Requirement: Three-class request handling — app shell, map tiles, authenticated API
 
@@ -62,6 +69,8 @@ Apart from basemap tiles, `apps/pip-boy` has no anonymous or public content: eve
 Authenticated-API requests SHALL always be fetched network-only (no-store) and SHALL NEVER be written to any cache. The service worker SHALL determine the API origin from its own registration URL query string (`sw.js?api=<origin>`), matching the mechanism already used by the terminal emulator, so classification works whether the API is same-origin or cross-origin.
 
 **Map tiles** SHALL be served cache-first and written to a **separate, non-shell** tile cache as they are fetched — cache-on-visit. Tiles SHALL NOT be pre-seeded on install: bulk-downloading a region violates the basemap provider's terms, whereas retaining tiles a user actually browsed does not. Because `pipboy-map-tab` constrains zoom and pan bounds, the reachable tile set is finite, so a map the player has visited keeps working offline. A tile request that misses both cache and network SHALL fail quietly, leaving the marker layer rendered over empty tiles rather than breaking the tab.
+
+The tile cache SHALL be bounded by a maximum entry count. When writing a newly-fetched tile would leave the cache over that cap, the service worker SHALL evict entries in oldest-first (insertion) order until the cache is back at or under a lower watermark below the cap, rather than evicting exactly down to the cap on every write. Eviction SHALL be based on insertion order only (evict-oldest), not recency of last access — a cache hit SHALL NOT rewrite or reorder its entry.
 
 Tiles carry no session data, so the tile cache SHALL survive logout — see the flush requirement below.
 
@@ -85,6 +94,16 @@ Tiles carry no session data, so the tile cache SHALL survive logout — see the 
 - **GIVEN** the app is offline and a tile is not in the tile cache
 - **WHEN** the map tab requests it
 - **THEN** the request fails without breaking the tab, and the markers still render over empty tiles
+
+#### Scenario: Tile cache stays bounded past its cap
+- **GIVEN** the tile cache holds a number of entries at its maximum cap
+- **WHEN** another tile that is not yet cached is fetched and written to the cache
+- **THEN** the oldest cached tiles are evicted until the cache is back at or under the lower watermark, and the newly-fetched tile is present
+
+#### Scenario: A cache hit does not affect eviction order
+- **GIVEN** a tile already sits in the tile cache
+- **WHEN** that same tile is requested again and served from cache
+- **THEN** its position in the cache's insertion order is unchanged, so it is no less likely to be evicted next than before the hit
 
 ### Requirement: Logout flushes non-shell caches
 
@@ -122,6 +141,15 @@ The service worker SHALL declare a versioned shell cache name constant whose ver
 #### Scenario: Installed client self-heals on next online launch
 - **WHEN** an installed app previously frozen on an older cache version is launched with network available after a new deploy
 - **THEN** the browser fetches the new `sw.js`, installs it, purges the old cache during `activate`, re-caches the fresh shell, and the app runs the deployed version without any manual cache-clearing by the user
+
+### Requirement: Tile cache version purge on deploy
+
+The tile cache's name SHALL be a versioned constant, distinct from the shell cache's version, so that a deploy which changes the tile cache's bound or eviction behavior can force every previously-accumulated tile cache to be discarded. On `activate`, the existing cache sweep (which already removes any cache not matching the current shell cache or the current tile cache) SHALL treat a previous tile-cache version as non-current and delete it, exactly as it does for a previous shell-cache version.
+
+#### Scenario: A tile-cache version bump purges the previous tile cache
+- **GIVEN** an installed client holds a tile cache under a previous version name
+- **WHEN** a new service worker declaring a new tile-cache version activates
+- **THEN** the previous tile cache is deleted during `activate`, leaving only the current tile cache and the current shell cache
 
 ### Requirement: Installable on desktop and Android
 

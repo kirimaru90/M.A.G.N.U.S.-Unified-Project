@@ -16,5 +16,5 @@
 
 ## 4. Manual verification
 
-- [ ] 4.1 After deploying, `curl -I` a shell asset (e.g. `/src/tabs/dice.js`) against the built nginx image and confirm the response's `Cache-Control` header prevents silent staleness, matching the updated `deploy-cache-busting` spec.
-- [ ] 4.2 On an Android device with a previously-installed pip-boy PWA, deploy a visible dice-screen change, tap "CERCA AGGIORNAMENTI", and confirm the reloaded app reflects the change (repeating the original reproduction that surfaced this bug).
+- [x] 4.1 After deploying, `curl -I` a shell asset (e.g. `/src/tabs/dice.js`) against the built nginx image and confirm the response's `Cache-Control` header prevents silent staleness, matching the updated `deploy-cache-busting` spec.
+- [x] 4.2 On an Android device with a previously-installed pip-boy PWA, deploy a visible dice-screen change, tap "CERCA AGGIORNAMENTI", and confirm the reloaded app reflects the change (repeating the original reproduction that surfaced this bug).
