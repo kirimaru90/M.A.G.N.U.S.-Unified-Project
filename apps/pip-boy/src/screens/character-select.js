@@ -3,6 +3,7 @@ import { listCharacters, getCharacter, deleteCharacter } from '../api/characters
 import { listPlayers } from '../api/campaigns.js';
 import { isAdmin } from '../api/session.js';
 import { APPROACHES } from '../sheet/model.js';
+import { openConfirm } from '../tabs/confirm-dialog.js';
 
 function miniSpecial(special = {}) {
     return `
@@ -129,15 +130,22 @@ export async function renderCharacterSelect(root, opts) {
 
         // The ✕ delete control must not open the card beneath it.
         listEl.querySelectorAll('[data-delete]').forEach((btn) => {
-            btn.addEventListener('click', async (e) => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                try {
-                    await deleteCharacter(campaignId, btn.dataset.delete);
-                } catch (_) {
-                    showError('ERRORE — eliminazione fallita');
-                    return;
-                }
-                await load();
+                const id = btn.dataset.delete;
+                const c = characters.find((ch) => ch.id === id);
+                openConfirm({
+                    message: `Eliminare ${c?.name ?? ''}?`,
+                    onConfirm: async () => {
+                        try {
+                            await deleteCharacter(campaignId, id);
+                        } catch (_) {
+                            showError('ERRORE — eliminazione fallita');
+                            return;
+                        }
+                        await load();
+                    },
+                });
             });
         });
 

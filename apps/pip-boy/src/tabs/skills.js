@@ -4,6 +4,7 @@ import { APPROACHES, SKILL_LEVELS, SKILL_LEVEL_LABELS, clamp } from '../sheet/mo
 import { pips } from '../sheet/pips.js';
 import { openAddPopup } from './add-popup.js';
 import { getTalentsCatalog } from '../api/catalogs.js';
+import { openConfirm } from './confirm-dialog.js';
 
 // A talent's requirement is "met" when every non-zero minimum in
 // `specialRequirement` is at or below the character's corresponding SPECIAL.
@@ -102,7 +103,7 @@ function skillEditRow(s, catalog) {
                 ${maestriaSquares(s.level)}
                 <button data-skill-inc="${esc(s.id)}" ${idx >= SKILL_LEVELS.length - 1 ? 'disabled' : ''}>+</button>
             </div>
-            <button class="pb-btn pb-btn--icon" data-remove-skill="${esc(s.id)}">✕</button>
+            <button class="pb-btn pb-btn--danger pb-btn--icon" data-remove-skill="${esc(s.id)}">✕</button>
         </div>
     `;
 }
@@ -126,7 +127,7 @@ function perksEdit(perks) {
         <div class="pb-row" data-perk-row="${esc(p.id)}">
             <div class="pb-split-row">
                 <input class="pb-input" data-perk-name="${esc(p.id)}" value="${esc(p.name)}">
-                <button class="pb-btn pb-btn--icon" data-remove-perk="${esc(p.id)}">✕</button>
+                <button class="pb-btn pb-btn--danger pb-btn--icon" data-remove-perk="${esc(p.id)}">✕</button>
             </div>
             <input class="pb-input" data-perk-desc="${esc(p.id)}" value="${esc(p.description ?? '')}" placeholder="descrizione">
         </div>
@@ -223,7 +224,12 @@ export function renderAbilitaTab(container, ctx) {
     });
 
     container.querySelectorAll('[data-remove-skill]').forEach((btn) => {
-        btn.addEventListener('click', () => pushSkills({ deletedIds: [btn.dataset.removeSkill] }));
+        btn.addEventListener('click', () => {
+            openConfirm({
+                message: 'Rimuovere questa abilità?',
+                onConfirm: () => pushSkills({ deletedIds: [btn.dataset.removeSkill] }),
+            });
+        });
     });
 }
 
@@ -292,7 +298,12 @@ export function renderTalentsTab(container, ctx) {
     if (!inEditor) return;
 
     container.querySelectorAll('[data-remove-perk]').forEach((btn) => {
-        btn.addEventListener('click', () => pushPerks({ deletedIds: [btn.dataset.removePerk] }));
+        btn.addEventListener('click', () => {
+            openConfirm({
+                message: 'Rimuovere questo talento?',
+                onConfirm: () => pushPerks({ deletedIds: [btn.dataset.removePerk] }),
+            });
+        });
     });
 
     const commitPerk = (id) => {

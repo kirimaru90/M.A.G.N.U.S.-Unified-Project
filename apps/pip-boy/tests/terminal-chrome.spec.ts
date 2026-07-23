@@ -414,11 +414,16 @@ test('back-nub activation from the sheet returns to the dossier, without logging
   await expect(page.locator('#pb-char-list')).toBeVisible();
 });
 
-test('exit-nub activation logs out and returns to login', async ({ page }) => {
+test('exit-nub activation asks for confirmation, then logs out and returns to login', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
   await page.locator('#pb-nav-exit').click();
+  const dialog = page.locator('.pb-confirm-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('#pb-login-submit')).toHaveCount(0);
+
+  await dialog.locator('[data-confirm]').click();
   await expect(page.locator('#pb-login-submit')).toBeVisible();
   // Logged out and back on login: both nubs go inert again.
   await expect(page.locator('#pb-nav-back')).toBeDisabled();

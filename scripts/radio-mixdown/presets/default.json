@@ -1,0 +1,9 @@
+{
+  "bandpass_low_hz": 300,
+  "bandpass_high_hz": 3000,
+  "hiss_level": 0.05,
+  "crackle_density": 2.0,
+  "crackle_intensity": 0.3,
+  "compression_amount": 0.4,
+  "saturation_amount": 0.2
+}

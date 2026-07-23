@@ -3,6 +3,7 @@ import { patchInventory } from '../api/characters.js';
 import { openAddItemPopup } from './add-item-popup.js';
 import { openInfoPopup } from './info-popup.js';
 import { openCatalogPicker } from './catalog-picker.js';
+import { openConfirm } from './confirm-dialog.js';
 
 // Weapons/armor render tag chips; consumables/misc render quantity rows. A
 // consumable/misc description is no longer shown inline — the name is an
@@ -44,7 +45,7 @@ function tagItemRow(item, section, editMode) {
                     ? `<input class="pb-input" data-item-name="${esc(item.id)}" data-section="${section}" value="${esc(item.name)}">`
                     : `<strong>${esc(item.name)}</strong>`}
                 ${damaged ? '<span class="pb-danger-tag">DANNEGGIATA</span>' : ''}
-                ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
+                ${editMode ? `<button class="pb-btn pb-btn--danger pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
             </div>
             <div class="pb-chip-row">
                 ${tags.map((t, i) => tagChip(t, item.id, section, i, editMode)).join('')}
@@ -74,7 +75,7 @@ function qtyItemRow(item, section, editMode) {
                 <button data-dir="-1" ${(item.quantity ?? 0) <= 0 ? 'disabled' : ''}>−</button>
                 <button data-dir="1">+</button>
             </div>
-            ${editMode ? `<button class="pb-btn pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
+            ${editMode ? `<button class="pb-btn pb-btn--danger pb-btn--icon" data-remove-item="${esc(item.id)}" data-section="${section}">✕</button>` : ''}
             ${editMode
                 ? `<input class="pb-input pb-consumable-desc" data-item-desc="${esc(item.id)}" data-section="${section}" value="${esc(item.description ?? '')}" placeholder="descrizione">`
                 : ''}
@@ -232,7 +233,11 @@ export function renderInvSubtab(container, ctx, node) {
     });
 
     container.querySelectorAll('[data-remove-item]').forEach((btn) => {
-        btn.addEventListener('click', () =>
-            patchInv(btn.dataset.section, { deletedIds: [btn.dataset.removeItem] }));
+        btn.addEventListener('click', () => {
+            openConfirm({
+                message: 'Rimuovere questo oggetto?',
+                onConfirm: () => patchInv(btn.dataset.section, { deletedIds: [btn.dataset.removeItem] }),
+            });
+        });
     });
 }

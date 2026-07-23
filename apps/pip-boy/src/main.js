@@ -18,6 +18,7 @@ import { setCaseNav, setEditorToggle, setCriticalChrome, setEditorChrome } from 
 import { getPrefs } from './state/prefs.js';
 import { applyOrientation } from './engine/device.js';
 import { applyPhosphorTheme } from './engine/theme.js';
+import { openConfirm } from './tabs/confirm-dialog.js';
 
 const root = document.getElementById('app');
 
@@ -46,9 +47,14 @@ function resetChrome() {
 }
 
 /** Centralized logout: clears the session, then returns to login via the case exit nub. */
-async function doLogout() {
-    await logout();
-    showLogin();
+function doLogout() {
+    openConfirm({
+        message: 'Uscire dalla sessione?',
+        onConfirm: async () => {
+            await logout();
+            showLogin();
+        },
+    });
 }
 
 /**
