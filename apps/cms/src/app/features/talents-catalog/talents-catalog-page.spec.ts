@@ -43,87 +43,30 @@ describe('TalentsCatalogPage', () => {
     ]);
   });
 
-  it('adds a talent via patchSchema with an add op', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = { slug: 'lone-wanderer', name: 'Lone Wanderer', description: '' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'add', slug: 'lone-wanderer', entry: { name: 'Lone Wanderer', description: undefined } },
-    ]);
-    expect(component['addRowVisible']()).toBe(false);
+  it('renders read-only rows with no inline inputs', () => {
+    expect(fixture.nativeElement.querySelector('p-table tbody input')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Precisione col revolver');
   });
 
-  it('rejects an add with a missing slug or name', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = { slug: '', name: '', description: '' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBeTruthy();
+  it('opens the dialog empty for create', () => {
+    component['openCreate']();
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBeNull();
   });
 
-  it('cancels the add row without calling patchSchema', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['cancelAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['addRowVisible']()).toBe(false);
+  it('opens the dialog with the row entry for edit', () => {
+    const entry = { slug: 'gun-fu', name: 'Gun Fu' };
+    component['openEdit'](entry);
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBe(entry);
   });
 
-  it('renames a talent via a single rename op when only the slug changes', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'Precisione col revolver' };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].slug = 'gunslinger-2';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
+  it('closes the dialog and reloads after a save', () => {
+    component['openCreate']();
+    component['onSaved']('created');
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'rename', slug: 'gunslinger', rename: 'gunslinger-2' },
-    ]);
-  });
-
-  it('updates a talent via an update op when the slug is unchanged', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'old' };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].description = 'new';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'gunslinger', entry: { name: 'Gunslinger', description: 'new' } },
-    ]);
-  });
-
-  it('cancels an in-progress edit without calling patchSchema', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'old' };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['cancelEdit']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['editingSlug']()).toBeNull();
-  });
-
-  it('surfaces a 409 error message when patchSchema rejects with a conflict', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['showAddRow']();
-    component['draft'] = { slug: 'gunslinger', name: 'Gunslinger', description: '' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Slug già esistente');
+    expect(component['dialogVisible']()).toBe(false);
+    expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a talent via patchSchema with a delete op after confirmation', () => {
@@ -139,45 +82,25 @@ describe('TalentsCatalogPage', () => {
     expect(patchSpy).toHaveBeenCalledWith([{ action: 'delete', slug: 'gunslinger' }]);
   });
 
-  it('opens the requirement dialog for the tapped row', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'Precisione col revolver' };
-    component['openRequirementDialog'](entry);
-    fixture.detectChanges();
-
-    expect(component['requirementDialogVisible']()).toBe(true);
-    expect(component['requirementEntry']()).toEqual(entry);
-  });
-
-  it('saving the requirement dialog issues an update op with the full 7-element array', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'Precisione col revolver' };
-    component['openRequirementDialog'](entry);
-    fixture.detectChanges();
-    component['onRequirementSaved']([0, 0, 3, 0, 0, 0, 0]);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'update',
-        slug: 'gunslinger',
-        entry: {
-          name: 'Gunslinger',
-          description: 'Precisione col revolver',
-          specialRequirement: [0, 0, 3, 0, 0, 0, 0],
-        },
-      },
+  it('previews each row requirement, with a dash when there is none', async () => {
+    TestBed.resetTestingModule();
+    await setup([
+      { slug: 'a', name: 'A', specialRequirement: [0, 2, 0, 0, 0, 3, 0] },
+      { slug: 'b', name: 'B' },
+      { slug: 'c', name: 'C', specialRequirement: [0, 0, 0, 0, 0, 0, 0] },
     ]);
-    expect(component['requirementDialogVisible']()).toBe(false);
+    const f = TestBed.createComponent(TalentsCatalogPage);
+    f.detectChanges();
+
+    const cells = Array.from(f.nativeElement.querySelectorAll('[data-testid="requirement-preview"]')) as HTMLElement[];
+    expect(cells.map((c) => c.textContent?.trim())).toEqual(['P2 A3', '—', '—']);
   });
 
-  it('closing the requirement dialog does not call patchSchema', () => {
-    const entry = { slug: 'gunslinger', name: 'Gunslinger', description: 'Precisione col revolver' };
-    component['openRequirementDialog'](entry);
-    fixture.detectChanges();
-    component['closeRequirementDialog']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['requirementDialogVisible']()).toBe(false);
+  it('offers only edit and delete on each row, with no separate requirement action', () => {
+    const rowButtons = Array.from(
+      fixture.nativeElement.querySelectorAll('p-table tbody .row-actions button'),
+    ) as HTMLButtonElement[];
+    expect(rowButtons.map((b) => b.title)).toEqual(['Modifica', 'Elimina']);
   });
 
   it('exports the loaded catalog as a downloaded JSON blob with no new network request', () => {

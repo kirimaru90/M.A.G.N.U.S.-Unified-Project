@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Dialog } from 'primeng/dialog';
+import { DialogActionsComponent } from '../../shared/dialog-actions/dialog-actions';
 import { InputText } from 'primeng/inputtext';
 import { Select } from 'primeng/select';
 import { CreateUserSchema } from '../../core/user/user.schemas';
@@ -23,7 +24,7 @@ const ROLE_OPTIONS = [
 @Component({
   selector: 'app-create-user-dialog',
   standalone: true,
-  imports: [Dialog, ReactiveFormsModule, InputText, Select],
+  imports: [Dialog, DialogActionsComponent, ReactiveFormsModule, InputText, Select],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -81,16 +82,12 @@ const ROLE_OPTIONS = [
           }
         </div>
 
-        @if (apiError()) {
-          <div class="bo-field-error" style="margin-top: 8px;">{{ apiError() }}</div>
-        }
-
-        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-          <button type="button" class="bo-btn ghost" (click)="closed.emit()">Annulla</button>
-          <button type="submit" class="bo-btn primary" [disabled]="saving()">
-            {{ saving() ? 'Salvataggio…' : 'Crea' }}
-          </button>
-        </div>
+        <app-dialog-actions
+          [error]="apiError()"
+          [saving]="saving()"
+          submitLabel="Crea"
+          (cancelled)="closed.emit()"
+        />
       </form>
     </p-dialog>
   `,

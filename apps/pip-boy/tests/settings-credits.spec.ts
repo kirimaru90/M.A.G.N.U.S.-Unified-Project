@@ -4,10 +4,10 @@ import { stubEnvironment, login, makeCharacter, seedPrefs } from './fixtures';
 // Covers the pipboy-settings delta: CREDITI as an action below the five
 // preference rows.
 //
-// The other half of the basemap licence obligation lives here. The map collapses
-// its attribution after five seconds, which the OSM guidelines allow only if the
-// licence information stays findable — "an 'About' option in a menu". This is
-// that option.
+// The always-reachable full attribution. By default the map's own credit is
+// permanent (CARTO's terms); if ATTRIBUTION_COLLAPSE_MS switches it to a timed
+// collapse, this is what the OSM guidelines then require — "an 'About' option in
+// a menu". Either way it must stay.
 
 async function openSettings(page: Page) {
   await stubEnvironment(page, {
@@ -61,6 +61,18 @@ test('activating it names OpenStreetMap, CARTO, and the vendored map library', a
   // Named because the app suppresses Leaflet's own on-screen prefix, so this is
   // the only place it is acknowledged.
   await expect(credits).toContainText('Leaflet');
+});
+
+test('the basemap providers are linked to their attribution pages', async ({ page }) => {
+  await openSettings(page);
+  await page.locator('[data-credits]').click();
+
+  const credits = page.locator('#pb-credits-popup');
+  await expect(credits.getByRole('link', { name: 'OpenStreetMap' })).toHaveAttribute(
+    'href',
+    'https://www.openstreetmap.org/copyright',
+  );
+  await expect(credits.getByRole('link', { name: 'CARTO' })).toHaveAttribute('href', 'https://carto.com/attribution');
 });
 
 test('activating it changes no preference and persists nothing', async ({ page }) => {

@@ -13,7 +13,7 @@ import { stubEnvironment } from './fixtures';
 // requires updating the other.
 const TILE_CACHE_MAX_ENTRIES = 4000;
 const TILE_CACHE_WATERMARK = Math.floor(TILE_CACHE_MAX_ENTRIES * 0.9);
-const TILE_CACHE_NAME = 'pipboy-tiles-v2';
+const TILE_CACHE_NAME = 'pipboy-tiles-v3';
 
 const tileUrl = (n: number) => `https://a.basemaps.cartocdn.com/dark_nolabels/10/0/${n}.png`;
 const TINY_PNG = Buffer.from('89504e470d0a1a0a', 'hex');
@@ -162,6 +162,65 @@ test.describe(() => {
     });
 
     expect(keys).not.toContain('pipboy-tiles-v1');
+
+    await unregisterAndClearCaches(page);
+  });
+
+  // v2 is the cache filled before the CARTO key: every entry in it is the keyless
+  // "API KEY REQUIRED" watermark, so it must not outlive the update.
+  test('the pre-key watermarked tile cache (v2) is purged on activation', async ({ page }) => {
+    await page.addInitScript(() => {
+      caches.open('pipboy-tiles-v2').then((c) =>
+        c.put('https://a.basemaps.cartocdn.com/dark_nolabels/10/0/0.png', new Response('watermark')),
+      );
+    });
+
+    await stubEnvironment(page, { allowServiceWorker: true });
+    await page.goto('/index.html');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    const keys = await page.evaluate(async () => {
+      const deadline = Date.now() + 5000;
+      let names = await caches.keys();
+      while (names.includes('pipboy-tiles-v2') && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 100));
+        names = await caches.keys();
+      }
+      return names;
+    });
+
+    expect(keys).not.toContain('pipboy-tiles-v2');
+
+    await unregisterAndClearCaches(page);
+  });
+
+  // Classification is by host only, so the `?key=` query string must not push a
+  // tile into the shell cache or the API path.
+  test('a keyed tile request is cached in the tile cache', async ({ page, context }) => {
+    await context.route(/basemaps\.cartocdn\.com/, (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: TINY_PNG }),
+    );
+
+    await stubEnvironment(page, { allowServiceWorker: true });
+    await page.goto('/index.html');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    const keyed = `${tileUrl(1)}?key=test-key`;
+    await page.evaluate((url) => fetch(url), keyed);
+
+    const where = await page.evaluate(
+      async ({ cacheName, url }) => {
+        const inTiles = !!(await (await caches.open(cacheName)).match(url));
+        const others = (await caches.keys()).filter((n) => n !== cacheName);
+        let inOther = false;
+        for (const n of others) if (await (await caches.open(n)).match(url)) inOther = true;
+        return { inTiles, inOther };
+      },
+      { cacheName: TILE_CACHE_NAME, url: keyed },
+    );
+
+    expect(where.inTiles).toBe(true);
+    expect(where.inOther).toBe(false);
 
     await unregisterAndClearCaches(page);
   });

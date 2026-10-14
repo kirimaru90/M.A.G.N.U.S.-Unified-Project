@@ -2,7 +2,7 @@ import { mount, esc } from '../engine/render.js';
 import { listCharacters, getCharacter, deleteCharacter } from '../api/characters.js';
 import { listPlayers } from '../api/campaigns.js';
 import { isAdmin } from '../api/session.js';
-import { APPROACHES } from '../sheet/model.js';
+import { APPROACHES, speciesLabel } from '../sheet/model.js';
 import { openConfirm } from '../tabs/confirm-dialog.js';
 
 function miniSpecial(special = {}) {
@@ -18,7 +18,7 @@ function miniSpecial(special = {}) {
     `;
 }
 
-function characterCard(c, skillsCatalog) {
+function characterCard(c, skillsCatalog, speciesCatalog) {
     const ap = c.actionPoints ?? {};
     const trained = (c.skills ?? [])
         .map((s) => skillsCatalog.find((sc) => sc.slug === s.id)?.name ?? s.id)
@@ -31,7 +31,7 @@ function characterCard(c, skillsCatalog) {
                 <button class="pb-btn pb-btn--danger pb-btn--icon" data-delete="${esc(c.id)}" title="Elimina">✕</button>
             </div>
             <div class="pb-label">
-                ${esc(c.species ?? '')} · PA ${ap.paMax ?? 0} · TAPPI ${c.resources?.caps ?? 0}
+                ${esc(speciesLabel(c.species, speciesCatalog))} · PA ${ap.paMax ?? 0} · TAPPI ${c.resources?.caps ?? 0}
             </div>
             ${miniSpecial(c.special)}
             ${trained ? `<div class="pb-label pb-dossier-skills">${esc(trained)}</div>` : ''}
@@ -41,7 +41,7 @@ function characterCard(c, skillsCatalog) {
 
 /** Logout and back-to-campaign are driven by the case nubs (`main.js`'s `setCaseNav`), not buttons rendered here. */
 export async function renderCharacterSelect(root, opts) {
-    const { campaignId, campaignName, skillsCatalog = [], onSelect, onCreate } = opts;
+    const { campaignId, campaignName, skillsCatalog = [], speciesCatalog = [], onSelect, onCreate } = opts;
 
     mount(root, `
         <div class="pb-header">
@@ -126,7 +126,7 @@ export async function renderCharacterSelect(root, opts) {
             return;
         }
 
-        listEl.innerHTML = characters.map((c) => characterCard(c, skillsCatalog)).join('');
+        listEl.innerHTML = characters.map((c) => characterCard(c, skillsCatalog, speciesCatalog)).join('');
 
         // The ✕ delete control must not open the card beneath it.
         listEl.querySelectorAll('[data-delete]').forEach((btn) => {

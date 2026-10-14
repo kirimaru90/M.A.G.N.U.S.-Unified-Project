@@ -75,162 +75,9 @@ describe('EquipmentCatalogPage', () => {
     expect(component['entries']()).toEqual([PISTOL]);
   });
 
-  it('adds a starter weapon template carrying kind, isStarter and both tags', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = {
-      slug: 'fucile-da-caccia',
-      name: 'Fucile da Caccia',
-      kind: 'weapon',
-      tags: [
-        { name: 'PROIETTILI', type: 'core' },
-        { name: 'LUNGA GITTATA', type: 'extra' },
-      ],
-      isStarter: true,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'add',
-        slug: 'fucile-da-caccia',
-        entry: {
-          name: 'Fucile da Caccia',
-          kind: 'weapon',
-          isStarter: true,
-          description: undefined,
-          tags: [
-            { name: 'PROIETTILI', type: 'core' },
-            { name: 'LUNGA GITTATA', type: 'extra' },
-          ],
-        },
-      },
-    ]);
-  });
-
   // 7.1 — a consumable sends a description and no quantity/tags.
-  it('sends a description and no defaultQuantity or tags for a consumable', () => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'radaway',
-      name: 'RadAway',
-      kind: 'consumable',
-      tags: [],
-      isStarter: false,
-      description: 'Rimuove radiazioni',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    const [[ops]] = patchSpy.mock.calls as [[{ entry: Record<string, unknown> }[]]];
-    expect(ops[0].entry).toEqual({
-      name: 'RadAway',
-      kind: 'consumable',
-      isStarter: false,
-      description: 'Rimuove radiazioni',
-    });
-    expect(ops[0].entry).not.toHaveProperty('tags');
-    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
-  });
-
-  it('presents the tag editor for weapon/armor and the description editor for consumable/misc', () => {
-    component['showAddRow']();
-
-    component['draft'].kind = 'weapon';
-    expect(component['draftIsTagged']()).toBe(true);
-
-    component['draft'].kind = 'armor';
-    expect(component['draftIsTagged']()).toBe(true);
-
-    component['draft'].kind = 'consumable';
-    expect(component['draftIsTagged']()).toBe(false);
-
-    component['draft'].kind = 'misc';
-    expect(component['draftIsTagged']()).toBe(false);
-  });
-
   // 7.1 — the consumable/misc form shows a description field, not a quantity field.
-  it('renders the tag editor for a weapon draft and the description field for a consumable', async () => {
-    const selectKind = async (kind: string) => {
-      const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.bo-select');
-      select.value = kind;
-      select.dispatchEvent(new Event('change'));
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-    };
-
-    component['showAddRow']();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    await selectKind('weapon');
-    expect(component['draft'].kind).toBe('weapon');
-    expect(fixture.nativeElement.querySelector('[data-testid="tag-editor"]')).toBeTruthy();
-    expect(fixture.nativeElement.querySelector('[data-testid="description"]')).toBeNull();
-
-    await selectKind('consumable');
-    expect(component['draft'].kind).toBe('consumable');
-    expect(fixture.nativeElement.querySelector('[data-testid="tag-editor"]')).toBeNull();
-    expect(fixture.nativeElement.querySelector('[data-testid="description"]')).toBeTruthy();
-    // No quantity field remains.
-    expect(fixture.nativeElement.querySelector('[data-testid="default-quantity"]')).toBeNull();
-  });
-
-  it('adds and removes draft tags', () => {
-    component['showAddRow']();
-    component['addTag']('core');
-    component['addTag']('extra');
-    expect(component['draft'].tags).toEqual([
-      { name: '', type: 'core' },
-      { name: '', type: 'extra' },
-    ]);
-
-    component['removeTag'](0);
-    expect(component['draft'].tags).toEqual([{ name: '', type: 'extra' }]);
-  });
-
-  it('rejects a tag with a blank name', () => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'x',
-      name: 'X',
-      kind: 'weapon',
-      tags: [{ name: '', type: 'core' }],
-      isStarter: false,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBe('Ogni tag deve avere un nome');
-  });
-
   // Starter is edited only within row-edit; promoting an entry rides the update op.
-  it('promotes an entry to a starter within row edit via an update op carrying isStarter', () => {
-    const coltello: EquipmentCatalogEntryDto = {
-      slug: 'coltello',
-      name: 'Coltello',
-      kind: 'weapon',
-      tags: [],
-      isStarter: false,
-    };
-    component['startEdit'](coltello);
-    fixture.detectChanges();
-    component['draft'].isStarter = true;
-    component['submitEdit'](coltello);
-    fixture.detectChanges();
-
-    const [[ops]] = patchSpy.mock.calls as [[{ action: string; entry: Record<string, unknown> }[]]];
-    expect(ops[0].action).toBe('update');
-    expect(ops[0].entry).toMatchObject({ isStarter: true });
-    // and the list is refetched so the row reflects the new flag
-    expect(listSpy).toHaveBeenCalledTimes(2);
-  });
-
   it('renders the starter flag as a read-only indicator on the display row (no checkbox)', () => {
     const cell: HTMLElement = fixture.nativeElement.querySelector(
       '[data-testid="starter-pistola-10mm"]',
@@ -242,39 +89,30 @@ describe('EquipmentCatalogPage', () => {
   });
 
   // 7.1 — editing a consumable sends its description, never a quantity.
-  it('edits a consumable via an update op carrying its description', () => {
-    component['startEdit'](STIMPACK);
-    fixture.detectChanges();
-    component['draft'].description = 'Cura ferite';
-    component['submitEdit'](STIMPACK);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'update',
-        slug: 'stimpack',
-        entry: {
-          name: 'Stimpack',
-          kind: 'consumable',
-          isStarter: true,
-          description: 'Cura ferite',
-        },
-      },
-    ]);
-    const [[ops]] = patchSpy.mock.calls as [[{ entry: Record<string, unknown> }[]]];
-    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
+  it('renders read-only rows with no inline inputs', () => {
+    expect(fixture.nativeElement.querySelector('p-table tbody input')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Pistola 10mm');
   });
 
-  it('renames a template via a single rename op when only the slug changes', () => {
-    component['startEdit'](PISTOL);
-    fixture.detectChanges();
-    component['draft'].slug = 'pistola-10';
-    component['submitEdit'](PISTOL);
-    fixture.detectChanges();
+  it('opens the dialog empty for create', () => {
+    component['openCreate']();
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBeNull();
+  });
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'rename', slug: 'pistola-10mm', rename: 'pistola-10' },
-    ]);
+  it('opens the dialog with the row entry for edit', () => {
+    const entry = PISTOL;
+    component['openEdit'](entry);
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBe(entry);
+  });
+
+  it('closes the dialog and reloads after a save', () => {
+    component['openCreate']();
+    component['onSaved']('created');
+
+    expect(component['dialogVisible']()).toBe(false);
+    expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a template via a delete op after confirmation, with no in-use warning', () => {
@@ -293,27 +131,6 @@ describe('EquipmentCatalogPage', () => {
   });
 
   // 3.T.3
-  it('surfaces a 409 duplicate-slug error inline without discarding pending edits', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'pistola-10mm',
-      name: 'Pistola 10mm',
-      kind: 'weapon',
-      tags: [],
-      isStarter: true,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Slug già esistente');
-    expect(component['addRowVisible']()).toBe(true);
-    expect(component['draft'].slug).toBe('pistola-10mm');
-  });
-
   it('renders the empty message when the catalog has no entries', async () => {
     TestBed.resetTestingModule();
     await setup([]);
@@ -323,47 +140,6 @@ describe('EquipmentCatalogPage', () => {
   });
 
   // --- misc-items-catalog: misc (Vari) kind ---
-
-  it('treats a misc draft as untagged so the description editor shows, not tags', () => {
-    component['showAddRow']();
-    component['draft'].kind = 'misc';
-    expect(component['draftIsTagged']()).toBe(false);
-  });
-
-  it('offers a Vari option in the kind selector', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.bo-select');
-    const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toContain('misc');
-    const variOption = Array.from(select.options).find((o) => o.value === 'misc');
-    expect(variOption?.textContent?.trim()).toBe('Vari');
-  });
-
-  it('adds a misc (Vari) template with a description and no defaultQuantity or tags', () => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'chiave-inglese',
-      name: 'Chiave inglese',
-      kind: 'misc',
-      tags: [],
-      isStarter: false,
-      description: 'Attrezzo',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    const [[ops]] = patchSpy.mock.calls as [[{ entry: Record<string, unknown> }[]]];
-    expect(ops[0]).toMatchObject({ action: 'add', slug: 'chiave-inglese' });
-    expect(ops[0].entry).toEqual({
-      name: 'Chiave inglese',
-      kind: 'misc',
-      isStarter: false,
-      description: 'Attrezzo',
-    });
-    expect(ops[0].entry).not.toHaveProperty('tags');
-    expect(ops[0].entry).not.toHaveProperty('defaultQuantity');
-  });
 
   it('does not render the starter toggle for a misc entry row', async () => {
     TestBed.resetTestingModule();

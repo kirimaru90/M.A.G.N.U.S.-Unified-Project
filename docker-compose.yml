@@ -45,6 +45,9 @@ services:
       dockerfile: Dockerfile
       args:
         API_BASE_URL: ${API_BASE_URL:-/api}
+        # CARTO basemap key (free: carto.com/basemaps/apikey), lock it to the site's
+        # domains in CARTO. Unset → keyless tiles, which CARTO watermarks.
+        CARTO_BASEMAP_KEY: ${CARTO_BASEMAP_KEY:-}
     container_name: magnus-cms
     networks:
       - edge
@@ -73,6 +76,9 @@ services:
         # Stamps sw.js's cache version; start.sh exports the deployed commit's
         # short SHA. Falls back to `dev` when unset (e.g. local `docker compose`).
         BUILD_ID: ${BUILD_ID:-dev}
+        # CARTO basemap key (free: carto.com/basemaps/apikey), lock it to the site's
+        # domains in CARTO. Unset → keyless tiles, which CARTO watermarks.
+        CARTO_BASEMAP_KEY: ${CARTO_BASEMAP_KEY:-}
     container_name: magnus-pipboy
     networks:
       - edge

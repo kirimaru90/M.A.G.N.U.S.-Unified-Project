@@ -45,165 +45,30 @@ describe('ConditionsCatalogPage', () => {
     ]);
   });
 
-  it('adds a condition preset via patchSchema with an add op', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = {
-      slug: 'fatigued',
-      name: 'Affaticato',
-      defaultSeverity: 'minor',
-      polarity: 'negative',
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'add',
-        slug: 'fatigued',
-        entry: {
-          name: 'Affaticato',
-          defaultSeverity: 'minor',
-          polarity: 'negative',
-          description: undefined,
-        },
-      },
-    ]);
-    expect(component['addRowVisible']()).toBe(false);
+  it('renders read-only rows with no inline inputs', () => {
+    expect(fixture.nativeElement.querySelector('p-table tbody input')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Avvelenato');
   });
 
-  it('rejects an add with a missing slug or name', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = {
-      slug: '',
-      name: '',
-      defaultSeverity: 'minor',
-      polarity: 'negative',
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBeTruthy();
+  it('opens the dialog empty for create', () => {
+    component['openCreate']();
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBeNull();
   });
 
-  it('cancels the add row without calling patchSchema', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['cancelAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['addRowVisible']()).toBe(false);
+  it('opens the dialog with the row entry for edit', () => {
+    const entry = { slug: 'poisoned', name: 'Avvelenato', defaultSeverity: 'major' as const, polarity: 'negative' as const };
+    component['openEdit'](entry);
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBe(entry);
   });
 
-  it("changes a condition preset's severity via an update op", () => {
-    const entry = {
-      slug: 'poisoned',
-      name: 'Avvelenato',
-      defaultSeverity: 'major' as const,
-      polarity: 'negative' as const,
-    };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].defaultSeverity = 'minor';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
+  it('closes the dialog and reloads after a save', () => {
+    component['openCreate']();
+    component['onSaved']('created');
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'update',
-        slug: 'poisoned',
-        entry: {
-          name: 'Avvelenato',
-          defaultSeverity: 'minor',
-          polarity: 'negative',
-          description: undefined,
-        },
-      },
-    ]);
-  });
-
-  it("changes a condition preset's polarity via an update op", () => {
-    const entry = {
-      slug: 'well-fed',
-      name: 'Ben Nutrito',
-      defaultSeverity: 'minor' as const,
-      polarity: 'positive' as const,
-    };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].polarity = 'negative';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'update',
-        slug: 'well-fed',
-        entry: {
-          name: 'Ben Nutrito',
-          defaultSeverity: 'minor',
-          polarity: 'negative',
-          description: undefined,
-        },
-      },
-    ]);
-  });
-
-  it('renames a condition preset via a single rename op when only the slug changes', () => {
-    const entry = {
-      slug: 'poisoned',
-      name: 'Avvelenato',
-      defaultSeverity: 'major' as const,
-      polarity: 'negative' as const,
-    };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].slug = 'poisoned-2';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'rename', slug: 'poisoned', rename: 'poisoned-2' },
-    ]);
-  });
-
-  it('cancels an in-progress edit without calling patchSchema', () => {
-    const entry = {
-      slug: 'poisoned',
-      name: 'Avvelenato',
-      defaultSeverity: 'major' as const,
-      polarity: 'negative' as const,
-    };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['cancelEdit']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['editingSlug']()).toBeNull();
-  });
-
-  it('surfaces a 409 error message when patchSchema rejects with a conflict', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'poisoned',
-      name: 'Avvelenato',
-      defaultSeverity: 'major',
-      polarity: 'negative',
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Slug già esistente');
+    expect(component['dialogVisible']()).toBe(false);
+    expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a condition preset via patchSchema with a delete op after confirmation', () => {

@@ -10,6 +10,7 @@ import {
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Checkbox } from 'primeng/checkbox';
 import { Dialog } from 'primeng/dialog';
+import { DialogActionsComponent } from '../../shared/dialog-actions/dialog-actions';
 import { InputText } from 'primeng/inputtext';
 import { buildTerminalStub } from '../../core/terminal/terminal-stub';
 import { TerminalsApiService } from '../../core/terminal/terminals-api.service';
@@ -19,7 +20,7 @@ import { TerminalContentSchema } from '../../domain/terminal-schema';
 @Component({
   selector: 'app-create-terminal-dialog',
   standalone: true,
-  imports: [Dialog, ReactiveFormsModule, Checkbox, InputText],
+  imports: [Dialog, DialogActionsComponent, ReactiveFormsModule, Checkbox, InputText],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -51,16 +52,13 @@ import { TerminalContentSchema } from '../../domain/terminal-schema';
           <label for="ct-public" class="bo-label" style="margin-left: 8px;">Pubblico</label>
         </div>
 
-        @if (apiError()) {
-          <div class="bo-field-error" style="margin-top: 8px;">{{ apiError() }}</div>
-        }
-
-        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-          <button type="button" class="bo-btn ghost" (click)="closed.emit()">Annulla</button>
-          <button type="submit" class="bo-btn primary" [disabled]="saving()">
-            {{ saving() ? 'Creazione…' : 'Crea' }}
-          </button>
-        </div>
+        <app-dialog-actions
+          [error]="apiError()"
+          [saving]="saving()"
+          submitLabel="Crea"
+          savingLabel="Creazione…"
+          (cancelled)="closed.emit()"
+        />
       </form>
     </p-dialog>
   `,

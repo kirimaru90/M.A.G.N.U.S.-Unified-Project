@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Dialog } from 'primeng/dialog';
+import { DialogActionsComponent } from '../../shared/dialog-actions/dialog-actions';
 import { InputText } from 'primeng/inputtext';
 import { MessageService } from 'primeng/api';
 import { ResetPasswordSchema } from '../../core/user/user.schemas';
@@ -19,7 +20,7 @@ import type { UserDto } from '../../core/user/user.types';
 @Component({
   selector: 'app-reset-password-dialog',
   standalone: true,
-  imports: [Dialog, ReactiveFormsModule, InputText],
+  imports: [Dialog, DialogActionsComponent, ReactiveFormsModule, InputText],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -47,16 +48,12 @@ import type { UserDto } from '../../core/user/user.types';
           }
         </div>
 
-        @if (apiError()) {
-          <div class="bo-field-error" style="margin-top: 8px;">{{ apiError() }}</div>
-        }
-
-        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-          <button type="button" class="bo-btn ghost" (click)="closed.emit()">Annulla</button>
-          <button type="submit" class="bo-btn primary" [disabled]="saving()">
-            {{ saving() ? 'Salvataggio…' : 'Reimposta' }}
-          </button>
-        </div>
+        <app-dialog-actions
+          [error]="apiError()"
+          [saving]="saving()"
+          submitLabel="Reimposta"
+          (cancelled)="closed.emit()"
+        />
       </form>
     </p-dialog>
   `,

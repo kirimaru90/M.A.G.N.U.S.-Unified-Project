@@ -1729,20 +1729,29 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     font-weight: normal;
 }
 
-/* The basemap attribution: shown on entering the tab, gone after five seconds.
-   `pointer-events: none` so it can never intercept a pan beneath it. */
+/* The basemap attribution: permanent by default (ATTRIBUTION_COLLAPSE_MS in
+   src/tabs/basemap.js). The CARTO terms want it legible, not faded, hence the
+   stronger alpha and backing than a purely decorative overlay would get. The
+   line is `pointer-events: none` so a pan beneath it still lands; only its two
+   links take input. */
 .pb-map-attr {
     position: absolute;
     right: 6px;
     bottom: 4px;
     z-index: 500;
     padding: 1px 5px;
-    font-size: 9px;
+    font-size: 10px;
     letter-spacing: 0.04em;
-    color: rgba(var(--phosphor-rgb), 0.55);
-    background: rgba(6, 17, 10, 0.6);
+    color: rgba(var(--phosphor-rgb), 0.85);
+    background: rgba(6, 17, 10, 0.8);
     border: 1px solid var(--green-hairline-faint);
     pointer-events: none;
+}
+
+.pb-map-attr a,
+.pb-credits-text a {
+    color: inherit;
+    pointer-events: auto;
 }
 
 .pb-map-skeleton {

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Checkbox } from 'primeng/checkbox';
 import { Dialog } from 'primeng/dialog';
+import { DialogActionsComponent } from '../../shared/dialog-actions/dialog-actions';
 import { InputText } from 'primeng/inputtext';
 import { CreateCampaignSchema } from '../../core/campaign/campaign.schemas';
 import { CampaignsApiService } from '../../core/campaign/campaigns-api.service';
@@ -10,7 +11,7 @@ import type { CampaignDto } from '../../core/campaign/campaign.types';
 @Component({
   selector: 'app-create-campaign-dialog',
   standalone: true,
-  imports: [Dialog, ReactiveFormsModule, Checkbox, InputText],
+  imports: [Dialog, DialogActionsComponent, ReactiveFormsModule, Checkbox, InputText],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -47,16 +48,12 @@ import type { CampaignDto } from '../../core/campaign/campaign.types';
           <label for="cc-public" class="bo-label" style="margin-left: 8px;">Pubblica</label>
         </div>
 
-        @if (apiError()) {
-          <div class="bo-field-error" style="margin-top: 8px;">{{ apiError() }}</div>
-        }
-
-        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-          <button type="button" class="bo-btn ghost" (click)="closed.emit()">Annulla</button>
-          <button type="submit" class="bo-btn primary" [disabled]="saving()">
-            {{ saving() ? 'Salvataggio…' : 'Crea' }}
-          </button>
-        </div>
+        <app-dialog-actions
+          [error]="apiError()"
+          [saving]="saving()"
+          submitLabel="Crea"
+          (cancelled)="closed.emit()"
+        />
       </form>
     </p-dialog>
   `,

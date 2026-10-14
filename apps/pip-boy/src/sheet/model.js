@@ -72,6 +72,14 @@ export function paSourceLabel(paTrackedBy) {
     return approachByKey(paTrackedBy)?.name ?? '—';
 }
 
+/**
+ * A character's species as the catalog names it. Falls back to the stored slug
+ * when the species is not in the catalog, or the catalog failed to load.
+ */
+export function speciesLabel(slug, speciesCatalog) {
+    return speciesCatalog?.find((s) => s.slug === slug)?.name ?? slug ?? '';
+}
+
 export function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }

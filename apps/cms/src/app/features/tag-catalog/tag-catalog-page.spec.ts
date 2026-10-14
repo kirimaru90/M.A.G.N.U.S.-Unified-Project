@@ -41,67 +41,30 @@ describe('TagCatalogPage', () => {
     expect(component['entries']()).toEqual([{ slug: 'automatica', name: 'Automatica' }]);
   });
 
-  it('adds a tag entry via patchSchema with an add op', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = { slug: 'pesante', name: 'Pesante' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'add', slug: 'pesante', entry: { name: 'Pesante' } },
-    ]);
-    expect(component['addRowVisible']()).toBe(false);
+  it('renders read-only rows with no inline inputs', () => {
+    expect(fixture.nativeElement.querySelector('p-table input')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Automatica');
   });
 
-  it('rejects an add with a missing slug or name', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = { slug: '', name: '' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBeTruthy();
+  it('opens the dialog empty for create', () => {
+    component['openCreate']();
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBeNull();
   });
 
-  it('renames a tag entry via a single rename op when only the slug changes', () => {
+  it('opens the dialog with the row entry for edit', () => {
     const entry = { slug: 'automatica', name: 'Automatica' };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].slug = 'auto';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'rename', slug: 'automatica', rename: 'auto' },
-    ]);
+    component['openEdit'](entry);
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBe(entry);
   });
 
-  it('updates a tag name via an update op when the slug is unchanged', () => {
-    const entry = { slug: 'automatica', name: 'Automatica' };
-    component['startEdit'](entry);
-    fixture.detectChanges();
-    component['draft'].name = 'AUTOMATICA';
-    component['submitEdit'](entry);
-    fixture.detectChanges();
+  it('closes the dialog and reloads after a save', () => {
+    component['openCreate']();
+    component['onSaved']('created');
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'automatica', entry: { name: 'AUTOMATICA' } },
-    ]);
-  });
-
-  it('surfaces a 409 error message and retains the pending edit when patchSchema conflicts', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['showAddRow']();
-    component['draft'] = { slug: 'automatica', name: 'Automatica' };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Slug già esistente');
-    expect(component['addRowVisible']()).toBe(true);
+    expect(component['dialogVisible']()).toBe(false);
+    expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a tag entry via patchSchema with a delete op after confirmation', () => {

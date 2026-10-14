@@ -11,6 +11,7 @@ import {
     viewportRadius,
     visible,
 } from './map-geometry.js';
+import { ATTRIBUTION_COLLAPSE_MS, ATTRIBUTION_HTML, tileUrl } from './basemap.js';
 
 // The MAPPA tab. Follows the notes.js pattern: render synchronously, paint a
 // skeleton, fill in when its own fetch resolves. A failed fetch degrades to an
@@ -21,20 +22,15 @@ import {
 // their whole subtree before they reach the wire; the client renders what it is
 // given. Filtering client-side would put the GM's secrets in the network tab.
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
-
 /**
- * Five seconds is the OSM Foundation's Attribution Guidelines' own figure for
- * auto-collapsing attribution ("automatically after five seconds"), and taking
- * that mechanism verbatim is what makes omitting a permanent watermark
- * permissible. It is not a taste call. Read design.md before changing it.
- *
- * The override exists only so the Playwright spec need not wait five real
- * seconds; nothing in the app sets it.
+ * The attribution's lifetime: ATTRIBUTION_COLLAPSE_MS in basemap.js decides
+ * (null = permanent, the CARTO-compliant default). The override exists only so
+ * the Playwright spec can exercise both modes and need not wait real seconds;
+ * nothing in the app sets it. `null` is a legitimate override value, so the
+ * check is `in`, not `??`.
  */
-export const ATTRIBUTION_COLLAPSE_MS = 5000;
 const attributionDelay = () =>
-    Number(globalThis.__PB_MAP_ATTRIBUTION_MS__ ?? ATTRIBUTION_COLLAPSE_MS);
+    ('__PB_MAP_ATTRIBUTION_MS__' in globalThis ? globalThis.__PB_MAP_ATTRIBUTION_MS__ : ATTRIBUTION_COLLAPSE_MS);
 
 /**
  * The budget (ms) after which a mode toggle revalidates the map size when no
@@ -187,14 +183,14 @@ function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
         zoomControl: false,
         // Disabling the control also drops Leaflet's own "Leaflet" prefix. Its
         // BSD-2 licence wants the notice in the source, which the vendored copy
-        // keeps verbatim — not on screen. The basemap attribution is instead the
-        // five-second line below, plus the permanent CREDITI view.
+        // keeps verbatim — not on screen. The basemap attribution is instead our
+        // own phosphor-styled line below, plus the always-reachable CREDITI view.
         attributionControl: false,
     });
     currentMap = map;
     publishForTests(map);
 
-    L.tileLayer(TILE_URL, { minZoom: config.minZoom, maxZoom: config.maxZoom }).addTo(map);
+    L.tileLayer(tileUrl(), { minZoom: config.minZoom, maxZoom: config.maxZoom }).addTo(map);
 
     showAttribution(canvas);
 
@@ -740,15 +736,18 @@ function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
 }
 
 /**
- * The basemap attribution, shown on entering the tab and collapsing on its own.
- * `pointer-events: none` (see pipboy.css) so it never intercepts a pan, and it
- * is created once per visit so it does not reappear on every pan or zoom.
+ * The basemap attribution, mounted inside the canvas so it follows the map into
+ * immersive mode. Permanent unless ATTRIBUTION_COLLAPSE_MS (basemap.js) names a
+ * positive delay, in which case it is removed once per visit and comes back only
+ * on the next one — never on pan or zoom. The line is `pointer-events: none`
+ * (see pipboy.css) so only its links take input; a pan beneath it still lands.
  */
 function showAttribution(canvas) {
     const line = document.createElement('div');
     line.className = 'pb-map-attr';
     line.setAttribute('data-map-attr', '');
-    line.textContent = '© OpenStreetMap · © CARTO';
+    line.innerHTML = ATTRIBUTION_HTML;
     canvas.appendChild(line);
-    setTimeout(() => line.remove(), attributionDelay());
+    const delay = attributionDelay();
+    if (typeof delay === 'number' && delay > 0) setTimeout(() => line.remove(), delay);
 }

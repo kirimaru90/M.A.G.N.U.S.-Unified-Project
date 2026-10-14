@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { Dialog } from 'primeng/dialog';
+import { DialogActionsComponent } from '../../shared/dialog-actions/dialog-actions';
 import { FileUpload, FileSelectEvent } from 'primeng/fileupload';
 import { Textarea } from 'primeng/textarea';
 import { TerminalsApiService } from '../../core/terminal/terminals-api.service';
@@ -24,7 +25,7 @@ interface ZodError {
 @Component({
   selector: 'app-import-terminal-dialog',
   standalone: true,
-  imports: [Dialog, FileUpload, Textarea],
+  imports: [Dialog, DialogActionsComponent, FileUpload, Textarea],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p-dialog
@@ -70,24 +71,23 @@ interface ZodError {
         </div>
       }
 
-      @if (apiError()) {
-        <div class="bo-field-error" style="margin-top: 12px;">{{ apiError() }}</div>
-      }
-
       @if (validConfirmation()) {
         <div style="margin-top: 12px; color: green; font-size: 14px;">JSON valido.</div>
       }
 
-      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
-        <button type="button" class="bo-btn ghost" (click)="closed.emit()">Chiudi</button>
+      <app-dialog-actions
+        [error]="apiError()"
+        [saving]="importing()"
+        [disabled]="!jsonText().trim()"
+        submitType="button"
+        submitLabel="Importa"
+        savingLabel="Importa"
+        cancelLabel="Chiudi"
+        (cancelled)="closed.emit()"
+        (submitted)="onImport()"
+      >
         <button type="button" class="bo-btn secondary" (click)="onCheckJson()">Controlla JSON</button>
-        <button
-          type="button"
-          class="bo-btn primary"
-          (click)="onImport()"
-          [disabled]="!jsonText().trim() || importing()"
-        >Importa</button>
-      </div>
+      </app-dialog-actions>
     </p-dialog>
   `,
 })

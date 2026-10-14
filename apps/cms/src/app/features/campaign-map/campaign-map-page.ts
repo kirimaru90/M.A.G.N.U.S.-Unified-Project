@@ -39,10 +39,31 @@ import {
   visibleToPlayer,
 } from './place-tree';
 import { exportPlaces, mergePlaces, slugify } from './place-import';
+import { environment } from '../../../environments/environment';
 
 /** CARTO dark. `nolabels` is what the player sees; labels are an authoring aid. */
-const TILE_NOLABELS = 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
-const TILE_LABELS = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+export type CartoStyle = 'dark_nolabels' | 'dark_all';
+
+/** The Dockerfile's sed target in environment.ts — present means "never stamped". */
+const UNSTAMPED_KEY = 'CARTO_KEY_TODO';
+
+/**
+ * A CARTO tile URL template, keyed when a key is configured. Without one the
+ * `key` parameter is omitted, not sent empty or as the placeholder: CARTO then
+ * serves its watermark, the honest sign that CARTO_BASEMAP_KEY is missing.
+ */
+export function cartoTileUrl(style: CartoStyle, key: string): string {
+  const url = `https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`;
+  return key && key !== UNSTAMPED_KEY ? `${url}?key=${encodeURIComponent(key)}` : url;
+}
+
+const TILE_NOLABELS = cartoTileUrl('dark_nolabels', environment.cartoBasemapKey);
+const TILE_LABELS = cartoTileUrl('dark_all', environment.cartoBasemapKey);
+
+/** The credit the CARTO Basemaps Terms require, both names linked. Leaflet's control keeps it on screen. */
+export const BASEMAP_ATTRIBUTION =
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>, ' +
+  '© <a href="https://carto.com/attribution" target="_blank" rel="noopener noreferrer">CARTO</a>';
 
 const DEFAULT_CONFIG: MapConfig = {
   startLat: 41.9028,
@@ -962,7 +983,7 @@ export class CampaignMapPage {
       maxZoom: cfg.maxZoom,
     });
     this.tiles = L.tileLayer(this.labels() ? TILE_LABELS : TILE_NOLABELS, {
-      attribution: '© OpenStreetMap, © CARTO',
+      attribution: BASEMAP_ATTRIBUTION,
     }).addTo(this.map);
 
     this.map.on('click', (e: L.LeafletMouseEvent) => this.onMapClick(e));

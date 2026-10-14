@@ -4,7 +4,7 @@ import { isAdmin, getUser } from '../api/session.js';
 import { patchActionPoints, patchResources } from '../api/characters.js';
 import { getEquipmentCatalog } from '../api/equipment.js';
 import { getTagCatalog } from '../api/catalogs.js';
-import { clamp, paSourceLabel } from '../sheet/model.js';
+import { clamp, paSourceLabel, speciesLabel } from '../sheet/model.js';
 import { renderSpecialTab } from '../tabs/special.js';
 import { renderAbilitaTab, renderTalentsTab } from '../tabs/skills.js';
 import { renderHealthTab } from '../tabs/health.js';
@@ -106,7 +106,7 @@ function startSheetWakeLock() {
 export function renderSheet(root, opts) {
     // Back/exit navigation is driven by the case nubs (`main.js`'s `setCaseNav`,
     // called before this mounts); only the editor toggle's wiring stays here.
-    const { campaignId, character, skillsCatalog, conditionsCatalog, warning } = opts;
+    const { campaignId, character, skillsCatalog, conditionsCatalog, speciesCatalog, warning } = opts;
 
     // Navigation: which first-level tab, plus the last-active subtab per section.
     let activeTop = 'stats';
@@ -255,7 +255,7 @@ export function renderSheet(root, opts) {
         headerEl.innerHTML = `
             <div class="pb-header-top">
                 <h2>${esc(character.name)}</h2>
-                <span class="pb-species-chip">${esc(character.species ?? '')}</span>
+                <span class="pb-species-chip">${esc(speciesLabel(character.species, speciesCatalog))}</span>
             </div>
             <div class="pb-label">PA · ${esc(paSourceLabel(paTrackedBy))}</div>
             <div class="pb-pa-control">

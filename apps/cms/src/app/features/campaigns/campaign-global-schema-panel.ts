@@ -5,7 +5,8 @@ import { ButtonModule } from 'primeng/button';
 import { CampaignGlobalSchemaApiService } from '../../core/state/campaign-global-schema-api.service';
 import { CampaignsApiService } from '../../core/campaign/campaigns-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
-import { StateSchemaConflictResponseSchema, coerceForType } from '../../core/state/state.schemas';
+import { coerceForType } from '../../core/state/state.schemas';
+import { classifyStateSchemaError } from '../../core/state/state-schema-error';
 import type { StateEntryShape, StateSchemaConflictResponse, StateVarType } from '../../core/state/state.types';
 import { SchemaConflictDialogComponent } from '../state/schema-conflict-dialog';
 
@@ -290,14 +291,12 @@ export class CampaignGlobalSchemaPanelComponent implements OnInit {
     }
   }
 
-  private handleSchemaError(err: { status?: number; error?: unknown }): void {
-    if (err?.status === 409) {
-      const parsed = StateSchemaConflictResponseSchema.safeParse(err.error);
-      if (parsed.success) {
-        this.conflictData.set(parsed.data);
-        this.showConflictDialog.set(true);
-        return;
-      }
+  private handleSchemaError(err: unknown): void {
+    const result = classifyStateSchemaError(err);
+    if (result.kind === 'conflict') {
+      this.conflictData.set(result.data);
+      this.showConflictDialog.set(true);
+      return;
     }
     this.messageService.add({ severity: 'error', summary: 'Errore durante l\'operazione' });
   }

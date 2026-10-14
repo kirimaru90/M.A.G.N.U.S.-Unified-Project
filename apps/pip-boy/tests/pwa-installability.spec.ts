@@ -139,7 +139,7 @@ test.describe(() => {
         const deadline = Date.now() + 5000;
         while (Date.now() < deadline) {
           const keys = await caches.keys();
-          const shellKey = keys.find((k) => k.startsWith('pipboy-') && k !== 'pipboy-tiles-v2');
+          const shellKey = keys.find((k) => k.startsWith('pipboy-') && k !== 'pipboy-tiles-v3');
           if (shellKey) {
             const cache = await caches.open(shellKey);
             const resp = await cache.match('./src/tabs/dice.js');

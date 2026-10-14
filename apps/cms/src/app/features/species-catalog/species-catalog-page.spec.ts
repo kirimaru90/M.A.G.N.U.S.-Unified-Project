@@ -50,155 +50,34 @@ describe('SpeciesCatalogPage', () => {
     expect(component['entries']()).toEqual([GHOUL]);
   });
 
-  it('adds a species via patchSchema with an add op', () => {
-    component['showAddRow']();
-    fixture.detectChanges();
-    component['draft'] = {
-      slug: 'synth',
-      name: 'Sintetico',
-      permesso: 'Indistinguibile da un umano.',
-      svantaggio: "Cacciato dall'Istituto.",
-      tagSkillBudget: 3,
-      margin: 4,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'add',
-        slug: 'synth',
-        entry: {
-          name: 'Sintetico',
-          permesso: 'Indistinguibile da un umano.',
-          svantaggio: "Cacciato dall'Istituto.",
-          tagSkillBudget: 3,
-          margin: 4,
-          description: undefined,
-        },
-      },
-    ]);
-    expect(component['addRowVisible']()).toBe(false);
-  });
-
-  it('rejects an add missing required copy', () => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'synth',
-      name: 'Sintetico',
-      permesso: '',
-      svantaggio: '',
-      tagSkillBudget: 3,
-      margin: 4,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBeTruthy();
-  });
-
-  it.each([0, -1])('rejects a tagSkillBudget of %s client-side', (budget) => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'synth',
-      name: 'Sintetico',
-      permesso: 'a',
-      svantaggio: 'b',
-      tagSkillBudget: budget,
-      margin: 4,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBe('Il budget maestria deve essere un intero positivo');
-  });
-
-  it("changes a species' drawback copy via an update op", () => {
-    component['startEdit'](GHOUL);
-    fixture.detectChanges();
-    component['draft'].svantaggio = 'Rischio di selvatichire.';
-    component['submitEdit'](GHOUL);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      {
-        action: 'update',
-        slug: 'ghoul',
-        entry: {
-          name: 'Ghoul',
-          permesso: 'Immune alle radiazioni.',
-          svantaggio: 'Rischio di selvatichire.',
-          tagSkillBudget: 3,
-          margin: 4,
-          description: undefined,
-        },
-      },
-    ]);
-  });
-
-  it("changes a species' tag-skill budget via an update op", () => {
-    const human = { ...GHOUL, slug: 'human', name: 'Umano', tagSkillBudget: 4 };
-    component['startEdit'](human);
-    fixture.detectChanges();
-    component['draft'].tagSkillBudget = 5;
-    component['submitEdit'](human);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'human', entry: expect.objectContaining({ tagSkillBudget: 5 }) },
-    ]);
-  });
-
   it('renders the margin column header', () => {
     expect(fixture.nativeElement.textContent).toContain('Margine salute');
   });
 
-  it("changes a species' health margin via an update op", () => {
-    const human = { ...GHOUL, slug: 'human', name: 'Umano', margin: 5 };
-    component['startEdit'](human);
-    fixture.detectChanges();
-    component['draft'].margin = 6;
-    component['submitEdit'](human);
-    fixture.detectChanges();
-
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'update', slug: 'human', entry: expect.objectContaining({ margin: 6 }) },
-    ]);
+  it('renders read-only rows with no inline inputs', () => {
+    expect(fixture.nativeElement.querySelector('p-table tbody input')).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Inviso agli umani.');
   });
 
-  it.each([0, -1])('rejects a margin of %s client-side', (margin) => {
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'synth',
-      name: 'Sintetico',
-      permesso: 'a',
-      svantaggio: 'b',
-      tagSkillBudget: 3,
-      margin,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(patchSpy).not.toHaveBeenCalled();
-    expect(component['rowError']()).toBe('Il margine salute deve essere un intero positivo');
+  it('opens the dialog empty for create', () => {
+    component['openCreate']();
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBeNull();
   });
 
-  it('renames a species via a single rename op when only the slug changes', () => {
-    component['startEdit'](GHOUL);
-    fixture.detectChanges();
-    component['draft'].slug = 'necrotic';
-    component['submitEdit'](GHOUL);
-    fixture.detectChanges();
+  it('opens the dialog with the row entry for edit', () => {
+    const entry = GHOUL;
+    component['openEdit'](entry);
+    expect(component['dialogVisible']()).toBe(true);
+    expect(component['dialogEntry']()).toBe(entry);
+  });
 
-    expect(patchSpy).toHaveBeenCalledWith([
-      { action: 'rename', slug: 'ghoul', rename: 'necrotic' },
-    ]);
+  it('closes the dialog and reloads after a save', () => {
+    component['openCreate']();
+    component['onSaved']('created');
+
+    expect(component['dialogVisible']()).toBe(false);
+    expect(listSpy).toHaveBeenCalledTimes(2);
   });
 
   it('deletes a species via a delete op after confirmation', () => {
@@ -215,28 +94,6 @@ describe('SpeciesCatalogPage', () => {
   });
 
   // 3.T.3 — a 409 renders inline and the draft survives for a retry.
-  it('surfaces a 409 duplicate-slug error inline without discarding pending edits', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['showAddRow']();
-    component['draft'] = {
-      slug: 'ghoul',
-      name: 'Ghoul',
-      permesso: 'a',
-      svantaggio: 'b',
-      tagSkillBudget: 3,
-      margin: 4,
-      description: '',
-    };
-    component['submitAdd']();
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Slug già esistente');
-    expect(component['addRowVisible']()).toBe(true);
-    expect(component['draft'].slug).toBe('ghoul');
-  });
-
   it('surfaces an in-use 409 on delete as an inline error and keeps the entry listed', () => {
     const confirmationService = TestBed.inject(ConfirmationService);
     vi.spyOn(confirmationService, 'confirm').mockImplementation((opts) => {
@@ -253,19 +110,6 @@ describe('SpeciesCatalogPage', () => {
     expect(component['deleteError']()).toBe('ghoul');
     expect(component['deleteErrorText']()).toBe('Specie in uso da un personaggio');
     expect(component['entries']()).toEqual([GHOUL]);
-  });
-
-  it('surfaces an in-use 409 on rename as an inline error', () => {
-    patchSpy.mockReturnValueOnce({
-      subscribe: ({ error }: { error: (e: unknown) => void }) => error({ status: 409 }),
-    });
-    component['startEdit'](GHOUL);
-    component['draft'].slug = 'necrotic';
-    component['submitEdit'](GHOUL);
-    fixture.detectChanges();
-
-    expect(component['rowError']()).toBe('Specie in uso da un personaggio');
-    expect(component['editingSlug']()).toBe('ghoul');
   });
 
   it('renders the empty message when the catalog has no entries', async () => {

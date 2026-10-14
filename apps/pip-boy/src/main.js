@@ -130,6 +130,7 @@ async function showCharacterSelect(campaignId, campaignName) {
         campaignId,
         campaignName,
         skillsCatalog: state.skillsCatalog,
+        speciesCatalog: state.speciesCatalog,
         onSelect: async (character) => {
             try {
                 await setLastSelection(campaignId, character.id);
@@ -176,6 +177,7 @@ function showSheet(campaignId, campaignName, character, warning) {
         warning,
         skillsCatalog: state.skillsCatalog,
         conditionsCatalog: state.conditionsCatalog,
+        speciesCatalog: state.speciesCatalog,
     });
 }
 

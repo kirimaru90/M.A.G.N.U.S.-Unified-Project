@@ -13,7 +13,11 @@ const CACHE_VERSION = 'pipboy-__BUILD_ID__';
 // previous version's accumulated tiles (the existing activate sweep below
 // already deletes any cache name it doesn't recognise as current) — not on
 // every deploy the way CACHE_VERSION is.
-const TILE_CACHE = 'pipboy-tiles-v2';
+//
+// v3: tiles cached before the CARTO key were the keyless "API KEY REQUIRED"
+// watermark — purge them (carto-basemap-api-key). Bump again whenever the tile
+// URL scheme changes in a way that makes cached tiles wrong.
+const TILE_CACHE = 'pipboy-tiles-v3';
 
 // Cache-on-visit with no bound would grow forever (observed: 7GB on one
 // long-running campaign). Entries are capped by count rather than by a byte
@@ -30,8 +34,9 @@ const TILE_CACHE_MAX_ENTRIES = 4000;
 const TILE_CACHE_WATERMARK = Math.floor(TILE_CACHE_MAX_ENTRIES * 0.9);
 
 // The basemap host used by pipboy-map-tab. Coupled to the tile URL in
-// src/tabs/map.js — change one and you must change the other, along with the
-// attribution, or the new provider's terms are unmet.
+// src/tabs/basemap.js — change one and you must change the other, along with the
+// attribution, or the new provider's terms are unmet. Matched by hostname only,
+// so the `?key=` query string never affects classification.
 const TILE_HOST_SUFFIX = '.basemaps.cartocdn.com';
 
 function isTileHost(url) {
@@ -82,6 +87,7 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/dice.js',
   './src/tabs/map.js',
   './src/tabs/map-geometry.js',
+  './src/tabs/basemap.js',
   './src/tabs/notes.js',
   './src/tabs/note-editor.js',
   './src/tabs/confirm-dialog.js',

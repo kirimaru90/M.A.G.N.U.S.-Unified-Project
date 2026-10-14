@@ -7,7 +7,9 @@
 #     docker compose up -d
 #
 # The mounted source keeps sw.js's literal `__BUILD_ID__` cache name (unstamped)
-# — fine for local work. Do NOT commit the real override file: on the server it
+# — fine for local work. Likewise the Pip-Boy's `__CARTO_BASEMAP_KEY__` stays
+# unstamped, so its map shows CARTO's keyless watermark; rebuild the image with
+# CARTO_BASEMAP_KEY in .env to see real tiles. Do NOT commit the real override file: on the server it
 # would mask the stamped image and break per-deploy cache busting.
 #
 # Alternative without an override: rebuild on demand with

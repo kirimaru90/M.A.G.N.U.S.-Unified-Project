@@ -1,6 +1,7 @@
 import { getPrefs, setPref } from '../state/prefs.js';
 import { applyOrientation, requestWakeLock, releaseWakeLock } from './device.js';
 import { applyPhosphorTheme } from './theme.js';
+import { CARTO_LINK_HTML, OSM_LINK_HTML } from '../tabs/basemap.js';
 
 // The device-preferences popup. Chrome-level — it is opened from the status bar,
 // it outlives any screen, and it is not a sheet tab — so it sits beside chrome.js
@@ -75,11 +76,13 @@ const ROWS = [
 ];
 
 /**
- * The credits view. This is where the app discharges the other half of its
- * basemap licence obligation: the map tab shows attribution for five seconds and
- * then collapses it, which the OSM Foundation's Attribution Guidelines permit
- * only if the licence information stays findable — "for example ... an 'About'
- * option in a menu". This is that menu option. It is not decoration.
+ * The credits view: the full attribution, reachable whatever the map does. By
+ * default the map's own credit line is permanent (the CARTO Basemaps Terms want
+ * it "visible on the map itself … not behind a click"), so this is a fuller
+ * acknowledgement on top. If ATTRIBUTION_COLLAPSE_MS in src/tabs/basemap.js is
+ * set to a delay, this view becomes what the OSM Attribution Guidelines require
+ * after a collapse — "an 'About' option in a menu" — but it does NOT by itself
+ * satisfy CARTO. Either way it must stay; it is not decoration.
  *
  * Leaflet is named as a courtesy rather than an obligation: its BSD-2 notice
  * lives in the vendored source, but the app suppresses its on-screen prefix, so
@@ -99,10 +102,10 @@ function openCreditsPopup() {
                 <div class="pb-credits-block">
                     <div class="pb-label">CARTOGRAFIA</div>
                     <p class="pb-credits-text">
-                        Dati cartografici © <b>OpenStreetMap</b>, disponibili con licenza ODbL.
+                        Dati cartografici © <b>${OSM_LINK_HTML}</b> contributors, disponibili con licenza ODbL.
                     </p>
                     <p class="pb-credits-text">
-                        Mappe di base © <b>CARTO</b>.
+                        Mappe di base © <b>${CARTO_LINK_HTML}</b>.
                     </p>
                 </div>
                 <div class="pb-credits-block">
@@ -131,7 +134,7 @@ function openCreditsPopup() {
 // Must stay in sync with sw.js's TILE_CACHE constant — it exists only so this
 // module can exclude the tile cache from that lookup, not as its own source
 // of truth for the name.
-const TILE_CACHE_NAME = 'pipboy-tiles-v2';
+const TILE_CACHE_NAME = 'pipboy-tiles-v3';
 
 async function readBuildId() {
     try {

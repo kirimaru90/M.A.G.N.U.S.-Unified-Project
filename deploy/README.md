@@ -70,6 +70,27 @@ For **local** editing (no stamping needed), rebuild on demand with
 `docker compose up -d --build pip-boy`, or copy `docker-compose.override.yml.example` to
 `docker-compose.override.yml` (git-ignored) to re-mount the source for live edits.
 
+### CARTO basemap key (Pip-Boy and CMS maps)
+
+CARTO watermarks every keyless basemap tile ("API KEY REQUIRED"). Get a free key at
+<https://carto.com/basemaps/apikey>, **lock it to this deployment's domains** in CARTO's
+key settings (the key ships to every browser, so the lock is its only protection), and
+set it in the root `.env`:
+
+```bash
+CARTO_BASEMAP_KEY=your-key
+```
+
+`docker-compose.yml` passes it as a build arg to `pip-boy` and `cms`, whose Dockerfiles
+sed it into the source — rebuild both images after setting or rotating it. Unset, the maps
+still load but show CARTO's watermark. A live-edit override mounts unstamped source, so
+local maps are watermarked unless you rebuild the image.
+
+The key binds the app to the CARTO Basemaps Terms: the credit "© OpenStreetMap
+contributors, © CARTO" must stay visible on the map. That is why the Pip-Boy's
+`ATTRIBUTION_COLLAPSE_MS` (in `apps/pip-boy/src/tabs/basemap.js`) defaults to `null`
+(permanent); `5000` restores the old five-second fade, which CARTO's terms do not allow.
+
 Then verify each hostname serves its app and `/api/*` reaches the API with no CORS error.
 The [`smoke.sh`](./smoke.sh) script automates that check:
 

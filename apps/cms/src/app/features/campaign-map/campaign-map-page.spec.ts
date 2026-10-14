@@ -6,7 +6,7 @@ import { of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import * as L from 'leaflet';
-import { CampaignMapPage } from './campaign-map-page';
+import { BASEMAP_ATTRIBUTION, CampaignMapPage, cartoTileUrl } from './campaign-map-page';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import type { CampaignDto } from '../../core/campaign/campaign.types';
@@ -483,6 +483,51 @@ describe('CampaignMapPage', () => {
     const payload = replaceSpy.mock.calls[0][1];
     expect(JSON.stringify(payload)).not.toContain('labels');
     expect(JSON.stringify(payload)).not.toContain('filterPreview');
+  });
+
+  describe('CARTO basemap', () => {
+    it('cartoTileUrl appends the key to both styles', () => {
+      expect(cartoTileUrl('dark_nolabels', 'abc')).toBe(
+        'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=abc',
+      );
+      expect(cartoTileUrl('dark_all', 'abc')).toBe('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=abc');
+    });
+
+    it('cartoTileUrl omits the key when empty or still the build placeholder', () => {
+      for (const key of ['', 'CARTO_KEY_TODO']) {
+        const url = cartoTileUrl('dark_nolabels', key);
+        expect(url).not.toContain('?');
+        expect(url).not.toContain('CARTO_KEY_TODO');
+      }
+    });
+
+    it('shows the linked CARTO-worded credit in the attribution control', async () => {
+      await setup();
+      const control = (fixture.nativeElement as HTMLElement).querySelector('.leaflet-control-attribution')!;
+      expect(control.textContent).toContain('OpenStreetMap contributors');
+      expect(control.textContent).toContain('CARTO');
+
+      const hrefs = Array.from(control.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+      expect(hrefs).toContain('https://www.openstreetmap.org/copyright');
+      expect(hrefs).toContain('https://carto.com/attribution');
+    });
+
+    it('toggling labels swaps the style but keeps the credit', async () => {
+      await setup();
+      const c = component as unknown as { labels: { set: (v: boolean) => void }; tiles: L.TileLayer };
+      c.labels.set(true);
+      fixture.detectChanges();
+
+      expect((c.tiles as unknown as { _url: string })._url).toContain('/dark_all/');
+      expect(c.tiles.options.attribution).toBe(BASEMAP_ATTRIBUTION);
+      const control = (fixture.nativeElement as HTMLElement).querySelector('.leaflet-control-attribution')!;
+      expect(control.textContent).toContain('OpenStreetMap contributors');
+
+      c.labels.set(false);
+      fixture.detectChanges();
+      expect((c.tiles as unknown as { _url: string })._url).toContain('/dark_nolabels/');
+      expect(c.tiles.options.attribution).toBe(BASEMAP_ATTRIBUTION);
+    });
   });
 
   describe('reactive to the current campaign', () => {

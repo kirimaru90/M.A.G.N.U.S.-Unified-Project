@@ -54,9 +54,27 @@ test('the footer tracks the active tab, caps, and shows an HH:MM clock', async (
 test('the header shows a species chip and the PA source line', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
-  await expect(page.locator('.pb-species-chip')).toHaveText('human');
+  // The chip shows the catalog name for the stored slug (`human` → `Umano`).
+  await expect(page.locator('.pb-species-chip')).toHaveText('Umano');
   await expect(page.locator('#pb-sheet-header')).toContainText('PA · AGILITÀ');
   await expect(page.locator('#pb-sheet-header')).toContainText('PUNTI AZIONE');
+});
+
+test('the species chip follows a renamed catalog entry', async ({ page }) => {
+  await openSheet(page, {
+    character: ownedCharacter({ species: 'ghoul' }),
+    speciesCatalog: [
+      { slug: 'ghoul', name: 'Ghoul ferale', permesso: 'p', svantaggio: 's', tagSkillBudget: 3, margin: 5 },
+    ],
+  });
+
+  await expect(page.locator('.pb-species-chip')).toHaveText('Ghoul ferale');
+});
+
+test('the species chip falls back to the slug for a species missing from the catalog', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter({ species: 'deathclaw' }) });
+
+  await expect(page.locator('.pb-species-chip')).toHaveText('deathclaw');
 });
 
 test('the + control hugs the pip row rather than the header edge', async ({ page }) => {
