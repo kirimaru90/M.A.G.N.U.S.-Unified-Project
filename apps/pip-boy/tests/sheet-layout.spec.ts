@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
-const TAB_LABELS = ['STATS', 'SALUTE', 'INV', 'DADI', 'NOTES', 'MAPPA'];
+const TAB_LABELS = ['STATS', 'INV', 'DADI', 'INFO', 'MAPPA'];
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {
@@ -20,7 +20,7 @@ const ownedCharacter = (overrides: Record<string, unknown> = {}) =>
 
 // ── 5.T.1 tabs, underline, footer ───────────────────────────────────
 
-test('exactly six tabs plus one ✎ toggle, with the active tab underlined', async ({ page }) => {
+test('exactly five tabs plus one ✎ toggle, with the active tab underlined', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
   await expect(page.locator('.pb-tab[data-top]')).toHaveCount(TAB_LABELS.length);
@@ -43,7 +43,7 @@ test('the footer tracks the active tab, caps, and shows an HH:MM clock', async (
   await openSheet(page, { character: ownedCharacter() });
 
   // The footer's left slot reflects the active leaf — the subtab when present.
-  await expect(page.locator('#pb-footer-tab')).toHaveText('S.P.E.C.I.A.L.');
+  await expect(page.locator('#pb-footer-tab')).toHaveText('Salute');
   await expect(page.locator('#pb-footer-caps')).toHaveText('TAPPI 10');
   await expect(page.locator('#pb-footer-clock')).toHaveText(/^\d{2}:\d{2}$/);
 
@@ -117,6 +117,7 @@ test('editor mode is off again after leaving and reopening the sheet', async ({ 
 
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
   await expect(page.locator('.pb-editor-strip')).toHaveCount(0);
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await expect(page.locator('.pb-approach-row')).toHaveCount(7);
 });
 
@@ -136,6 +137,7 @@ test('the ◉ EDITOR strip appears only while editor mode is on', async ({ page 
 
 test('tapping the PERCEZIONE approach row opens DADI with it preselected', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
 
   await page.locator('.pb-approach-row[data-approach="perception"]').click();
 
@@ -160,7 +162,7 @@ test('SALUTE reads health/margin with negatives left and positives right', async
       },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   // net wear 2 + 2 − 1 = 3; margin defaults to 4; health = 4 − 3 = 1 (not critical)
   await expect(page.locator('#pb-health-value')).toHaveText('1/4');
@@ -177,7 +179,7 @@ test('SALUTE reads health/margin with negatives left and positives right', async
 
 test('an empty condition list renders the dashed empty state', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   const empty = page.locator('.pb-empty-dashed');
   await expect(empty).toHaveText('nessuna condizione attiva');
@@ -198,7 +200,7 @@ test('crossing net wear to 4 persists criticalState and banners every tab', asyn
       },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   // margin 4, net wear 2 → health 2
   await expect(page.locator('#pb-health-value')).toHaveText('2/4');
 
@@ -251,7 +253,7 @@ test('a conditions-catalog fetch failure falls back to the hardcoded presets', a
 
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   // The fallback presets are surfaced inside the popup's "Scegli esistente"
   // picker rather than an inline row, so the picker is never empty.
@@ -264,7 +266,7 @@ test('a conditions-catalog fetch failure falls back to the hardcoded presets', a
 
 test('a catalog preset routes by polarity', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   // The stub catalog's `well-fed` entry is positive, `poisoned` is negative.
   // Each polarity trigger lists its own presets; OK routes to that collection.
@@ -297,7 +299,7 @@ test('tapping a condition row opens its detail card and RIMUOVI removes it', asy
       },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
   await page.locator('[data-condition-id="n1"]').click();
@@ -389,6 +391,7 @@ test('lowering MAX PA beneath paCurrent clamps and persists paCurrent', async ({
       actionPoints: { paMax: 5, paCurrent: 5, paTrackedBy: 'agility' },
     }),
   });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await page.locator('#pb-editor-toggle').click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/action-points') && r.method() === 'PATCH');
@@ -413,6 +416,7 @@ test('the S.P.E.C.I.A.L. editor has no FONTE PA selector; the header reflects th
   await expect(page.locator('#pb-sheet-header')).toContainText('PA · RESISTENZA');
 
   // In editor mode there is no FONTE PA control — only the MAX PA stepper.
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-pa-source')).toHaveCount(0);
   await expect(page.locator('#pb-pa-max-stepper')).toBeVisible();
@@ -424,6 +428,7 @@ test('SPECIAL steppers are bounded 1..5', async ({ page }) => {
       special: { strength: 5, perception: 1, endurance: 3, charisma: 3, intelligence: 3, agility: 3, luck: 3 },
     }),
   });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await page.locator('#pb-editor-toggle').click();
 
   await expect(page.locator('[data-key="strength"] button[data-dir="1"]')).toBeDisabled();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, openSheet, makeCharacter } from './fixtures';
+import { stubEnvironment, login, openSheet, makeCharacter, gotoTab } from './fixtures';
 
 // Coverage for the destructive actions gated behind `openConfirm` (see
 // proposal/add-pipboy-delete-confirmations): character delete, skill delete,
@@ -240,7 +240,7 @@ async function openSaluteWithCondition(page: Page, ownerId = 'user-player', desc
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   return page.locator('.pb-cond-col--neg .pb-cond-row', { hasText: 'STREMATO' });
 }
 

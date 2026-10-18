@@ -41,6 +41,19 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/terminals/terminal-detail').then((m) => m.TerminalDetailPage),
       },
+      // Quest authoring shows drafts the API only ships to an admin.
+      {
+        path: 'quests',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/quests/quests-list').then((m) => m.QuestsListPage),
+      },
+      {
+        path: 'quests/:questId',
+        canMatch: [adminGuard],
+        loadComponent: () =>
+          import('./features/quests/quest-detail').then((m) => m.QuestDetailPage),
+      },
       // Authoring the map exposes non-public places, which the API only ships to
       // an admin — so the screen is admin-only for the same reason the catalogs are.
       {

@@ -12,7 +12,7 @@
     "format": "prettier --write \"src/**/*.{ts,html,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,css,json}\"",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
-    "api:gen": "openapi-typescript reference/API-docs.json -o src/api/generated/openapi-types.ts"
+    "api:gen": "openapi-typescript ../packages/api-spec/openapi.json -o src/api/generated/openapi-types.ts"
   },
   "private": true,
   "packageManager": "npm@11.11.0",

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // Covers the new pipboy-sheet-navigation capability (two-level tabs, the
 // flattened prev/next order, swipe with a deadzone) plus the character-sheet
@@ -40,29 +40,30 @@ async function swipe(page: Page, dx: number, dy = 0, startSelector?: string) {
 
 // ── two-level layout + conditional subtab row ───────────────────────
 
-test('the first level is exactly the six tabs, in the flattened traversal order', async ({ page }) => {
+test('the first level is exactly the five tabs, in the flattened traversal order', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
   // Exhaustive on purpose: FLAT derives from TAB_TREE, so this order is also the
-  // prev/next and swipe order. MAPPA is the last tab, after NOTES.
-  await expect(page.locator('.pb-tab')).toHaveText([
-    'STATS',
-    'SALUTE',
-    'INV',
-    'DADI',
-    'NOTES',
-    'MAPPA',
-  ]);
+  // prev/next and swipe order. SALUTE and NOTES are no longer first-level tabs.
+  await expect(page.locator('.pb-tab')).toHaveText(['STATS', 'INV', 'DADI', 'INFO', 'MAPPA']);
+});
+
+test('the sheet opens on STATS › Salute', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+
+  await expect(page.locator('.pb-tab.active')).toHaveText('STATS');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Salute');
+  await expect(page.locator('#pb-health-value')).toBeVisible();
 });
 
 test('the subtab row appears only for tabs that define subtabs', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
-  // STATS (default) → three subtabs.
-  await expect(page.locator('.pb-subtab')).toHaveText(['S.P.E.C.I.A.L.', 'Abilità', 'TALENTI']);
+  // STATS (default) → four subtabs, Salute first.
+  await expect(page.locator('.pb-subtab')).toHaveText(['Salute', 'S.P.E.C.I.A.L.', 'Abilità', 'TALENTI']);
 
-  // SALUTE / DADI / MAPPA / NOTES → no subtab row.
-  for (const label of ['SALUTE', 'DADI', 'MAPPA', 'NOTES']) {
+  // DADI / MAPPA → no subtab row.
+  for (const label of ['DADI', 'MAPPA']) {
     await page.locator('.pb-tab', { hasText: label }).click();
     await expect(page.locator('.pb-subtabs')).toBeHidden();
     await expect(page.locator('.pb-subtab')).toHaveCount(0);
@@ -71,6 +72,11 @@ test('the subtab row appears only for tabs that define subtabs', async ({ page }
   // INV → four subtabs.
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
   await expect(page.locator('.pb-subtab')).toHaveText(['Armi', 'Armature', 'Consumabili', 'Vari']);
+
+  // INFO → Quest and Note, Quest active on first visit.
+  await page.locator('.pb-tab', { hasText: 'INFO' }).click();
+  await expect(page.locator('.pb-subtab')).toHaveText(['Quest', 'Note']);
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Quest');
 });
 
 test('each first-level tab remembers its last-active subtab', async ({ page }) => {
@@ -84,37 +90,74 @@ test('each first-level tab remembers its last-active subtab', async ({ page }) =
   await page.locator('.pb-tab', { hasText: 'STATS' }).click();
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
   await expect(page.locator('.pb-subtab.active')).toHaveText('Consumabili');
+
+  // Same for INFO › Note.
+  await gotoTab(page, 'INFO', 'Note');
+  await page.locator('.pb-tab', { hasText: 'STATS' }).click();
+  await page.locator('.pb-tab', { hasText: 'INFO' }).click();
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Note');
 });
 
 // ── flattened swipe traversal with a deadzone ───────────────────────
 
 test('swipe left advances and spills from a section into the next tab; right retreats', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Salute');
+
+  await swipe(page, -120); // → S.P.E.C.I.A.L.
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
 
   await swipe(page, -120); // → Abilità
-  await expect(page.locator('.pb-subtab.active')).toHaveText('Abilità');
-
   await swipe(page, -120); // → TALENTI
   await expect(page.locator('.pb-subtab.active')).toHaveText('TALENTI');
 
-  await swipe(page, -120); // spill: TALENTI is the last STATS subtab → SALUTE
-  await expect(page.locator('.pb-tab.active')).toHaveText('SALUTE');
-  await expect(page.locator('.pb-subtabs')).toBeHidden();
+  await swipe(page, -120); // spill: TALENTI is the last STATS subtab → INV › Armi
+  await expect(page.locator('.pb-tab.active')).toHaveText('INV');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Armi');
 
   await swipe(page, 120); // back into the last STATS subtab
   await expect(page.locator('.pb-tab.active')).toHaveText('STATS');
   await expect(page.locator('.pb-subtab.active')).toHaveText('TALENTI');
 });
 
+test('INFO sits between DADI and MAPPA in the flattened order', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+  await page.locator('.pb-tab', { hasText: 'DADI' }).click();
+
+  await swipe(page, -120); // DADI → Quest
+  await expect(page.locator('.pb-tab.active')).toHaveText('INFO');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Quest');
+
+  await swipe(page, -120); // → Note
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Note');
+
+  await swipe(page, -120); // → MAPPA (last position)
+  await expect(page.locator('.pb-tab.active')).toHaveText('MAPPA');
+});
+
+test('the two ends of the order do not wrap', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+
+  await swipe(page, 120); // Salute is the first position
+  await expect(page.locator('.pb-tab.active')).toHaveText('STATS');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Salute');
+
+  // MAPPA opts its own surface out of swipe, so drive `next` from Note instead
+  // and confirm MAPPA is where it stops: no position follows it.
+  await gotoTab(page, 'INFO', 'Note');
+  await swipe(page, -120);
+  await expect(page.locator('.pb-tab.active')).toHaveText('MAPPA');
+  await expect(page.locator('.pb-tab').last()).toHaveText('MAPPA');
+});
+
 test('a short or predominantly-vertical gesture does not navigate', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
 
   await swipe(page, -30); // below the distance threshold
-  await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Salute');
 
   await swipe(page, 15, -150); // predominantly vertical (scroll)
-  await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Salute');
   // A gesture that *begins* on a control now navigates too (distance-based, not
   // start-target-based); that behavior is covered in mobile-swipe-fullscreen.spec.ts.
 });
@@ -127,6 +170,7 @@ test('STATS splits into S.P.E.C.I.A.L. (with the dice legend), Abilità (+ SPESA
   });
 
   // S.P.E.C.I.A.L. carries the dice-outcome legend.
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await expect(page.locator('.pb-legend')).toContainText('Successo Pieno');
 
   // Abilità: skills + the read-only SPESA PA block, no perks.
@@ -333,6 +377,6 @@ test('the resources band is a fixed strip above the footer, outside the scroll, 
   expect(overflow).toBeLessThanOrEqual(1);
 
   // The band is hidden on a non-INV tab.
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   await expect(band).toBeHidden();
 });

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // Covers the mobile-swipe-and-fullscreen-pwa change: reliable touch delivery
 // (`touch-action: pan-y`), whole-surface distance-based tap/swipe discrimination
@@ -53,6 +53,7 @@ test('.pb-screen-content declares touch-action: pan-y', async ({ page }) => {
 
 test('a horizontal swipe left advances and right retreats the active tab', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
 
   await swipe(page, -120); // left → next
@@ -64,6 +65,7 @@ test('a horizontal swipe left advances and right retreats the active tab', async
 
 test('a below-threshold drag does not navigate; a predominantly-vertical drag does not navigate', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
 
   await swipe(page, -40); // under the 60px threshold
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
@@ -76,6 +78,7 @@ test('a below-threshold drag does not navigate; a predominantly-vertical drag do
 
 test('a swipe beginning over a control navigates and suppresses the trailing click', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
 
   // Swipe left starting on the STRENGTH approach row (a button that, if
@@ -104,6 +107,7 @@ test('a swipe beginning over a control navigates and suppresses the trailing cli
 
 test('a plain tap on a control fires the control without navigating by swipe', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
   await expect(page.locator('.pb-subtab.active')).toHaveText('S.P.E.C.I.A.L.');
 
   // A tap (no travel) on the STRENGTH approach row activates it → jumps to DADI.

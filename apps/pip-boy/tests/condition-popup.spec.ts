@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // Covers the two-tab add-condition popup (pipboy-character-sheet): the SALUTE
 // tab's `− NEGATIVA` / `+ POSITIVA` triggers each open a popup scoped to their
@@ -34,7 +34,7 @@ const MIXED_CATALOG = [
 ];
 
 async function openPicker(page: Page, polarity: 'neg' | 'pos') {
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   await page.locator(`#pb-cond-add-${polarity}`).click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker')).toBeVisible();
@@ -47,7 +47,7 @@ const statusPatch = (page: Page) =>
 
 test('− NEGATIVA opens a two-tab popup whose picker lists only negative presets; picking routes to negativeConditions', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   await page.locator('#pb-cond-add-neg').click();
   await expect(page.locator('.pb-popup')).toBeVisible();
@@ -137,7 +137,7 @@ test('picking a preset carries its description into the PATCH', async ({ page })
 
 test('the custom tab has no sign toggle and labels the weights with signed values', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   await page.locator('#pb-cond-add-neg').click();
   await page.locator('[data-ptab="custom"]').click();
@@ -162,7 +162,7 @@ test('the custom tab adds a negative condition and persists criticalState on cro
       },
     }),
   });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   await expect(page.locator('#pb-health-value')).toHaveText('2/4');
 
   await page.locator('#pb-cond-add-neg').click();
@@ -184,7 +184,7 @@ test('the custom tab adds a negative condition and persists criticalState on cro
 
 test('a positive custom condition with a description routes to positiveConditions and sends it', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   await page.locator('#pb-cond-add-pos').click();
   await page.locator('[data-ptab="custom"]').click();
@@ -203,7 +203,7 @@ test('a positive custom condition with a description routes to positiveCondition
 
 test('a whitespace-only custom description sends no description key', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   await page.locator('#pb-cond-add-pos').click();
   await page.locator('[data-ptab="custom"]').click();
@@ -244,7 +244,7 @@ test('with the catalog fetch failing, − NEGATIVA lists the fallback presets an
 
 test('the red ✕ cancels the condition popup with no write', async ({ page }) => {
   await openSheet(page, { character: ownedCharacter() });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   let patched = false;
   page.on('request', (r) => {

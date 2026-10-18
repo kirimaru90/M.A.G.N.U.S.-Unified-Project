@@ -410,6 +410,8 @@
 .bo-input:focus { border-color: var(--bo-accent); box-shadow: 0 0 0 3px var(--bo-accent-soft); }
 .bo-input.mono { font-family: var(--bo-font-mono); font-size: 12px; }
 .bo-input.textarea { height: auto; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+/* Textareas grow only downwards, so they can never outgrow their dialog. */
+textarea.bo-input { resize: vertical; max-width: 100%; }
 .bo-select {
   height: 28px; padding: 0 26px 0 9px;
   border-radius: var(--bo-radius-sm);

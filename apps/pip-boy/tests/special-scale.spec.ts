@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab } from './fixtures';
 
 async function openSheetAsOwner(page: Page, overrides: Record<string, unknown> = {}) {
   const character = makeCharacter({ id: 'char-1', campaignId: 'camp-1', userId: 'user-player', ...overrides });
@@ -12,6 +12,7 @@ async function openSheetAsOwner(page: Page, overrides: Record<string, unknown> =
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
 }
 
 const strengthStepper = (page: Page) => page.locator('.pb-stepper[data-key="strength"]');

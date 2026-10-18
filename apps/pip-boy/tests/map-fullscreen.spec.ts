@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab's immersive (full-screen) mode: the toggle expands the
 // map to fill the CRT screen and hides the sheet chrome, an explicit exit
@@ -139,8 +139,8 @@ test('exit via the toggle restores the normal chrome, including the tab bar', as
   await expect(page.locator('.pb-footer')).toBeVisible();
 
   // The tab bar navigates away again as usual.
-  await page.locator('.pb-tab', { hasText: 'NOTES' }).click();
-  await expect(page.locator('.pb-tab.active')).toHaveText('NOTES');
+  await gotoTab(page, 'INFO', 'Note');
+  await expect(page.locator('.pb-tab.active')).toHaveText('INFO');
 });
 
 test('Escape exits immersive and restores the chrome', async ({ page }) => {

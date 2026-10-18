@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab } from './fixtures';
 
 async function openSheetAsOwner(page: Page, overrides: Record<string, unknown> = {}) {
   const character = makeCharacter({ id: 'char-1', campaignId: 'camp-1', userId: 'user-player', ...overrides });
@@ -49,7 +49,7 @@ test('owner resources edit round-trips via PATCH .../resources', async ({ page }
 
 test('owner adds a custom condition round-trips via PATCH .../status', async ({ page }) => {
   await openSheetAsOwner(page);
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 
   // The add-path is the two-tab popup (here the − NEGATIVA one); the custom tab
   // carries the name + weight the inline builder used to.

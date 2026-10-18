@@ -126,6 +126,11 @@ export interface StubOptions {
   campaignMap?: { config: typeof DEFAULT_MAP_CONFIG; places: Array<Record<string, unknown>> };
   /** When true the notes/background endpoints 404 (the non-owner case). */
   notesForbidden?: boolean;
+  /**
+   * What `GET /campaigns/:cid/characters/:id/quests` returns — already projected,
+   * as the API would. A number is served as that HTTP error status instead.
+   */
+  quests?: Array<Record<string, unknown>> | number;
   allowServiceWorker?: boolean;
 }
 
@@ -329,6 +334,13 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     if (idx >= 0) notes[idx] = { ...notes[idx], ...body, updatedAt: new Date().toISOString() };
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(idx >= 0 ? notes[idx] : {}) });
   });
+
+  // --- per-character quest log (read-only, projected by the API) ---
+  const quests = opts.quests ?? [];
+  await page.route(/\/characters\/[^/]+\/quests$/, (route) =>
+    typeof quests === 'number'
+      ? route.fulfill({ status: quests, contentType: 'application/json', body: '{}' })
+      : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(quests) }));
 
   await page.route(/\/characters\/[^/]+\/background$/, (route) => {
     if (notesForbidden) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
@@ -539,4 +551,15 @@ export async function openSheet(page: Page, characterName = 'Marta Voss') {
   await login(page);
   await page.locator('.pb-dossier-card', { hasText: characterName }).click();
   await page.locator('#pb-sheet-header').waitFor();
+}
+
+/**
+ * Select a sheet position by its labels: the first-level tab, then (for a
+ * section with subtabs) the subtab. Health lives at `STATS › Salute` and notes
+ * at `INFO › Note`, so specs go through here rather than clicking first-level
+ * tabs that no longer exist.
+ */
+export async function gotoTab(page: Page, top: string, sub?: string) {
+  await page.locator('#pb-tabs-top .pb-tab', { hasText: top }).click();
+  if (sub) await page.locator('#pb-tabs-sub .pb-subtab', { hasText: sub }).click();
 }

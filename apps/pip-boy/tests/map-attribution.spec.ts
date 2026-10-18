@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab } from './fixtures';
 
 // This spec is the basemap licence obligation's only automated guard.
 //
@@ -173,7 +173,7 @@ test('collapse mode: re-entering the tab presents the attribution again', async 
   await openMap(page);
   await expect(attr(page)).toHaveCount(0, { timeout: 5000 });
 
-  await page.locator('.pb-tab', { hasText: 'NOTES' }).click();
+  await gotoTab(page, 'INFO', 'Note');
   await page.locator('.pb-tab', { hasText: 'MAPPA' }).click();
 
   await expect(attr(page)).toBeVisible();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab } from './fixtures';
 
 // The sheet is owner-editable: the `✎` toggle reveals edit affordances for the
 // character's owner and for any admin. A non-owner player never reaches a sheet
@@ -33,6 +33,7 @@ test("an admin sees the ✎ toggle on another player's sheet", async ({ page }) 
 
 test('S.P.E shows approach rows in view mode and steppers in editor mode', async ({ page }) => {
   await openSheet(page, 'player');
+  await gotoTab(page, 'STATS', 'S.P.E.C.I.A.L.');
 
   // view mode: seven tappable approach rows with pips, no steppers
   await expect(page.locator('.pb-approach-row')).toHaveCount(7);

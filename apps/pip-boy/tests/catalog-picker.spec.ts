@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // Covers the full-screen catalog picker sheet (api-tag-catalog / pipboy-character-sheet):
 // the add-item "Scegli esistente" tab and the gear editor's tag-name inputs both
@@ -218,7 +218,7 @@ test('conditions picker is alphabetical even on the fallback presets when the ca
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker')).toBeVisible();
@@ -265,7 +265,7 @@ test.describe('on a touch device', () => {
 
 async function openNegativeConditionPicker(page: Page, conditionsCatalog: StubOptions['conditionsCatalog']) {
   await openSheet(page, { character: ownedCharacter(), conditionsCatalog });
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
   await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker')).toBeVisible();

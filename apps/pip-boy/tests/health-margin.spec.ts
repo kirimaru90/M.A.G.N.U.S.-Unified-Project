@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // Covers the health-margin model on the SALUTE tab (pipboy-character-sheet,
 // add-health-margin): health = margin − net wear, overshoot above margin, a
@@ -16,7 +16,7 @@ async function openSheet(page: Page, opts: StubOptions = {}) {
   });
   await login(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await gotoTab(page, 'STATS', 'Salute');
 }
 
 const withStatus = (status: Record<string, unknown>) =>

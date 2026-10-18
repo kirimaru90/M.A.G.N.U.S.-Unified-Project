@@ -66,6 +66,27 @@ import { LayoutService } from '../core/layout/layout.service';
             <span>Terminali</span>
           </a>
 
+          <a routerLink="/quests" [class.active]="isQuestActive()">
+            <span class="ico">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                <line x1="4" y1="22" x2="4" y2="15" />
+              </svg>
+            </span>
+            <span>Quest</span>
+          </a>
+
           @if (isAdmin()) {
           <a routerLink="/campaign-map" [class.active]="isCampaignMapActive()">
             <span class="ico">
@@ -293,6 +314,10 @@ export class SidebarComponent {
   protected readonly isTerminaliActive = computed(() => {
     const url = this.currentUrl();
     return url.includes('/terminals');
+  });
+
+  protected readonly isQuestActive = computed(() => {
+    return this.currentUrl().startsWith('/quests');
   });
 
   protected readonly isCampaignMapActive = computed(() => {

@@ -49,6 +49,14 @@ describe('SidebarComponent — Catalogo visibility', () => {
     expect(fixture.nativeElement.querySelector('button[disabled]')).toBeNull();
   });
 
+  it('always exposes an enabled Quest link to /quests, even with no campaign', () => {
+    const fixture = render({ id: '1', username: 'admin', role: 'admin' });
+    const link = fixture.nativeElement.querySelector('a[href="/quests"]');
+    expect(link).toBeTruthy();
+    expect(link.textContent).toContain('Quest');
+    expect(fixture.nativeElement.querySelector('button[disabled]')).toBeNull();
+  });
+
   it('shows the Catalogo section with its links for an admin', () => {
     const fixture = render({ id: '1', username: 'admin', role: 'admin' });
     const text = fixture.nativeElement.textContent as string;

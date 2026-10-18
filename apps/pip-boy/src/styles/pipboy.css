@@ -2015,3 +2015,145 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     line-height: 1.5;
     color: rgba(var(--phosphor-rgb), 0.75);
 }
+
+/* ── INFO › Quest ────────────────────────────────────────────────── */
+
+.pb-quest-skeleton { display: flex; flex-direction: column; gap: 8px; }
+.pb-quest-row--ghost { height: 38px; opacity: 0.35; border-style: dashed; }
+
+.pb-quest-group { margin-bottom: 4px; }
+
+.pb-quest-group-head {
+    display: block;
+    width: 100%;
+    margin: 14px 0 6px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: left;
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.pb-quest-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: transparent;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.pb-quest-row:hover { background: var(--green-fill); }
+.pb-quest-row-title { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.pb-quest-row-tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; flex-shrink: 0; }
+
+.pb-quest-star { color: var(--phosphor-bright); text-shadow: var(--phosphor-text-glow); }
+
+.pb-quest-tag,
+.pb-quest-chip {
+    border: 1px solid var(--green-border-soft);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    white-space: nowrap;
+}
+.pb-quest-chip { font-size: 10px; padding: 2px 6px; }
+.pb-quest-chip--in_corso { background: var(--green-fill-active); border-color: var(--green-border-strong); }
+.pb-quest-chip--standby { border-style: dashed; }
+.pb-quest-chip--completata { opacity: 0.7; }
+.pb-quest-chip--milestone { color: var(--phosphor-bright); border-color: var(--green-border-strong); text-shadow: var(--phosphor-text-glow); }
+
+/* Unseen public stages: the only blinking element in the list. */
+.pb-quest-badge {
+    background: var(--phosphor);
+    color: var(--screen-bg);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    white-space: nowrap;
+    animation: pb-quest-blink 1.6s steps(2, start) infinite;
+}
+@keyframes pb-quest-blink { to { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .pb-quest-badge { animation: none; } }
+
+.pb-quest-back { margin-bottom: 8px; }
+.pb-quest-head { display: flex; flex-direction: column; gap: 6px; }
+.pb-quest-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: normal;
+    text-shadow: var(--phosphor-text-glow);
+}
+.pb-quest-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.pb-quest-involved { margin-top: 8px; font-size: 12px; opacity: 0.8; }
+.pb-quest-current { margin-top: 10px; }
+.pb-quest-desc,
+.pb-quest-reward { white-space: pre-wrap; font-size: 13px; line-height: 1.45; }
+.pb-quest-reward { border-left: 2px solid var(--green-border); padding-left: 8px; }
+
+/* REGISTRO: a vertical rail with one node per public stage, newest first. */
+.pb-quest-log {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 14px;
+    border-left: 1px solid var(--green-hairline);
+}
+.pb-quest-entry { position: relative; margin-bottom: 10px; }
+.pb-quest-entry::before {
+    content: '';
+    position: absolute;
+    left: -19px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--green-border);
+    background: var(--screen-bg);
+}
+.pb-quest-entry-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--phosphor);
+    font-family: var(--font-body);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.pb-quest-entry .pb-quest-entry-title { opacity: 0.75; }
+.pb-quest-entry-body { margin-top: 6px; }
+.pb-quest-entry-body .pb-section-head { margin-top: 8px; }
+
+/* Personal quest writes: the add trigger atop the list, the detail actions,
+   and the per-entry edit inside an expanded log entry. */
+.pb-quest-add { margin-bottom: 10px; }
+.pb-quest-actions { display: flex; gap: 8px; margin-top: 12px; }
+.pb-quest-actions .pb-btn { flex: 1; }
+.pb-quest-entry-edit { margin-top: 8px; }
+.pb-quest-delete { margin-top: 20px; }
+
+/* Stage editor: the body is a scrolling column of fields. Textareas grow only
+   downwards, so they can never outgrow the popup. */
+.pb-quest-editor-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    white-space: normal;
+}
+.pb-quest-editor textarea { resize: vertical; max-width: 100%; }
+.pb-quest-editor .pb-toggle-row { margin-top: 0; }
+.pb-quest-editor .pb-error { flex: none; margin: 0; }

@@ -518,8 +518,8 @@ test('the owner sees the back/exit nubs in the status bar, and the ✎ toggle in
   await expect(page.locator('#pb-editor-toggle')).toBeEnabled();
   await expect(page.locator('#pb-editor-toggle')).not.toHaveClass(/on/);
 
-  // The tab bar returns to exactly six content tabs and carries no toggle.
-  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(6);
+  // The tab bar carries exactly the five content tabs and no toggle.
+  await expect(page.locator('.pb-tab[data-top]')).toHaveCount(5);
   await expect(page.locator('#pb-tabs #pb-editor-toggle')).toHaveCount(0);
 });
 

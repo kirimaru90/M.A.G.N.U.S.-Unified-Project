@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab: the tab renders, level-of-detail follows viewport
 // containment, the breadcrumb tracks the centre, and the map owns horizontal
@@ -279,6 +279,6 @@ test('a horizontal drag over the map pans instead of changing tab', async ({ pag
 
 test('the tab bar still navigates away from the map', async ({ page }) => {
   await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
-  await page.locator('.pb-tab', { hasText: 'NOTES' }).click();
-  await expect(page.locator('.pb-tab.active')).toHaveText('NOTES');
+  await gotoTab(page, 'INFO', 'Note');
+  await expect(page.locator('.pb-tab.active')).toHaveText('INFO');
 });

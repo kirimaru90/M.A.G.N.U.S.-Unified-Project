@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, openSheet, makeCharacter, type StubOptions } from './fixtures';
+import { stubEnvironment, openSheet, makeCharacter, gotoTab, type StubOptions } from './fixtures';
 
 // End-to-end coverage of the NOTES tab: the two-section (background + notes)
 // screen and its shared WYSIWYG editor, against the mocked notes/background
@@ -12,7 +12,7 @@ const NOTES = [
 async function openNotes(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, { role: 'player', userId: 'user-player', ...opts });
   await openSheet(page);
-  await page.locator('.pb-tab', { hasText: 'NOTES' }).click();
+  await gotoTab(page, 'INFO', 'Note');
 }
 
 /** Record every API request so tests can assert what was (not) sent. */
@@ -199,7 +199,7 @@ test('a non-owner sees empty states with no error banner', async ({ page }) => {
   const character = makeCharacter({ userId: 'someone-else' });
   await stubEnvironment(page, { role: 'player', userId: 'user-player', character, notesForbidden: true });
   await openSheet(page);
-  await page.locator('.pb-tab', { hasText: 'NOTES' }).click();
+  await gotoTab(page, 'INFO', 'Note');
 
   await expect(page.locator('[data-bg-row]')).toContainText('tocca per aggiungere');
   await expect(page.locator('.pb-note-row')).toHaveCount(0);

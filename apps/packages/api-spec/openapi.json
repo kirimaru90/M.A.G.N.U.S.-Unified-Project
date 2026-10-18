@@ -1823,6 +1823,281 @@
         ]
       }
     },
+    "/campaigns/{campaignId}/characters/{characterId}/background": {
+      "get": {
+        "operationId": "CharactersController_getBackground",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read character background (owner or admin)",
+        "tags": [
+          "characters"
+        ]
+      },
+      "patch": {
+        "operationId": "CharactersController_setBackground",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchBackgroundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set or clear character background (owner or admin)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/terminal": {
+      "get": {
+        "operationId": "CharactersController_getPersonalTerminal",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate the read-only personal terminal (owner or admin)",
+        "tags": [
+          "characters"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/notes": {
+      "get": {
+        "operationId": "CharacterNotesController_list",
+        "parameters": [
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List a character notes (owner or admin)",
+        "tags": [
+          "character-notes"
+        ]
+      },
+      "post": {
+        "operationId": "CharacterNotesController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a character note (owner or admin)",
+        "tags": [
+          "character-notes"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/notes/{noteId}": {
+      "patch": {
+        "operationId": "CharacterNotesController_update",
+        "parameters": [
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a character note (owner or admin)",
+        "tags": [
+          "character-notes"
+        ]
+      },
+      "delete": {
+        "operationId": "CharacterNotesController_remove",
+        "parameters": [
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a character note (owner or admin)",
+        "tags": [
+          "character-notes"
+        ]
+      }
+    },
     "/species-catalog": {
       "get": {
         "operationId": "SpeciesCatalogController_list",
@@ -1886,7 +2161,17 @@
     "/skills-catalog": {
       "get": {
         "operationId": "SkillsCatalogController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "orderBy",
+            "required": false,
+            "in": "query",
+            "description": "When \"name\", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1946,7 +2231,17 @@
     "/conditions-catalog": {
       "get": {
         "operationId": "ConditionsCatalogController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "orderBy",
+            "required": false,
+            "in": "query",
+            "description": "When \"name\", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2015,6 +2310,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "orderBy",
+            "required": false,
+            "in": "query",
+            "description": "When \"name\", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2076,7 +2380,17 @@
     "/tag-catalog": {
       "get": {
         "operationId": "TagCatalogController_list",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "orderBy",
+            "required": false,
+            "in": "query",
+            "description": "When \"name\", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2130,6 +2444,766 @@
         "summary": "Batched add/update/rename/delete of tag catalog (admin)",
         "tags": [
           "tag-catalog"
+        ]
+      }
+    },
+    "/talents-catalog": {
+      "get": {
+        "operationId": "TalentsCatalogController_list",
+        "parameters": [
+          {
+            "name": "orderBy",
+            "required": false,
+            "in": "query",
+            "description": "When \"name\", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read the global talents catalog (authenticated)",
+        "tags": [
+          "talents-catalog"
+        ]
+      },
+      "patch": {
+        "operationId": "TalentsCatalogController_patchSchema",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TalentsCatalogPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ops applied; returns ignored ops"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden — admin required"
+          },
+          "409": {
+            "description": "Duplicate slug on add or rename"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batched add/update/rename/delete of talents catalog (admin)",
+        "tags": [
+          "talents-catalog"
+        ]
+      }
+    },
+    "/campaigns/{id}/map": {
+      "get": {
+        "operationId": "CampaignMapController_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Read campaign map (projected by role)",
+        "tags": [
+          "campaign-map"
+        ]
+      },
+      "put": {
+        "operationId": "CampaignMapController_replace",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutCampaignMapDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Replace campaign map (admin)",
+        "tags": [
+          "campaign-map"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/quests": {
+      "get": {
+        "operationId": "QuestsController_list",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List campaign quests with all stages (admin)",
+        "tags": [
+          "quests"
+        ]
+      },
+      "post": {
+        "operationId": "QuestsController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Invalid header for its kind"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a quest with its first stage (admin)",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/quests/{questId}": {
+      "get": {
+        "operationId": "QuestsController_get",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Quest not in this campaign"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a quest with all stages (admin)",
+        "tags": [
+          "quests"
+        ]
+      },
+      "patch": {
+        "operationId": "QuestsController_update",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Invalid header for its kind"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a quest header (admin)",
+        "tags": [
+          "quests"
+        ]
+      },
+      "delete": {
+        "operationId": "QuestsController_remove",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a quest (admin)",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/quests/{questId}/stages": {
+      "post": {
+        "operationId": "QuestsController_addStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Append a stage to a quest (admin)",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/quests/{questId}/stages/{stageId}": {
+      "patch": {
+        "operationId": "QuestsController_updateStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a stage at any position (admin)",
+        "tags": [
+          "quests"
+        ]
+      },
+      "delete": {
+        "operationId": "QuestsController_removeStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "409": {
+            "description": "Not the last stage, or the only stage"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete the last stage of a quest (admin)",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/quests": {
+      "get": {
+        "operationId": "CharacterQuestsController_list",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List the quests a character sees (owner or admin, same view)",
+        "tags": [
+          "quests"
+        ]
+      },
+      "post": {
+        "operationId": "CharacterQuestsController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlayerQuestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a personal quest for the character",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}": {
+      "delete": {
+        "operationId": "CharacterQuestsController_remove",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Quest assigned by the master"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a personal quest the character created",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}/stages": {
+      "post": {
+        "operationId": "CharacterQuestsController_addStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlayerStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add a public stage to a personal quest of the character",
+        "tags": [
+          "quests"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}/stages/{stageId}": {
+      "patch": {
+        "operationId": "CharacterQuestsController_updateStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlayerStageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit a public stage of a personal quest of the character",
+        "tags": [
+          "quests"
+        ]
+      },
+      "delete": {
+        "operationId": "CharacterQuestsController_removeStage",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "questId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "stageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "409": {
+            "description": "Not the last public stage, or the only one"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete the last public stage of a personal quest",
+        "tags": [
+          "quests"
         ]
       }
     },
@@ -2452,7 +3526,7 @@
         "properties": {
           "gateOnBoot": {
             "type": "boolean",
-            "description": "Optional. When false, a non-empty root registry does NOT prompt for login at boot; omitted or true preserves the historical boot-gate behaviour (default true). Meaningful only on the root login block."
+            "description": "When false, a non-empty root registry does NOT prompt for login at boot. Omitted or true preserves the historical boot-gate behaviour. Meaningful only on the root login block."
           }
         }
       },
@@ -2802,6 +3876,10 @@
           },
           "inventory": {
             "$ref": "#/components/schemas/UpdateInventoryDto"
+          },
+          "background": {
+            "type": "string",
+            "description": "Narrative background prose"
           }
         }
       },
@@ -2868,6 +3946,11 @@
           },
           "criticalState": {
             "type": "boolean"
+          },
+          "margin": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Health margin (positive integer)"
           }
         }
       },
@@ -2922,6 +4005,41 @@
           }
         }
       },
+      "PatchBackgroundDto": {
+        "type": "object",
+        "properties": {
+          "background": {
+            "type": "string",
+            "description": "Narrative background prose; empty string clears it"
+          }
+        }
+      },
+      "CreateNoteDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "UpdateNoteDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
       "SpeciesCatalogEntryDto": {
         "type": "object",
         "properties": {
@@ -2939,6 +4057,11 @@
           "tagSkillBudget": {
             "type": "number",
             "minimum": 1
+          },
+          "margin": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Starting health margin (positive integer)"
           },
           "description": {
             "type": "string"
@@ -3249,6 +4372,377 @@
         "required": [
           "ops"
         ]
+      },
+      "TalentCatalogEntryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "specialRequirement": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "TalentsCatalogOpDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "rename",
+              "delete"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "rename": {
+            "type": "string",
+            "description": "New slug (rename only)"
+          },
+          "entry": {
+            "$ref": "#/components/schemas/TalentCatalogEntryDto"
+          }
+        },
+        "required": [
+          "action",
+          "slug"
+        ]
+      },
+      "TalentsCatalogPatchDto": {
+        "type": "object",
+        "properties": {
+          "ops": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TalentsCatalogOpDto"
+            }
+          }
+        },
+        "required": [
+          "ops"
+        ]
+      },
+      "MapBoundsDto": {
+        "type": "object",
+        "properties": {
+          "south": {
+            "type": "number"
+          },
+          "west": {
+            "type": "number"
+          },
+          "north": {
+            "type": "number"
+          },
+          "east": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "south",
+          "west",
+          "north",
+          "east"
+        ]
+      },
+      "MapConfigDto": {
+        "type": "object",
+        "properties": {
+          "startLat": {
+            "type": "number"
+          },
+          "startLng": {
+            "type": "number"
+          },
+          "startZoom": {
+            "type": "number"
+          },
+          "minZoom": {
+            "type": "number"
+          },
+          "maxZoom": {
+            "type": "number"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/MapBoundsDto"
+          }
+        },
+        "required": [
+          "startLat",
+          "startLng",
+          "startZoom",
+          "minZoom",
+          "maxZoom",
+          "bounds"
+        ]
+      },
+      "MapPlaceDto": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "region",
+              "settlement",
+              "vault",
+              "building",
+              "room",
+              "landmark",
+              "poi"
+            ]
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lng": {
+            "type": "number"
+          },
+          "hasLocalMap": {
+            "type": "boolean"
+          },
+          "radius": {
+            "type": "number",
+            "description": "Metres; only when hasLocalMap is true"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "parent": {
+            "type": "object",
+            "description": "Another place's slug, or null"
+          },
+          "desc": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Overrides the type's default icon"
+          }
+        },
+        "required": [
+          "slug",
+          "name",
+          "type",
+          "lat",
+          "lng",
+          "hasLocalMap",
+          "isPublic"
+        ]
+      },
+      "PutCampaignMapDto": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/MapConfigDto"
+          },
+          "places": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MapPlaceDto"
+            }
+          }
+        },
+        "required": [
+          "config",
+          "places"
+        ]
+      },
+      "CreateStageDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_corso",
+              "standby",
+              "completata"
+            ],
+            "default": "in_corso"
+          },
+          "isMilestone": {
+            "type": "boolean",
+            "default": false
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "CreateQuestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "story",
+              "personal"
+            ]
+          },
+          "characterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": false
+          },
+          "stage": {
+            "$ref": "#/components/schemas/CreateStageDto"
+          }
+        },
+        "required": [
+          "kind",
+          "stage"
+        ]
+      },
+      "UpdateQuestDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "story",
+              "personal"
+            ]
+          },
+          "characterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateStageDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_corso",
+              "standby",
+              "completata"
+            ]
+          },
+          "isMilestone": {
+            "type": "boolean"
+          },
+          "isPublic": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreatePlayerStageDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_corso",
+              "standby",
+              "completata"
+            ],
+            "default": "in_corso"
+          },
+          "isMilestone": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "CreatePlayerQuestDto": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "$ref": "#/components/schemas/CreatePlayerStageDto"
+          }
+        },
+        "required": [
+          "stage"
+        ]
+      },
+      "UpdatePlayerStageDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "reward": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "in_corso",
+              "standby",
+              "completata"
+            ]
+          },
+          "isMilestone": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

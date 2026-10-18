@@ -4,1217 +4,3672 @@
  */
 
 export interface paths {
-  '/auth/login': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Real-user login — returns a 24h JWT */
+        post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Real-user login — returns a 24h JWT */
-    post: operations['AuthController_login'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/logout': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Client-side logout (stateless, always 204) */
+        post: operations["AuthController_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Client-side logout (stateless, always 204) */
-    post: operations['AuthController_logout'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current session info */
+        get: operations["AuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Current session info */
-    get: operations['AuthController_me'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/users': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all users (admin) */
+        get: operations["UsersController_list"];
+        put?: never;
+        /** Create a user (admin) */
+        post: operations["UsersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List all users (admin) */
-    get: operations['UsersController_list'];
-    put?: never;
-    /** Create a user (admin) */
-    post: operations['UsersController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/users/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get user by id (admin) */
+        get: operations["UsersController_findById"];
+        /** Update user (admin) */
+        put: operations["UsersController_update"];
+        post?: never;
+        /** Delete user (admin) */
+        delete: operations["UsersController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get user by id (admin) */
-    get: operations['UsersController_findById'];
-    /** Update user (admin) */
-    put: operations['UsersController_update'];
-    post?: never;
-    /** Delete user (admin) */
-    delete: operations['UsersController_delete'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get own configuration (authenticated) */
+        get: operations["UserConfigurationController_getConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List campaigns (actor-dependent) */
-    get: operations['CampaignsController_list'];
-    put?: never;
-    /** Create campaign (admin) */
-    post: operations['CampaignsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me/configuration/terminal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace own terminal configuration domain (authenticated) */
+        put: operations["UserConfigurationController_setTerminalDomain"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get campaign detail */
-    get: operations['CampaignsController_findById'];
-    /** Update campaign (admin) */
-    put: operations['CampaignsController_update'];
-    post?: never;
-    /** Delete campaign + cascade (admin) */
-    delete: operations['CampaignsController_delete'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/activate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me/last-selection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set own last-used campaign + character (authenticated) */
+        put: operations["UserLastSelectionController_setLastSelection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Toggle campaign isActive (admin) */
-    post: operations['CampaignsController_toggleActive'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/players': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List campaigns (actor-dependent) */
+        get: operations["CampaignsController_list"];
+        put?: never;
+        /** Create campaign (admin) */
+        post: operations["CampaignsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List players assigned to campaign (admin) */
-    get: operations['CampaignsController_listPlayers'];
-    put?: never;
-    /** Assign player to campaign (admin) */
-    post: operations['CampaignsController_addPlayer'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/players/{playerId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get campaign detail */
+        get: operations["CampaignsController_findById"];
+        /** Update campaign (admin) */
+        put: operations["CampaignsController_update"];
+        post?: never;
+        /** Delete campaign + cascade (admin) */
+        delete: operations["CampaignsController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Remove player from campaign (admin) */
-    delete: operations['CampaignsController_removePlayer'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/state': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Toggle campaign isActive (admin) */
+        post: operations["CampaignsController_toggleActive"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get campaign global state */
-    get: operations['CampaignStateController_getState'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/state/mutate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/players": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List players assigned to campaign (admin) */
+        get: operations["CampaignsController_listPlayers"];
+        put?: never;
+        /** Assign player to campaign (admin) */
+        post: operations["CampaignsController_addPlayer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Mutate campaign global state */
-    post: operations['CampaignStateController_mutateState'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/state/reset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/players/{playerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove player from campaign (admin) */
+        delete: operations["CampaignsController_removePlayer"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reset all campaign global state + all terminals (admin) */
-    post: operations['CampaignStateController_resetState'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/state/{key}/reset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get campaign global state */
+        get: operations["CampaignStateController_getState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reset single campaign state variable (admin) */
-    post: operations['CampaignStateController_resetStateKey'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/terminals': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/state/mutate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mutate campaign global state */
+        post: operations["CampaignStateController_mutateState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List terminals in campaign */
-    get: operations['TerminalsController_listByCampaign'];
-    put?: never;
-    /** Create terminal in campaign (admin) */
-    post: operations['TerminalsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/campaigns/{id}/terminals/import': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/state/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset all campaign global state + all terminals (admin) */
+        post: operations["CampaignStateController_resetState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Import terminal from JSON (admin) */
-    post: operations['TerminalsController_import'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/state/{key}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset single campaign state variable (admin) */
+        post: operations["CampaignStateController_resetStateKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Terminal detail (fictional users visible to admin only) */
-    get: operations['TerminalsController_detail'];
-    /** Update terminal (admin) */
-    put: operations['TerminalsController_update'];
-    post?: never;
-    /** Delete terminal (admin) */
-    delete: operations['TerminalsController_delete'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/export': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/state/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Add/update/delete campaign state schema variables (admin) */
+        patch: operations["CampaignStateController_patchSchema"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Export terminal as full JSON (admin) */
-    post: operations['TerminalsController_export'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/load': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get effective campaign configuration (campaign ⊕ user) */
+        get: operations["CampaignConfigurationController_getConfiguration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Load terminal for playback (content + state) */
-    get: operations['TerminalsController_load'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/fictional-login': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/configuration/terminal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace campaign terminal configuration domain (admin) */
+        put: operations["CampaignConfigurationController_setTerminalDomain"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Validate fictional user credentials */
-    post: operations['TerminalsController_fictionalLogin'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/state': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/terminals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List terminals in campaign */
+        get: operations["TerminalsController_listByCampaign"];
+        put?: never;
+        /** Create terminal in campaign (admin) */
+        post: operations["TerminalsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get terminal local state */
-    get: operations['TerminalsController_getState'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/state/mutate': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/terminals/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import terminal from JSON (admin) */
+        post: operations["TerminalsController_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Mutate terminal local state */
-    post: operations['TerminalsController_mutateState'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/state/reset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/campaigns/{id}/terminals/by-hidden-id/{hiddenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Load hidden terminal by hiddenId slug */
+        get: operations["TerminalsController_loadByHiddenId"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reset all terminal local state (admin) */
-    post: operations['TerminalsController_resetState'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/terminals/{id}/state/{key}/reset': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/terminals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Terminal detail (fictional users visible to admin only) */
+        get: operations["TerminalsController_detail"];
+        /** Update terminal (admin) */
+        put: operations["TerminalsController_update"];
+        post?: never;
+        /** Delete terminal (admin) */
+        delete: operations["TerminalsController_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Reset single terminal state variable (admin) */
-    post: operations['TerminalsController_resetStateKey'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/terminals/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export terminal as full JSON (admin) */
+        post: operations["TerminalsController_export"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Health check */
-    get: operations['HealthController_check'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
+    "/terminals/{id}/load": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Load terminal for playback (content + state) */
+        get: operations["TerminalsController_load"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/fictional-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate fictional user credentials */
+        post: operations["TerminalsController_fictionalLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get terminal local state */
+        get: operations["TerminalsController_getState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/state/mutate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mutate terminal local state */
+        post: operations["TerminalsController_mutateState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/state/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset all terminal local state (admin) */
+        post: operations["TerminalsController_resetState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/state/{key}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset single terminal state variable (admin) */
+        post: operations["TerminalsController_resetStateKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/terminals/{id}/state/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Add/update/delete terminal state schema variables (admin) */
+        patch: operations["TerminalsController_patchSchema"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List characters in campaign (actor-scoped) */
+        get: operations["CharactersController_list"];
+        put?: never;
+        /** Create character */
+        post: operations["CharactersController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get character detail */
+        get: operations["CharactersController_findById"];
+        /** Full character update */
+        put: operations["CharactersController_update"];
+        post?: never;
+        /** Soft-delete character */
+        delete: operations["CharactersController_softDelete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/special": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch SPECIAL stats (owner or admin) */
+        patch: operations["CharactersController_patchSpecial"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch skills (owner or admin) */
+        patch: operations["CharactersController_patchSkills"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/perks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch perks (owner or admin) */
+        patch: operations["CharactersController_patchPerks"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch status (conditions + criticalState) */
+        patch: operations["CharactersController_patchStatus"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/action-points": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch action points */
+        patch: operations["CharactersController_patchActionPoints"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/inventory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch inventory items */
+        patch: operations["CharactersController_patchInventory"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch resource counters */
+        patch: operations["CharactersController_patchResources"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/background": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read character background (owner or admin) */
+        get: operations["CharactersController_getBackground"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set or clear character background (owner or admin) */
+        patch: operations["CharactersController_setBackground"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/terminal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Generate the read-only personal terminal (owner or admin) */
+        get: operations["CharactersController_getPersonalTerminal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a character notes (owner or admin) */
+        get: operations["CharacterNotesController_list"];
+        put?: never;
+        /** Create a character note (owner or admin) */
+        post: operations["CharacterNotesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/notes/{noteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a character note (owner or admin) */
+        delete: operations["CharacterNotesController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a character note (owner or admin) */
+        patch: operations["CharacterNotesController_update"];
+        trace?: never;
+    };
+    "/species-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global species catalog (authenticated) */
+        get: operations["SpeciesCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of species catalog (admin) */
+        patch: operations["SpeciesCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/skills-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global skills catalog (authenticated) */
+        get: operations["SkillsCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of skills catalog (admin) */
+        patch: operations["SkillsCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/conditions-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global conditions catalog (authenticated) */
+        get: operations["ConditionsCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of conditions catalog (admin) */
+        patch: operations["ConditionsCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/equipment-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global equipment catalog (authenticated) */
+        get: operations["EquipmentCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of equipment catalog (admin) */
+        patch: operations["EquipmentCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/tag-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global tag catalog (authenticated) */
+        get: operations["TagCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of tag catalog (admin) */
+        patch: operations["TagCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/talents-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the global talents catalog (authenticated) */
+        get: operations["TalentsCatalogController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Batched add/update/rename/delete of talents catalog (admin) */
+        patch: operations["TalentsCatalogController_patchSchema"];
+        trace?: never;
+    };
+    "/campaigns/{id}/map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read campaign map (projected by role) */
+        get: operations["CampaignMapController_get"];
+        /** Replace campaign map (admin) */
+        put: operations["CampaignMapController_replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/quests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List campaign quests with all stages (admin) */
+        get: operations["QuestsController_list"];
+        put?: never;
+        /** Create a quest with its first stage (admin) */
+        post: operations["QuestsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/quests/{questId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a quest with all stages (admin) */
+        get: operations["QuestsController_get"];
+        put?: never;
+        post?: never;
+        /** Delete a quest (admin) */
+        delete: operations["QuestsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a quest header (admin) */
+        patch: operations["QuestsController_update"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/quests/{questId}/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append a stage to a quest (admin) */
+        post: operations["QuestsController_addStage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/quests/{questId}/stages/{stageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete the last stage of a quest (admin) */
+        delete: operations["QuestsController_removeStage"];
+        options?: never;
+        head?: never;
+        /** Update a stage at any position (admin) */
+        patch: operations["QuestsController_updateStage"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/quests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the quests a character sees (owner or admin, same view) */
+        get: operations["CharacterQuestsController_list"];
+        put?: never;
+        /** Create a personal quest for the character */
+        post: operations["CharacterQuestsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a personal quest the character created */
+        delete: operations["CharacterQuestsController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a public stage to a personal quest of the character */
+        post: operations["CharacterQuestsController_addStage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/quests/{questId}/stages/{stageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete the last public stage of a personal quest */
+        delete: operations["CharacterQuestsController_removeStage"];
+        options?: never;
+        head?: never;
+        /** Edit a public stage of a personal quest of the character */
+        patch: operations["CharacterQuestsController_updateStage"];
+        trace?: never;
+    };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health check */
+        get: operations["HealthController_check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    LoginDto: {
-      username: string;
-      password: string;
+    schemas: {
+        LoginDto: {
+            username: string;
+            password: string;
+        };
+        CreateUserDto: {
+            /** @example alice */
+            username: string;
+            password: string;
+            /** @enum {string} */
+            role: "admin" | "player";
+        };
+        UpdateUserDto: {
+            /** @example alice */
+            username?: string;
+            password?: string;
+            /** @enum {string} */
+            role?: "admin" | "player";
+            /** @description Server-owned; accepted but ignored. */
+            lastCampaignId?: Record<string, never>;
+            /** @description Server-owned; accepted but ignored. */
+            lastCharacterId?: Record<string, never>;
+            /** @description Server-owned; accepted but ignored. */
+            unlockedHiddenIds?: string[];
+        };
+        LastSelectionDto: {
+            campaignId: string;
+            characterId: string;
+        };
+        CreateCampaignDto: {
+            name: string;
+            /** @default false */
+            isActive: boolean;
+            /** @default false */
+            isPublic: boolean;
+        };
+        UpdateCampaignDto: {
+            name?: string;
+            isActive?: boolean;
+            isPublic?: boolean;
+        };
+        AddPlayerDto: {
+            /** @description ID of the player user to assign */
+            playerId: string;
+        };
+        MutationItemDto: {
+            /** @example local.access_count */
+            key: string;
+            /** @enum {string} */
+            op: "set" | "increment" | "toggle";
+            /** @description Value for set operation */
+            value?: Record<string, never>;
+            /** @description Increment amount for increment operation */
+            by?: number;
+        };
+        MutateStateDto: {
+            mutations: components["schemas"]["MutationItemDto"][];
+        };
+        EntryShapeDto: {
+            /** @enum {string} */
+            type: "boolean" | "number" | "enum" | "string";
+            /** @description Default value; must match type */
+            default: Record<string, never>;
+            /** @description Required and non-empty when type is "enum" */
+            values?: string[];
+        };
+        StateSchemaOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "delete";
+            name: string;
+            /** @description New name for rename (update only) */
+            rename?: string;
+            /** @description Required for add/update */
+            entry?: components["schemas"]["EntryShapeDto"];
+            value?: Record<string, never>;
+        };
+        StateSchemaPatchDto: {
+            ops: components["schemas"]["StateSchemaOpDto"][];
+        };
+        MetaDto: {
+            title: string;
+            /** @description Human-authored slug for hidden-terminal lookup */
+            hiddenId?: string;
+            /** @description Server-injected mirror of the top-level id; must NOT be sent on input. */
+            readonly id?: string;
+            public?: boolean;
+        };
+        StateDeclarationDto: Record<string, never>;
+        LoginBlockDto: {
+            /** @description When false, a non-empty root registry does NOT prompt for login at boot. Omitted or true preserves the historical boot-gate behaviour. Meaningful only on the root login block. */
+            gateOnBoot?: boolean;
+        };
+        TerminalContentDto: {
+            meta: components["schemas"]["MetaDto"];
+            state?: components["schemas"]["StateDeclarationDto"];
+            login?: components["schemas"]["LoginBlockDto"];
+            /** @description Node map (key → node object) */
+            nodes: Record<string, never>;
+        };
+        FictionalLoginDto: {
+            username: string;
+            password: string;
+        };
+        CreateCharacterDto: {
+            name: string;
+            /** @description Species catalog slug (default: human) */
+            species?: string;
+            /** @description Owner user id — required for admins, ignored for players */
+            userId?: string;
+        };
+        PatchSpecialDto: {
+            strength?: number;
+            perception?: number;
+            endurance?: number;
+            charisma?: number;
+            intelligence?: number;
+            agility?: number;
+            luck?: number;
+        };
+        SkillItemDto: {
+            /** @description Catalog slug (e.g. "lockpick") */
+            id: string;
+            /** @enum {string} */
+            level: "competent" | "expert" | "master";
+        };
+        PatchActionPointsDto: {
+            paMax?: number;
+            paCurrent?: number;
+            /** @enum {string} */
+            paTrackedBy?: "agility" | "endurance";
+        };
+        ConditionItemDto: {
+            /** @description Omit to create; provide to update */
+            id?: string;
+            /** @description Required when creating (no id) */
+            name?: string;
+            /** @enum {string} */
+            severity?: "minor" | "major";
+            description?: string;
+        };
+        UpdateStatusDto: {
+            positiveConditions?: components["schemas"]["ConditionItemDto"][];
+            negativeConditions?: components["schemas"]["ConditionItemDto"][];
+            criticalState?: boolean;
+        };
+        PerkItemDto: {
+            /** @description Omit to create; provide to update */
+            id?: string;
+            /** @description Required when creating (no id) */
+            name?: string;
+            description?: string;
+            icon?: string;
+        };
+        PatchResourcesDto: {
+            caps?: number;
+            bobbleheads?: number;
+            scraps?: number;
+        };
+        TagDto: {
+            name: string;
+            /** @enum {string} */
+            type: "core" | "extra";
+            /** @default false */
+            damaged: boolean;
+        };
+        WeaponEquipItemDto: {
+            /** @description Omit to create; provide to update */
+            id?: string;
+            /** @description Required when creating (no id) */
+            name?: string;
+            tags?: components["schemas"]["TagDto"][];
+            broken?: boolean;
+        };
+        ConsumableGenericItemDto: {
+            /** @description Omit to create; provide to update */
+            id?: string;
+            /** @description Required when creating (no id) */
+            name?: string;
+            description?: string;
+            quantity?: number;
+        };
+        UpdateInventoryDto: {
+            weapons?: components["schemas"]["WeaponEquipItemDto"][];
+            equip?: components["schemas"]["WeaponEquipItemDto"][];
+            consumables?: components["schemas"]["ConsumableGenericItemDto"][];
+            misc?: components["schemas"]["ConsumableGenericItemDto"][];
+        };
+        UpdateCharacterDto: {
+            name?: string;
+            /** @description Species catalog slug */
+            species?: string;
+            special?: components["schemas"]["PatchSpecialDto"];
+            skills?: components["schemas"]["SkillItemDto"][];
+            actionPoints?: components["schemas"]["PatchActionPointsDto"];
+            status?: components["schemas"]["UpdateStatusDto"];
+            perks?: components["schemas"]["PerkItemDto"][];
+            resources?: components["schemas"]["PatchResourcesDto"];
+            inventory?: components["schemas"]["UpdateInventoryDto"];
+            /** @description Narrative background prose */
+            background?: string;
+        };
+        PatchSkillsDto: {
+            items?: components["schemas"]["SkillItemDto"][];
+            /** @description Catalog slugs to detach */
+            deletedIds?: string[];
+        };
+        PatchPerksDto: {
+            items?: components["schemas"]["PerkItemDto"][];
+            deletedIds?: string[];
+        };
+        ConditionCollectionDto: {
+            items?: components["schemas"]["ConditionItemDto"][];
+            deletedIds?: string[];
+        };
+        PatchStatusDto: {
+            positiveConditions?: components["schemas"]["ConditionCollectionDto"];
+            negativeConditions?: components["schemas"]["ConditionCollectionDto"];
+            criticalState?: boolean;
+            /** @description Health margin (positive integer) */
+            margin?: number;
+        };
+        WeaponEquipCollectionDto: {
+            items?: components["schemas"]["WeaponEquipItemDto"][];
+            deletedIds?: string[];
+        };
+        ConsumableGenericCollectionDto: {
+            items?: components["schemas"]["ConsumableGenericItemDto"][];
+            deletedIds?: string[];
+        };
+        PatchInventoryDto: {
+            weapons?: components["schemas"]["WeaponEquipCollectionDto"];
+            equip?: components["schemas"]["WeaponEquipCollectionDto"];
+            consumables?: components["schemas"]["ConsumableGenericCollectionDto"];
+            misc?: components["schemas"]["ConsumableGenericCollectionDto"];
+        };
+        PatchBackgroundDto: {
+            /** @description Narrative background prose; empty string clears it */
+            background?: string;
+        };
+        CreateNoteDto: {
+            title: string;
+            /** @default  */
+            note: string;
+        };
+        UpdateNoteDto: {
+            title?: string;
+            note?: string;
+        };
+        SpeciesCatalogEntryDto: {
+            name?: string;
+            /** @description The species' permanent benefit copy */
+            permesso?: string;
+            /** @description The species' drawback copy */
+            svantaggio?: string;
+            tagSkillBudget?: number;
+            /** @description Starting health margin (positive integer) */
+            margin?: number;
+            description?: string;
+        };
+        SpeciesCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["SpeciesCatalogEntryDto"];
+        };
+        SpeciesCatalogPatchDto: {
+            ops: components["schemas"]["SpeciesCatalogOpDto"][];
+        };
+        SkillCatalogEntryDto: {
+            name: string;
+            description?: string;
+        };
+        SkillsCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["SkillCatalogEntryDto"];
+        };
+        SkillsCatalogPatchDto: {
+            ops: components["schemas"]["SkillsCatalogOpDto"][];
+        };
+        ConditionCatalogEntryDto: {
+            name?: string;
+            /** @enum {string} */
+            defaultSeverity?: "minor" | "major";
+            /** @enum {string} */
+            polarity?: "positive" | "negative";
+            description?: string;
+        };
+        ConditionsCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["ConditionCatalogEntryDto"];
+        };
+        ConditionsCatalogPatchDto: {
+            ops: components["schemas"]["ConditionsCatalogOpDto"][];
+        };
+        EquipmentTagDto: {
+            name: string;
+            /** @enum {string} */
+            type: "core" | "extra";
+        };
+        EquipmentCatalogEntryDto: {
+            name?: string;
+            /** @enum {string} */
+            kind?: "weapon" | "armor" | "consumable" | "misc";
+            tags?: components["schemas"]["EquipmentTagDto"][];
+            isStarter?: boolean;
+            description?: string;
+        };
+        EquipmentCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["EquipmentCatalogEntryDto"];
+        };
+        EquipmentCatalogPatchDto: {
+            ops: components["schemas"]["EquipmentCatalogOpDto"][];
+        };
+        TagCatalogEntryDto: {
+            name?: string;
+        };
+        TagCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["TagCatalogEntryDto"];
+        };
+        TagCatalogPatchDto: {
+            ops: components["schemas"]["TagCatalogOpDto"][];
+        };
+        TalentCatalogEntryDto: {
+            name: string;
+            description?: string;
+            specialRequirement?: number[];
+        };
+        TalentsCatalogOpDto: {
+            /** @enum {string} */
+            action: "add" | "update" | "rename" | "delete";
+            slug: string;
+            /** @description New slug (rename only) */
+            rename?: string;
+            entry?: components["schemas"]["TalentCatalogEntryDto"];
+        };
+        TalentsCatalogPatchDto: {
+            ops: components["schemas"]["TalentsCatalogOpDto"][];
+        };
+        MapBoundsDto: {
+            south: number;
+            west: number;
+            north: number;
+            east: number;
+        };
+        MapConfigDto: {
+            startLat: number;
+            startLng: number;
+            startZoom: number;
+            minZoom: number;
+            maxZoom: number;
+            bounds: components["schemas"]["MapBoundsDto"];
+        };
+        MapPlaceDto: {
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            type: "region" | "settlement" | "vault" | "building" | "room" | "landmark" | "poi";
+            lat: number;
+            lng: number;
+            hasLocalMap: boolean;
+            /** @description Metres; only when hasLocalMap is true */
+            radius?: number;
+            isPublic: boolean;
+            /** @description Another place's slug, or null */
+            parent?: Record<string, never>;
+            desc?: string;
+            /** @description Overrides the type's default icon */
+            icon?: string;
+        };
+        PutCampaignMapDto: {
+            config: components["schemas"]["MapConfigDto"];
+            places: components["schemas"]["MapPlaceDto"][];
+        };
+        CreateStageDto: {
+            title: string;
+            description?: string;
+            reward?: string;
+            /**
+             * @default in_corso
+             * @enum {string}
+             */
+            status: "in_corso" | "standby" | "completata";
+            /** @default false */
+            isMilestone: boolean;
+            /** @default false */
+            isPublic: boolean;
+        };
+        CreateQuestDto: {
+            /** @enum {string} */
+            kind: "story" | "personal";
+            characterIds?: string[];
+            /** @default false */
+            isPublic: boolean;
+            stage: components["schemas"]["CreateStageDto"];
+        };
+        UpdateQuestDto: {
+            /** @enum {string} */
+            kind?: "story" | "personal";
+            characterIds?: string[];
+            isPublic?: boolean;
+        };
+        UpdateStageDto: {
+            title?: string;
+            description?: string;
+            reward?: string;
+            /** @enum {string} */
+            status?: "in_corso" | "standby" | "completata";
+            isMilestone?: boolean;
+            isPublic?: boolean;
+        };
+        CreatePlayerStageDto: {
+            title: string;
+            description?: string;
+            reward?: string;
+            /**
+             * @default in_corso
+             * @enum {string}
+             */
+            status: "in_corso" | "standby" | "completata";
+            /** @default false */
+            isMilestone: boolean;
+        };
+        CreatePlayerQuestDto: {
+            stage: components["schemas"]["CreatePlayerStageDto"];
+        };
+        UpdatePlayerStageDto: {
+            title?: string;
+            description?: string;
+            reward?: string;
+            /** @enum {string} */
+            status?: "in_corso" | "standby" | "completata";
+            isMilestone?: boolean;
+        };
     };
-    CreateUserDto: {
-      /** @example alice */
-      username: string;
-      password: string;
-      /** @enum {string} */
-      role: 'admin' | 'player';
-    };
-    UpdateUserDto: {
-      /** @example alice */
-      username?: string;
-      password?: string;
-      /** @enum {string} */
-      role?: 'admin' | 'player';
-    };
-    CreateCampaignDto: {
-      name: string;
-      /** @default false */
-      isActive: boolean;
-      /** @default false */
-      isPublic: boolean;
-    };
-    UpdateCampaignDto: {
-      name?: string;
-      isActive?: boolean;
-      isPublic?: boolean;
-    };
-    AddPlayerDto: {
-      /** @description ID of the player user to assign */
-      playerId: string;
-    };
-    MutationItemDto: {
-      /** @example local.access_count */
-      key: string;
-      /** @enum {string} */
-      op: 'set' | 'increment' | 'toggle';
-      /** @description Value for set operation */
-      value?: Record<string, never>;
-      /** @description Increment amount for increment operation */
-      by?: number;
-    };
-    MutateStateDto: {
-      mutations: components['schemas']['MutationItemDto'][];
-    };
-    MetaDto: {
-      title: string;
-      id: string;
-      public?: boolean;
-    };
-    StateDeclarationDto: Record<string, never>;
-    LoginBlockDto: Record<string, never>;
-    TerminalContentDto: {
-      meta: components['schemas']['MetaDto'];
-      state?: components['schemas']['StateDeclarationDto'];
-      login?: components['schemas']['LoginBlockDto'];
-      /** @description Node map (key → node object) */
-      nodes: Record<string, never>;
-    };
-    FictionalLoginDto: {
-      username: string;
-      password: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  AuthController_login: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['LoginDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  AuthController_logout: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginDto"];
+            };
         };
-        content?: never;
-      };
-    };
-  };
-  AuthController_me: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  UsersController_list: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  UsersController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateUserDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  UsersController_findById: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  UsersController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateUserDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  UsersController_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
+    UsersController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_list: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CampaignsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateCampaignDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    UsersController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_findById: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserDto"];
+            };
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateCampaignDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CampaignsController_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
+    UsersController_findById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_toggleActive: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CampaignsController_listPlayers: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    UsersController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_addPlayer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['AddPlayerDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserDto"];
+            };
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignsController_removePlayer: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-        playerId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CampaignStateController_getState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    UsersController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignStateController_mutateState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['MutateStateDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  CampaignStateController_resetState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    UserConfigurationController_getConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  CampaignStateController_resetStateKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-        key: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_listByCampaign: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    UserConfigurationController_setTerminalDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['TerminalContentDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_import: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['TerminalContentDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    UserLastSelectionController_setLastSelection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_detail: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LastSelectionDto"];
+            };
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['TerminalContentDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_delete: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
+    CampaignsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_export: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_load: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    CampaignsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_fictionalLogin: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['FictionalLoginDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCampaignDto"];
+            };
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_getState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_mutateState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['MutateStateDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    CampaignsController_findById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  TerminalsController_resetState: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TerminalsController_resetStateKey: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-        key: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    CampaignsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
         };
-        content?: never;
-      };
-    };
-  };
-  HealthController_check: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCampaignDto"];
+            };
         };
-        content?: never;
-      };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-  };
+    CampaignsController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignsController_toggleActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignsController_listPlayers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignsController_addPlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddPlayerDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignsController_removePlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                playerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignStateController_getState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignStateController_mutateState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MutateStateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignStateController_resetState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignStateController_resetStateKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignStateController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StateSchemaPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Schema patched; returns flat state snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error or empty ops */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Campaign or variable not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Delete references a terminal, or rename target collision */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignConfigurationController_getConfiguration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignConfigurationController_setTerminalDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_listByCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminalContentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminalContentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_loadByHiddenId: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                hiddenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TerminalContentDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_load: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_fictionalLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FictionalLoginDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_getState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_mutateState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MutateStateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_resetState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_resetStateKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TerminalsController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StateSchemaPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Schema patched; returns flat state snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error or empty ops */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Terminal or variable not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rename target collision */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCharacterDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_findById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCharacterDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_softDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchSpecial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchSpecialDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchSkillsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchPerks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPerksDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchActionPoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchActionPointsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchInventory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchInventoryDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_patchResources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchResourcesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_getBackground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_setBackground: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchBackgroundDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharactersController_getPersonalTerminal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterNotesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterNotesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNoteDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterNotesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                characterId: string;
+                noteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterNotesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                characterId: string;
+                noteId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNoteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SpeciesCatalogController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SpeciesCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpeciesCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug, or species still in use by a character */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SkillsCatalogController_list: {
+        parameters: {
+            query?: {
+                /** @description When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order. */
+                orderBy?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SkillsCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SkillsCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug on add or rename */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConditionsCatalogController_list: {
+        parameters: {
+            query?: {
+                /** @description When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order. */
+                orderBy?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConditionsCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConditionsCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug on add or rename */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EquipmentCatalogController_list: {
+        parameters: {
+            query?: {
+                /** @description When "true", return only templates flagged isStarter */
+                starter?: string;
+                /** @description When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order. */
+                orderBy?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EquipmentCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipmentCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug on add or rename */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TagCatalogController_list: {
+        parameters: {
+            query?: {
+                /** @description When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order. */
+                orderBy?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TagCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TagCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug on add or rename */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TalentsCatalogController_list: {
+        parameters: {
+            query?: {
+                /** @description When "name", sort entries alphabetically (Italian, case/accent-insensitive). Any other value → natural order. */
+                orderBy?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TalentsCatalogController_patchSchema: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TalentsCatalogPatchDto"];
+            };
+        };
+        responses: {
+            /** @description Ops applied; returns ignored ops */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — admin required */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Duplicate slug on add or rename */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignMapController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CampaignMapController_replace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutCampaignMapDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateQuestDto"];
+            };
+        };
+        responses: {
+            /** @description Invalid header for its kind */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quest not in this campaign */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateQuestDto"];
+            };
+        };
+        responses: {
+            /** @description Invalid header for its kind */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_addStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_removeStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+                stageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not the last stage, or the only stage */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    QuestsController_updateStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                questId: string;
+                stageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStageDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlayerQuestDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quest assigned by the master */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_addStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                questId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlayerStageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_removeStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                questId: string;
+                stageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Not the last public stage, or the only one */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterQuestsController_updateStage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                questId: string;
+                stageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlayerStageDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HealthController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

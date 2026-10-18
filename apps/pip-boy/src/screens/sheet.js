@@ -11,6 +11,7 @@ import { renderHealthTab } from '../tabs/health.js';
 import { renderInvSubtab } from '../tabs/gear.js';
 import { renderDiceTab, newDiceState } from '../tabs/dice.js';
 import { renderNotesTab } from '../tabs/notes.js';
+import { renderQuestsTab } from '../tabs/quests.js';
 import { renderMapTab } from '../tabs/map.js';
 import { getPrefs } from '../state/prefs.js';
 import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
@@ -20,13 +21,16 @@ import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
 // inventory collection they surface) and `invKind` (the equipment-catalog kind
 // their add-item popup filters by). Every subtab now has a catalog kind,
 // including Vari (`misc`).
+//
+// Salute leads STATS, so a freshly opened sheet lands on it; INFO groups the
+// read-mostly screens (quest log and notes).
 const TAB_TREE = [
     { key: 'stats', label: 'STATS', subtabs: [
+        { key: 'health', label: 'Salute', render: renderHealthTab },
         { key: 'special', label: 'S.P.E.C.I.A.L.', render: renderSpecialTab },
         { key: 'skills', label: 'Abilità', render: renderAbilitaTab },
         { key: 'talents', label: 'TALENTI', render: renderTalentsTab },
     ] },
-    { key: 'health', label: 'SALUTE', render: renderHealthTab },
     { key: 'inv', label: 'INV', subtabs: [
         { key: 'weapons', label: 'Armi', invKey: 'weapons', invKind: 'weapon', render: renderInvSubtab },
         { key: 'equip', label: 'Armature', invKey: 'equip', invKind: 'armor', render: renderInvSubtab },
@@ -34,7 +38,10 @@ const TAB_TREE = [
         { key: 'misc', label: 'Vari', invKey: 'misc', invKind: 'misc', render: renderInvSubtab },
     ] },
     { key: 'dice', label: 'DADI', render: renderDiceTab },
-    { key: 'notes', label: 'NOTES', render: renderNotesTab },
+    { key: 'info', label: 'INFO', subtabs: [
+        { key: 'quests', label: 'Quest', render: renderQuestsTab },
+        { key: 'notes', label: 'Note', render: renderNotesTab },
+    ] },
     { key: 'map', label: 'MAPPA', render: renderMapTab },
 ];
 

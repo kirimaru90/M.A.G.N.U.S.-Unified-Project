@@ -90,9 +90,13 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/basemap.js',
   './src/tabs/notes.js',
   './src/tabs/note-editor.js',
+  './src/tabs/quests.js',
+  './src/tabs/quest-editor.js',
   './src/tabs/confirm-dialog.js',
   './src/api/campaign-map.js',
   './src/api/notes.js',
+  './src/api/quests.js',
+  './src/state/quest-seen.js',
   './src/sheet/markdown.js',
   // Vendored Leaflet — without it the map tab cannot render offline. The
   // stylesheet's images/ are deliberately absent: the tab uses divIcon only and
