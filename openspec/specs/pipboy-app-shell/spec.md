@@ -3,9 +3,7 @@
 ## Purpose
 
 The `apps/pip-boy` static PWA shell: real-user login reusing `api-auth`, campaign selection, a new character-selection screen, defaulting to the server-synced last-used campaign/character, persisting selections, and navigation/logout.
-
 ## Requirements
-
 ### Requirement: Real-user login only
 
 The app SHALL authenticate exclusively against the existing `api-auth` real-user login endpoint (username/password → JWT), storing the session client-side the same way `apps/terminal` does. The app SHALL NOT implement or expose any fictional/local-account login (that concept belongs to terminal content, not to character management).
@@ -238,3 +236,18 @@ When no token is stored, resume SHALL do nothing (the user is already anonymous)
 - **GIVEN** no stored token (the login screen is shown)
 - **WHEN** the app returns to the foreground
 - **THEN** no `GET /auth/me` request is issued and the screen is unchanged
+
+### Requirement: Dossier card species shows the catalog name
+
+The species shown in each DOSSIER card's species/PA/tappi meta line SHALL be the species' display `name`, resolved by looking up the character's stored `species` slug in the species catalog the app already loads at startup. When no catalog entry matches, or the catalog failed to load, it SHALL fall back to the raw slug. Resolution SHALL be the same as the sheet header's species chip (`pipboy-character-sheet`), so a character's species reads identically on its dossier card and on its sheet.
+
+#### Scenario: Dossier meta line uses the catalog name
+- **GIVEN** a character with `species: "super_mutant"` and a catalog entry `{ slug: "super_mutant", name: "Supermutante" }`
+- **WHEN** the dossier lists that character
+- **THEN** its meta line begins with `Supermutante`, not `super_mutant`
+
+#### Scenario: Dossier meta line falls back to the slug
+- **GIVEN** a character whose `species` slug has no catalog entry
+- **WHEN** the dossier lists that character
+- **THEN** its meta line shows the raw slug
+

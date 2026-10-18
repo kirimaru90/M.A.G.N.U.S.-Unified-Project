@@ -8,12 +8,15 @@ import { openCatalogPicker } from './catalog-picker.js';
 //  - an `OK` that reads the active pane and calls `onAdd(item)`.
 //
 // The per-flow bits are injected:
-//  - `catalog` = `{ entries, kindNoun, toItem(entry), renderMeta?, renderSub?,
-//    rowAccent?, rowRank?, detail? }` backs the "Scegli esistente" tab: tapping
-//    the field opens the full-screen picker over `entries` (the last four keys
-//    pass straight through to `openCatalogPicker`); on OK the chosen entry is
+//  - `catalog` = `{ entries, kindNoun, toItem(entry), renderLead?, renderMeta?,
+//    renderSub?, rowAccent?, rowRank?, groupBy?, detail? }` backs the "Scegli
+//    esistente" tab: tapping the field opens the full-screen picker over
+//    `entries` (the optional hooks pass straight through to
+//    `openCatalogPicker`); on OK the chosen entry is
 //    mapped to a body via `toItem`. Omit `catalog` to hide the selection tab
 //    entirely (custom-only popup).
+//  - `className?` is an extra class on the `.pb-popup` box (e.g. a polarity
+//    accent modifier).
 //  - `custom` = `{ renderFields(paneEl), readItem(paneEl) }` backs the "Aggiungi
 //    custom" tab: `renderFields` fills the pane's DOM (and may wire its own
 //    handlers), `readItem` returns the assembled body (or `null`/`undefined` to
@@ -23,7 +26,7 @@ import { openCatalogPicker } from './catalog-picker.js';
 // abort the OK (nothing selected / invalid). The popup never persists — the
 // caller's `onAdd` issues the PATCH.
 
-export function openAddPopup({ title, catalog, custom, onAdd }) {
+export function openAddPopup({ title, className, catalog, custom, onAdd }) {
     const hasCatalog = !!catalog && Array.isArray(catalog.entries);
     const entries = hasCatalog ? catalog.entries : [];
     const kindNoun = (hasCatalog && catalog.kindNoun) || 'oggetto';
@@ -38,7 +41,7 @@ export function openAddPopup({ title, catalog, custom, onAdd }) {
     const overlay = document.createElement('div');
     overlay.className = 'pb-popup-overlay';
     overlay.innerHTML = `
-        <div class="pb-popup" role="dialog" aria-modal="true">
+        <div class="pb-popup${className ? ` ${esc(className)}` : ''}" role="dialog" aria-modal="true">
             <button class="pb-popup-close" data-cancel aria-label="Annulla">✕</button>
             <div class="pb-popup-title">AGGIUNGI · ${esc(title)}</div>
             <div class="pb-popup-tabs">
@@ -88,10 +91,12 @@ export function openAddPopup({ title, catalog, custom, onAdd }) {
             openCatalogPicker({
                 title: `Scegli ${kindNoun}`,
                 entries,
+                renderLead: catalog.renderLead,
                 renderMeta: catalog.renderMeta,
                 renderSub: catalog.renderSub,
                 rowAccent: catalog.rowAccent,
                 rowRank: catalog.rowRank,
+                groupBy: catalog.groupBy,
                 detail: catalog.detail,
                 onPick: (entry) => {
                     selectedEntry = entry;

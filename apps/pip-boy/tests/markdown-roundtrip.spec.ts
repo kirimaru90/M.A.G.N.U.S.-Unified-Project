@@ -113,4 +113,20 @@ test('emitted markdown parses in marked to the intended structure', async ({ pag
   expect(html).toContain('<em>i</em>');
   expect(html).toMatch(/<ul>[\s\S]*<li>a<\/li>[\s\S]*<li>b<\/li>[\s\S]*<\/ul>/);
   expect(html).toContain('<blockquote>');
+
+  // The same check on a DOM produced by the editor's toolbar, not by mdToDom:
+  // a previously saved multi-line note turned into a list with the bullet
+  // control (the shape that used to save as fused, bullet-less text).
+  const toolbarHtml = await page.evaluate(async () => {
+    const { openNoteEditor } = await import('/src/tabs/note-editor.js');
+    const { domToMd } = await import('/src/sheet/markdown.js');
+    openNoteEditor({ title: 'n', body: 'a\n\nb\n\nc' });
+    const body = document.querySelector('.pb-note-editor [data-body]') as HTMLElement;
+    body.focus();
+    window.getSelection()!.selectAllChildren(body);
+    (document.querySelector('.pb-note-editor [data-cmd="bullet"]') as HTMLElement).click();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).marked.parse(domToMd(body));
+  });
+  expect(toolbarHtml).toMatch(/<ul>\s*<li>a<\/li>\s*<li>b<\/li>\s*<li>c<\/li>\s*<\/ul>/);
 });

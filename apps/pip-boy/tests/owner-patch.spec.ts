@@ -51,9 +51,9 @@ test('owner adds a custom condition round-trips via PATCH .../status', async ({ 
   await openSheetAsOwner(page);
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
-  // The add-path is the two-tab popup; the custom tab carries the name + sign +
-  // weight the inline builder used to.
-  await page.locator('#pb-cond-add').click();
+  // The add-path is the two-tab popup (here the − NEGATIVA one); the custom tab
+  // carries the name + weight the inline builder used to.
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('Ferito');
   await page.locator('[data-weight="major"]').click();

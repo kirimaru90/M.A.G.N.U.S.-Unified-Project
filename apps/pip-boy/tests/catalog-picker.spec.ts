@@ -219,7 +219,7 @@ test('conditions picker is alphabetical even on the fallback presets when the ca
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
-  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker')).toBeVisible();
 
@@ -229,4 +229,107 @@ test('conditions picker is alphabetical even on the fallback presets when the ca
   const sortedCopy = [...names].sort((a, b) => collator.compare(a, b));
   expect(names).toEqual(sortedCopy);
   expect(names[0]).toBe('CIECO'); // alphabetically first fallback preset
+});
+
+// ── search focus: only a fine primary pointer auto-focuses ──────────
+
+test('with a fine pointer, the picker focuses its search input on open', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+  await page.locator('.pb-tab', { hasText: 'INV' }).click();
+  await page.locator('[data-add-open]').click();
+  await page.locator('#pb-popup-existing').click();
+  await expect(page.locator('.pb-picker-search')).toBeFocused();
+});
+
+test.describe('on a touch device', () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test('the picker opens without focusing search; tapping it focuses and filters', async ({ page }) => {
+    await openSheet(page, { character: ownedCharacter() });
+    await page.locator('.pb-tab', { hasText: 'INV' }).click();
+    await page.locator('[data-add-open]').click();
+    await page.locator('#pb-popup-existing').click();
+    await expect(page.locator('.pb-picker')).toBeVisible();
+
+    const search = page.locator('.pb-picker-search');
+    expect(await search.evaluate((el) => document.activeElement === el)).toBe(false);
+
+    await search.tap();
+    await expect(search).toBeFocused();
+    await search.fill('Pistola');
+    await expect(page.locator('.pb-picker-row')).toHaveCount(1);
+  });
+});
+
+// ── section grouping + leading slot (driven through the conditions picker) ─
+
+async function openNegativeConditionPicker(page: Page, conditionsCatalog: StubOptions['conditionsCatalog']) {
+  await openSheet(page, { character: ownedCharacter(), conditionsCatalog });
+  await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
+  await page.locator('#pb-cond-add-neg').click();
+  await page.locator('#pb-cond-existing').click();
+  await expect(page.locator('.pb-picker')).toBeVisible();
+}
+
+const neg = (name: string, defaultSeverity: 'minor' | 'major') =>
+  ({ slug: name.toLowerCase(), name, polarity: 'negative', defaultSeverity });
+
+test('a grouped picker renders ordered sections with counts and alphabetical rows', async ({ page }) => {
+  await openNegativeConditionPicker(page, [neg('B2', 'major'), neg('A2', 'major'), neg('B1', 'minor'), neg('A1', 'minor')]);
+
+  const order = await page.locator('.pb-picker-section-label, .pb-picker-name').allInnerTexts();
+  expect(order).toEqual(['BASE · −1', 'A1', 'B1', 'MODERATA · −2', 'A2', 'B2']);
+  await expect(page.locator('.pb-picker-section-count')).toHaveText(['2', '2']);
+});
+
+test('searching hides empty sections and updates the counts', async ({ page }) => {
+  await openNegativeConditionPicker(page, [neg('ALFA', 'minor'), neg('BETA', 'minor'), neg('ALBA', 'major'), neg('GAMMA', 'major')]);
+
+  await page.locator('.pb-picker-search').fill('BETA');
+  await expect(page.locator('.pb-picker-section-label')).toHaveText(['BASE · −1']);
+  await expect(page.locator('.pb-picker-section-count')).toHaveText(['1']);
+  await expect(page.locator('.pb-picker-name')).toHaveText(['BETA']);
+
+  await page.locator('.pb-picker-search').fill('AL');
+  await expect(page.locator('.pb-picker-section-count')).toHaveText(['1', '1']);
+
+  await page.locator('.pb-picker-search').fill('GAM');
+  await expect(page.locator('.pb-picker-section-label')).toHaveText(['MODERATA · −2']);
+});
+
+test('a section header stays pinned to the list top while scrolling', async ({ page }) => {
+  const many = [
+    ...Array.from({ length: 25 }, (_, i) => neg(`BASE${String(i).padStart(2, '0')}`, 'minor')),
+    ...Array.from({ length: 25 }, (_, i) => neg(`MOD${String(i).padStart(2, '0')}`, 'major')),
+  ];
+  await openNegativeConditionPicker(page, many);
+
+  const list = page.locator('.pb-picker-list');
+  const listTop = async () => (await list.boundingBox())!.y;
+  const headerTop = async (key: string) =>
+    (await page.locator(`.pb-picker-section[data-section="${key}"]`).boundingBox())!.y;
+
+  // Partway through BASE: its header is pinned at the top of the list.
+  await list.evaluate((el) => { el.scrollTop = 400; });
+  expect(Math.abs((await headerTop('minor')) - (await listTop()))).toBeLessThan(2);
+
+  // Into MODERATA: that header is now the one pinned at the top.
+  await page.locator('.pb-picker-row', { hasText: 'MOD10' }).scrollIntoViewIfNeeded();
+  await list.evaluate((el) => { el.scrollTop += 200; });
+  expect(Math.abs((await headerTop('major')) - (await listTop()))).toBeLessThan(2);
+});
+
+test('renderLead content precedes the name on the row line, and the tap still returns the entry', async ({ page }) => {
+  await openNegativeConditionPicker(page, [neg('AVVELENATO', 'major')]);
+
+  const row = page.locator('.pb-picker-row', { hasText: 'AVVELENATO' });
+  const first = await row.evaluate((el) => el.firstElementChild?.className);
+  expect(first).toBe('pb-picker-lead');
+  const leadBox = (await row.locator('.pb-picker-lead').boundingBox())!;
+  const nameBox = (await row.locator('.pb-picker-name').boundingBox())!;
+  expect(leadBox.x + leadBox.width).toBeLessThanOrEqual(nameBox.x + 1);
+  expect(Math.abs(leadBox.y + leadBox.height / 2 - (nameBox.y + nameBox.height / 2))).toBeLessThan(8);
+
+  await row.click();
+  await expect(page.locator('#pb-cond-existing')).toContainText('AVVELENATO');
 });

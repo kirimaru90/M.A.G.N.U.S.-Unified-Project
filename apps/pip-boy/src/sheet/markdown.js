@@ -119,46 +119,54 @@ function parseInline(text) {
 
 // --- DOM → markdown --------------------------------------------------------
 
-/** Serialize an editable DOM root (element or fragment) to canonical markdown. */
+/**
+ * Serialize an editable DOM root (element or fragment) to canonical markdown.
+ * Tolerates the shapes `execCommand` leaves behind, not just `mdToDom`'s own:
+ * blocks nested inside blocks are hoisted to the top level, and a `<br>`
+ * between block-level content splits it into separate lines.
+ */
 export function domToMd(root) {
     const blocks = [];
-    let pending = [];
-
-    const flushParagraph = () => {
-        if (!pending.length) return;
-        const md = pending.map(inlineToMd).join('').trim();
-        pending = [];
-        if (md) blocks.push(md);
-    };
-
-    root.childNodes.forEach((node) => {
-        if (node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has(node.tagName)) {
-            flushParagraph();
-            const md = serializeBlock(node);
-            if (md) blocks.push(md);
-        } else {
-            pending.push(node);
-        }
-    });
-    flushParagraph();
-
+    walkLines(root, 'p', blocks);
     return blocks.join('\n\n');
 }
 
-function serializeBlock(el) {
-    switch (el.tagName) {
-        case 'H2':
-            return `## ${childInlineMd(el)}`.trimEnd();
-        case 'BLOCKQUOTE':
-            return `> ${childInlineMd(el)}`.trimEnd();
-        case 'UL': {
-            const items = Array.from(el.querySelectorAll(':scope > li'))
-                .map((li) => `- ${childInlineMd(li)}`.trimEnd());
-            return items.join('\n');
+const LINE_PREFIX = { p: '', h2: '## ', quote: '> ', li: '- ' };
+
+/**
+ * Walk `container`'s children as lines of `kind` ('p' | 'h2' | 'quote' | 'li'),
+ * pushing each finished line onto `out` — top-level blocks, or list items when
+ * `kind` is 'li'. A nested P/DIV inherits the enclosing kind; any block inside
+ * a list item flattens into list items (the subset has no nested lists).
+ */
+function walkLines(container, kind, out) {
+    let pending = [];
+    const flush = () => {
+        const md = pending.map(inlineToMd).join('').trim();
+        pending = [];
+        if (md) out.push(`${LINE_PREFIX[kind]}${md}`);
+    };
+
+    container.childNodes.forEach((node) => {
+        const tag = node.nodeType === Node.ELEMENT_NODE ? node.tagName : null;
+        if (tag === 'BR') { flush(); return; }
+        if (!BLOCK_TAGS.has(tag) && tag !== 'LI') { pending.push(node); return; }
+        flush();
+        if (kind === 'li') {
+            walkLines(node, 'li', out);
+        } else if (tag === 'UL') {
+            const items = [];
+            walkLines(node, 'li', items);
+            if (items.length) out.push(items.join('\n'));
+        } else if (tag === 'H2') {
+            walkLines(node, 'h2', out);
+        } else if (tag === 'BLOCKQUOTE') {
+            walkLines(node, 'quote', out);
+        } else { // P, DIV, or a stray LI outside a list
+            walkLines(node, kind, out);
         }
-        default: // P, DIV
-            return childInlineMd(el).trim();
-    }
+    });
+    flush();
 }
 
 function childInlineMd(el) {

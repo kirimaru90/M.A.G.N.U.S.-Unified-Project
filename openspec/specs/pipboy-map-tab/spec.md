@@ -3,9 +3,7 @@
 ## Purpose
 
 A `MAPPA` first-level tab on the `apps/pip-boy` character sheet rendering the current campaign's map. Leaflet is vendored for offline use, the CARTO dark basemap is Fallout-filtered, attribution is presented briefly then collapses to Credits, the view is constrained by the campaign config, and level-of-detail, the zone breadcrumb, and marker bloom/collapse animation all follow the map geometry rather than authored thresholds.
-
 ## Requirements
-
 ### Requirement: MAPPA tab renders the campaign map
 
 The character sheet SHALL provide a `MAPPA` first-level tab rendering the current campaign's map from `GET /campaigns/:id/map`.
@@ -34,6 +32,8 @@ Leaflet SHALL be committed under `apps/pip-boy/src/vendor/` and imported as a re
 
 The tile layer SHALL use CARTO's label-free dark basemap. Its attribution is specified separately below.
 
+Every tile request SHALL carry the CARTO basemap key as a `key` query parameter. The key SHALL be stamped into the shipped source at image-build time from the `CARTO_BASEMAP_KEY` build argument and SHALL NOT be committed to the repository. When the source is unstamped (the build-time placeholder is still present) or the stamped value is empty, tile URLs SHALL omit the `key` parameter entirely rather than send the placeholder, so the map degrades to the provider's keyless tiles instead of failing.
+
 The tile pane SHALL be filtered with exactly:
 
 ```css
@@ -48,38 +48,15 @@ Because `pipboy.css:209` (`.pb-screen * { text-shadow: inherit }`) force-inherit
 - **WHEN** the computed style of `.leaflet-tile-pane` is inspected
 - **THEN** it carries the specified filter chain
 
-### Requirement: Basemap attribution shows briefly, then collapses to Credits
+#### Scenario: Tile requests carry the stamped key
+- **GIVEN** the app was built with a non-empty `CARTO_BASEMAP_KEY`
+- **WHEN** the map tab requests a basemap tile
+- **THEN** the tile URL's query string contains `key=` followed by that value
 
-The map SHALL NOT render a persistent attribution watermark: Leaflet's built-in attribution control SHALL be disabled (`attributionControl: false`), which also removes its "Leaflet" prefix — Leaflet's BSD-2 licence requires its copyright notice in the source, which the vendored copy retains, not on screen.
-
-Instead, on entering the `MAPPA` tab the map SHALL display the basemap attribution — naming OpenStreetMap and CARTO — as an unobtrusive line in the map's own phosphor styling, which SHALL **automatically collapse after five seconds**. This is one of the collapse mechanisms named verbatim by the OSM Foundation's Attribution Guidelines ("automatically after five seconds"), so the initial presentation obligation is met without permanent chrome.
-
-The full attribution SHALL remain findable at any time from the **Credits** entry of the settings popup — the guidelines' other named example ("an 'About' option in a menu") — so a user who looks for the licence information can always find it.
-
-The line SHALL NOT block interaction with the map while it is visible, and SHALL NOT reappear on every pan or zoom within the same visit to the tab.
-
-#### Scenario: No permanent watermark
-- **WHEN** the map has been open for longer than the collapse delay
-- **THEN** no attribution control or watermark is rendered over the map
-
-#### Scenario: Attribution is presented on entering the tab
-- **WHEN** the user selects the `MAPPA` tab
-- **THEN** a line naming OpenStreetMap and CARTO is visible over the map
-
-#### Scenario: Attribution collapses on its own
-- **GIVEN** the user has just entered the `MAPPA` tab
-- **WHEN** five seconds pass
-- **THEN** the attribution line is no longer displayed
-
-#### Scenario: Attribution does not obstruct the map
-- **GIVEN** the attribution line is still visible
-- **WHEN** the user pans or zooms beneath it
-- **THEN** the gesture reaches the map and the line does not intercept it
-
-#### Scenario: Attribution stays findable after it collapses
-- **GIVEN** the attribution line has collapsed
-- **WHEN** the user opens the settings popup and selects Credits
-- **THEN** the OpenStreetMap and CARTO attribution is shown in full
+#### Scenario: Unstamped source sends no key
+- **GIVEN** the source still contains the build-time placeholder
+- **WHEN** the map tab requests a basemap tile
+- **THEN** the tile URL has no `key` query parameter and the placeholder text appears nowhere in it
 
 ### Requirement: Map view is constrained by the campaign config
 
@@ -373,3 +350,61 @@ The zoom for **Vedi mappa** (the least zoom at which a place is `APERTA`) and th
 - **GIVEN** two places of very different effective radius
 - **WHEN** their contain zooms are computed
 - **THEN** the larger place's contain zoom is the lower number
+
+### Requirement: Basemap attribution is linked, permanent by default, and can be switched to a timed collapse
+
+Leaflet's built-in attribution control SHALL remain disabled (`attributionControl: false`); its "Leaflet" prefix is not required on screen, since Leaflet's BSD-2 notice is retained in the vendored source.
+
+Instead the map SHALL render its own attribution line, in the map's phosphor styling, in a corner of the map canvas, reading `© OpenStreetMap contributors, © CARTO`. "OpenStreetMap contributors" SHALL be a link to `https://www.openstreetmap.org/copyright` and "CARTO" a link to `https://carto.com/attribution`; both SHALL open outside the app (new browsing context, `rel="noopener"`). The line SHALL be legible against the filtered tiles.
+
+The line's lifetime SHALL be governed by a single exported configuration constant, `ATTRIBUTION_COLLAPSE_MS`, in the Pip-Boy basemap module — the one place an operator changes to switch modes:
+
+- **`null` (the shipped default) — permanent mode.** The line SHALL be present for the entire time the map is displayed: it SHALL NOT collapse on a timer, fade out, or be hidden by pan, zoom, or immersive mode. This is the mode that meets the CARTO Basemaps Terms.
+- **A positive number of milliseconds — collapse mode.** On entering the `MAPPA` tab the line SHALL be shown and SHALL be removed automatically after that many milliseconds; it SHALL NOT reappear on pan or zoom within the same visit, and SHALL be presented again on each new visit to the tab. `5000` reproduces the previous behaviour, which follows the OSM Foundation's Attribution Guidelines ("automatically after five seconds") but **not** the CARTO Basemaps Terms; the constant's comment SHALL say so.
+
+The mode is an operator/deploy decision, not a player preference: it SHALL NOT appear in the settings popup and SHALL NOT be persisted per user. A test-only global override (as the previous `__PB_MAP_ATTRIBUTION_MS__`) MAY replace the constant so both modes are testable in one build.
+
+In both modes the full attribution SHALL remain reachable at any time from the `CREDITI` entry of the settings popup.
+
+The line SHALL NOT block map interaction outside its links: a pan or zoom gesture beginning on the line's non-link area SHALL reach the map.
+
+#### Scenario: Attribution is present on entering the tab
+- **WHEN** the user selects the `MAPPA` tab
+- **THEN** a line containing "OpenStreetMap contributors" and "CARTO" is visible over the map
+
+#### Scenario: Default mode does not collapse
+- **GIVEN** `ATTRIBUTION_COLLAPSE_MS` is `null`
+- **WHEN** more than five seconds pass and the user pans and zooms
+- **THEN** the attribution line is still visible
+
+#### Scenario: Default mode survives immersive mode
+- **GIVEN** `ATTRIBUTION_COLLAPSE_MS` is `null`
+- **WHEN** the user enters the map's immersive full-screen mode
+- **THEN** the attribution line is visible over the enlarged map
+
+#### Scenario: Collapse mode removes the line after the configured delay
+- **GIVEN** `ATTRIBUTION_COLLAPSE_MS` is a positive delay
+- **WHEN** that delay elapses after entering the tab
+- **THEN** the attribution line is no longer displayed, and it does not reappear on pan or zoom
+
+#### Scenario: Collapse mode presents the line again on re-entry
+- **GIVEN** `ATTRIBUTION_COLLAPSE_MS` is a positive delay and the line has collapsed
+- **WHEN** the user leaves and re-enters the `MAPPA` tab
+- **THEN** the attribution line is visible again
+
+#### Scenario: Credits stay reachable in either mode
+- **WHEN** the user opens the settings popup and selects `CREDITI`
+- **THEN** the OpenStreetMap and CARTO attribution is shown in full
+
+#### Scenario: Both names are linked
+- **WHEN** the attribution line is inspected
+- **THEN** "OpenStreetMap contributors" links to `https://www.openstreetmap.org/copyright` and "CARTO" links to `https://carto.com/attribution`, each with `target="_blank"` and `rel` containing `noopener`
+
+#### Scenario: Leaflet's own control is never rendered
+- **WHEN** the map is open, before and after a zoom
+- **THEN** no `.leaflet-control-attribution` element exists
+
+#### Scenario: Attribution does not obstruct the map
+- **WHEN** the user starts a pan on the attribution line outside its links
+- **THEN** the gesture reaches the map and the view moves
+

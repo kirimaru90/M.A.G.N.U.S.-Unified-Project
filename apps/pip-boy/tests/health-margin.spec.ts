@@ -3,8 +3,8 @@ import { stubEnvironment, login, makeCharacter, type StubOptions } from './fixtu
 
 // Covers the health-margin model on the SALUTE tab (pipboy-character-sheet,
 // add-health-margin): health = margin − net wear, overshoot above margin, a
-// margin editor, the two-column major→minor condition list, and the colour-coded
-// condition catalog picker.
+// margin editor, the two-column major→minor condition list, the split polarity
+// add triggers, and the colour-coded condition catalog picker.
 
 async function openSheet(page: Page, opts: StubOptions = {}) {
   await stubEnvironment(page, {
@@ -107,8 +107,9 @@ test('the MARGINE stepper is hidden outside editor mode and appears after the �
 
   // Editor mode is off by default: the owner sees no MARGINE stepper…
   await expect(page.locator('#pb-margin-stepper')).toHaveCount(0);
-  // …but `+ AGGIUNGI CONDIZIONE` (plain canEdit) is still available.
-  await expect(page.locator('#pb-cond-add')).toBeVisible();
+  // …but the polarity add triggers (plain canEdit) are still available.
+  await expect(page.locator('#pb-cond-add-neg')).toBeVisible();
+  await expect(page.locator('#pb-cond-add-pos')).toBeVisible();
 
   // Toggling editor mode reveals the stepper.
   await page.locator('#pb-editor-toggle').click();
@@ -137,26 +138,57 @@ test('conditions render negatives-left, positives-right, each major before minor
   await expect(page.locator('.pb-cond-col--pos .pb-cond-name')).toHaveText(['POS-MAG', 'POS-MIN']);
 });
 
-// ── catalog picker: colour-coded polarity + weight abbreviation ──────
+// ── split polarity triggers ──────────────────────────────────────────
 
-test('the condition catalog picker colour-codes polarity and shows a weight abbreviation', async ({ page }) => {
+test('the owner sees − NEGATIVA and + POSITIVA triggers and no single add trigger', async ({ page }) => {
   await openSheet(page, { character: withStatus({}) });
 
-  await page.locator('#pb-cond-add').click();
-  await page.locator('#pb-cond-existing').click();
-  await expect(page.locator('.pb-picker')).toBeVisible();
+  await expect(page.locator('#pb-cond-add-neg')).toHaveText('− NEGATIVA');
+  await expect(page.locator('#pb-cond-add-pos')).toHaveText('+ POSITIVA');
+  await expect(page.locator('#pb-cond-add')).toHaveCount(0);
+  await expect(page.getByText('+ AGGIUNGI CONDIZIONE')).toHaveCount(0);
 
-  // Avvelenato: negative/major → neg accent + ×2 ; Ben Nutrito: positive/minor → pos accent + ×1
+  // Side by side, beneath the condition list.
+  const negBox = (await page.locator('#pb-cond-add-neg').boundingBox())!;
+  const posBox = (await page.locator('#pb-cond-add-pos').boundingBox())!;
+  expect(Math.abs(negBox.y - posBox.y)).toBeLessThan(1);
+  expect(negBox.x).toBeLessThan(posBox.x);
+});
+
+test('a read-only viewer sees neither polarity trigger', async ({ page }) => {
+  await openSheet(page, {
+    character: makeCharacter({
+      id: 'char-1', campaignId: 'camp-1', userId: 'user-player-2',
+      status: { criticalState: false, positiveConditions: [], negativeConditions: [] },
+    }),
+  });
+
+  await expect(page.locator('#pb-cond-add-neg')).toHaveCount(0);
+  await expect(page.locator('#pb-cond-add-pos')).toHaveCount(0);
+});
+
+// ── catalog picker: colour-coded polarity + signed value ─────────────
+
+test('each polarity picker colour-codes its rows and leads with a signed value', async ({ page }) => {
+  await openSheet(page, { character: withStatus({}) });
+
+  // Avvelenato: negative/major → neg accent + −2
+  await page.locator('#pb-cond-add-neg').click();
+  await page.locator('#pb-cond-existing').click();
   const neg = page.locator('.pb-picker-row', { hasText: 'Avvelenato' });
   await expect(neg).toHaveClass(/pb-picker-row--neg/);
-  await expect(neg.locator('.pb-picker-meta')).toHaveText('×2');
+  await expect(neg.locator('.pb-picker-lead')).toHaveText('−2');
+  await expect(neg.locator('.pb-picker-meta')).toHaveCount(0);
+  await expect(neg).not.toContainText('NEGATIVA');
+  await page.locator('.pb-picker-close').click();
+  await page.locator('.pb-popup-close').click();
 
+  // Ben Nutrito: positive/minor → pos accent + +1
+  await page.locator('#pb-cond-add-pos').click();
+  await page.locator('#pb-cond-existing').click();
   const pos = page.locator('.pb-picker-row', { hasText: 'Ben Nutrito' });
   await expect(pos).toHaveClass(/pb-picker-row--pos/);
-  await expect(pos.locator('.pb-picker-meta')).toHaveText('×1');
-
-  // Polarity is colour only — no NEGATIVA/POSITIVA text on the rows.
-  await expect(neg).not.toContainText('NEGATIVA');
+  await expect(pos.locator('.pb-picker-lead')).toHaveText('+1');
   await expect(pos).not.toContainText('POSITIVA');
 });
 
@@ -164,10 +196,6 @@ test('the condition catalog picker colour-codes polarity and shows a weight abbr
 // `.pb-picker-row` rule (declared far below) must not repaint every row green.
 test('the catalog picker renders the negative row in the negative colour, not phosphor green', async ({ page }) => {
   await openSheet(page, { character: withStatus({}) });
-
-  await page.locator('#pb-cond-add').click();
-  await page.locator('#pb-cond-existing').click();
-  await expect(page.locator('.pb-picker')).toBeVisible();
 
   // Resolve the theme's accent colours to rgb via a probe element so we can
   // assert the row's *computed* colour, not just its class.
@@ -184,54 +212,84 @@ test('the catalog picker renders the negative row in the negative colour, not ph
     return { phosphor, neg, pos };
   });
 
-  const neg = page.locator('.pb-picker-row', { hasText: 'Avvelenato' });
-  const pos = page.locator('.pb-picker-row', { hasText: 'Ben Nutrito' });
-
-  // The negative row paints the negative accent (not phosphor green); positive stays green.
-  await expect(neg).toHaveCSS('color', colours.neg);
-  await expect(pos).toHaveCSS('color', colours.pos);
+  // The negative row paints the negative accent (not phosphor green)…
+  await page.locator('#pb-cond-add-neg').click();
+  await page.locator('#pb-cond-existing').click();
+  await expect(page.locator('.pb-picker-row', { hasText: 'Avvelenato' })).toHaveCSS('color', colours.neg);
   expect(colours.neg).not.toBe(colours.phosphor);
+  await page.locator('.pb-picker-close').click();
+  await page.locator('.pb-popup-close').click();
+
+  // …and the positive row stays green.
+  await page.locator('#pb-cond-add-pos').click();
+  await page.locator('#pb-cond-existing').click();
+  await expect(page.locator('.pb-picker-row', { hasText: 'Ben Nutrito' })).toHaveCSS('color', colours.pos);
 });
 
-// ── long names wrap within their row, controls stay visible ──────────
+// ── compact rows: signed value + name only ──────────────────────────
 
-test('a long condition name wraps within its column with the sign, weight tag, and ✕ still visible', async ({ page }) => {
-  // A single unbroken token, long enough to exceed the column at any test
-  // viewport width so it must break (overflow-wrap: anywhere) rather than overflow.
+test('condition rows show only a signed weight value and the name', async ({ page }) => {
+  await openSheet(page, {
+    character: withStatus({
+      margin: 8,
+      negativeConditions: [{ id: 'n1', name: 'STREMATO', severity: 'major' }],
+      positiveConditions: [{ id: 'p1', name: 'BEN NUTRITO', severity: 'minor' }],
+    }),
+  });
+
+  const neg = page.locator('.pb-cond-col--neg .pb-cond-row').first();
+  const pos = page.locator('.pb-cond-col--pos .pb-cond-row').first();
+  // True minus sign (U+2212), not a hyphen.
+  await expect(neg.locator('.pb-cond-value')).toHaveText('−2');
+  await expect(neg.locator('.pb-cond-name')).toHaveText('STREMATO');
+  await expect(pos.locator('.pb-cond-value')).toHaveText('+1');
+  await expect(pos.locator('.pb-cond-name')).toHaveText('BEN NUTRITO');
+
+  // No weight tag, no ✕.
+  for (const row of [neg, pos]) {
+    const text = await row.innerText();
+    for (const gone of ['BASE', 'MODERATA', '×2', '✕']) expect(text).not.toContain(gone);
+  }
+});
+
+// ── long condition names truncate with … at a constant row height ────
+// (the exception to the wrap rule; the picker test below still wraps)
+
+test('a long condition name truncates with an ellipsis and keeps the row height of a short one', async ({ page }) => {
   const longName = 'CONDIZIONELUNGA'.repeat(15);
   await openSheet(page, {
     character: withStatus({
       margin: 8,
-      negativeConditions: [{ id: 'n1', name: longName, severity: 'major' }],
+      negativeConditions: [
+        { id: 'n1', name: longName, severity: 'major' },
+        { id: 'n2', name: 'FERITO', severity: 'minor' },
+      ],
     }),
   });
 
-  const row = page.locator('.pb-cond-col--neg .pb-cond-row').first();
-  const name = row.locator('.pb-cond-name');
-  const sign = row.locator('.pb-cond-sign');
-  const tag = row.locator('.pb-cond-tag');
-  const remove = row.locator('.pb-cond-remove');
+  const rows = page.locator('.pb-cond-col--neg .pb-cond-row');
+  const longRow = rows.nth(0);
+  const shortRow = rows.nth(1);
+  const name = longRow.locator('.pb-cond-name');
 
-  // The fixed siblings remain visible and un-pushed-out.
-  await expect(sign).toBeVisible();
-  await expect(tag).toBeVisible();
-  await expect(remove).toBeVisible();
+  await expect(longRow.locator('.pb-cond-value')).toBeVisible();
+  await expect(name).toHaveCSS('white-space', 'nowrap');
+  await expect(name).toHaveCSS('text-overflow', 'ellipsis');
+  // The name is clipped (its content is wider than its box)…
+  expect(await name.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  // …while the row itself does not overflow its column.
+  expect(await longRow.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 
-  // The row does not overflow horizontally (the long token broke rather than
-  // shoving the controls out), and the name yielded width to the siblings.
-  const rowBox = (await row.boundingBox())!;
-  const removeBox = (await remove.boundingBox())!;
-  const nameBox = (await name.boundingBox())!;
-  expect(removeBox.x + removeBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
-  expect(nameBox.width).toBeLessThan(rowBox.width);
-  const noOverflow = await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
-  expect(noOverflow).toBe(true);
-  // Wrapping (not clipping): the unbroken token spans multiple lines, so the
-  // name box is taller than a single line.
-  expect(nameBox.height).toBeGreaterThan(30);
+  // Constant height: the long row is no taller than the short one.
+  const longBox = (await longRow.boundingBox())!;
+  const shortBox = (await shortRow.boundingBox())!;
+  expect(Math.abs(longBox.height - shortBox.height)).toBeLessThanOrEqual(1);
+
+  // The full name is still readable via the tooltip.
+  await expect(longRow).toHaveAttribute('title', longName);
 });
 
-test('a long catalog-entry name wraps in the picker with its trailing meta right-aligned and visible', async ({ page }) => {
+test('a long catalog-entry name wraps in the picker with its signed lead value visible', async ({ page }) => {
   const longName = 'VOCECATALOGOLUNGA'.repeat(15);
   await openSheet(page, {
     character: withStatus({}),
@@ -240,24 +298,25 @@ test('a long catalog-entry name wraps in the picker with its trailing meta right
     ],
   });
 
-  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker')).toBeVisible();
 
   const row = page.locator('.pb-picker-row', { hasText: longName });
   const name = row.locator('.pb-picker-name');
-  const meta = row.locator('.pb-picker-meta');
+  const lead = row.locator('.pb-picker-lead');
 
-  await expect(meta).toBeVisible();
-  await expect(meta).toHaveText('×2');
+  await expect(lead).toBeVisible();
+  await expect(lead).toHaveText('−2');
 
   const rowBox = (await row.boundingBox())!;
   const nameBox = (await name.boundingBox())!;
-  const metaBox = (await meta.boundingBox())!;
+  const leadBox = (await lead.boundingBox())!;
 
-  // Meta stays right-aligned within the row and the name does not overlap it.
-  expect(metaBox.x + metaBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
-  expect(nameBox.x + nameBox.width).toBeLessThanOrEqual(metaBox.x + 1);
+  // The lead sits before the name and the name stays inside the row.
+  expect(leadBox.x).toBeGreaterThanOrEqual(rowBox.x);
+  expect(leadBox.x + leadBox.width).toBeLessThanOrEqual(nameBox.x + 1);
+  expect(nameBox.x + nameBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
   const noOverflow = await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
   expect(noOverflow).toBe(true);
   // The unbroken token wrapped onto multiple lines rather than being clipped.

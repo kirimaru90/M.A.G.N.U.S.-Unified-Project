@@ -170,8 +170,9 @@ test('SALUTE reads health/margin with negatives left and positives right', async
   await expect(page.locator('.pb-cond-col--neg .pb-cond-name')).toHaveText(['FERITO', 'STREMATO']);
   await expect(page.locator('.pb-cond-col--pos .pb-cond-name')).toHaveText(['BEN NUTRITO']);
 
-  await expect(page.locator('.pb-cond-row').first()).toContainText('MODERATA ×2');
-  await expect(page.locator('.pb-cond-row').last()).toContainText('BASE');
+  // Signed weight value replaces the old BASE / MODERATA ×2 tag.
+  await expect(page.locator('.pb-cond-row').first().locator('.pb-cond-value')).toHaveText('−2');
+  await expect(page.locator('.pb-cond-row').last().locator('.pb-cond-value')).toHaveText('+1');
 });
 
 test('an empty condition list renders the dashed empty state', async ({ page }) => {
@@ -202,7 +203,7 @@ test('crossing net wear to 4 persists criticalState and banners every tab', asyn
   await expect(page.locator('#pb-health-value')).toHaveText('2/4');
 
   // Add a `major` negative via the custom tab: net wear 2 → 4, health 4 → 0 (critical).
-  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('[data-ptab="custom"]').click();
   await page.locator('#pb-cond-name').fill('IRRADIATO');
   await page.locator('[data-weight="major"]').click();
@@ -254,7 +255,7 @@ test('a conditions-catalog fetch failure falls back to the hardcoded presets', a
 
   // The fallback presets are surfaced inside the popup's "Scegli esistente"
   // picker rather than an inline row, so the picker is never empty.
-  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await expect(page.locator('.pb-picker-row')).toHaveCount(7);
   await expect(page.locator('.pb-picker-row', { hasText: 'FERITO' })).toBeVisible();
@@ -266,8 +267,8 @@ test('a catalog preset routes by polarity', async ({ page }) => {
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
   // The stub catalog's `well-fed` entry is positive, `poisoned` is negative.
-  // Picking a preset in the popup fills the field; OK routes it by polarity.
-  await page.locator('#pb-cond-add').click();
+  // Each polarity trigger lists its own presets; OK routes to that collection.
+  await page.locator('#pb-cond-add-pos').click();
   await page.locator('#pb-cond-existing').click();
   await page.locator('.pb-picker-row', { hasText: 'Ben Nutrito' }).click();
   const positiveReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
@@ -276,7 +277,7 @@ test('a catalog preset routes by polarity', async ({ page }) => {
     positiveConditions: { items: [{ name: 'Ben Nutrito', severity: 'minor' }] },
   });
 
-  await page.locator('#pb-cond-add').click();
+  await page.locator('#pb-cond-add-neg').click();
   await page.locator('#pb-cond-existing').click();
   await page.locator('.pb-picker-row', { hasText: 'Avvelenato' }).click();
   const negativeReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
@@ -286,7 +287,7 @@ test('a catalog preset routes by polarity', async ({ page }) => {
   });
 });
 
-test('tapping a condition row removes it', async ({ page }) => {
+test('tapping a condition row opens its detail card and RIMUOVI removes it', async ({ page }) => {
   await openSheet(page, {
     character: ownedCharacter({
       status: {
@@ -299,7 +300,8 @@ test('tapping a condition row removes it', async ({ page }) => {
   await page.locator('.pb-tab', { hasText: 'SALUTE' }).click();
 
   const patchReq = page.waitForRequest((r) => r.url().includes('/status') && r.method() === 'PATCH');
-  await page.locator('[data-remove-condition="n1"]').click();
+  await page.locator('[data-condition-id="n1"]').click();
+  await page.locator('.pb-cond-detail [data-remove]').click();
   const req = await patchReq;
 
   expect(req.postDataJSON()).toEqual({

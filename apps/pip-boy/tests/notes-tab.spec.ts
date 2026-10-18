@@ -208,3 +208,113 @@ test('a non-owner sees empty states with no error banner', async ({ page }) => {
   // No add control for a non-owner.
   await expect(page.locator('[data-note-add]')).toHaveCount(0);
 });
+
+test('the ✕ close control never overlaps the title input', async ({ page }) => {
+  await openNotes(page, { notes: [] });
+  await page.locator('[data-note-add]').click();
+  const editor = page.locator('.pb-note-editor');
+  for (const viewport of [{ width: 320, height: 640 }, { width: 360, height: 640 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    const close = (await editor.locator('.pb-popup-close').boundingBox())!;
+    const title = (await editor.locator('.pb-note-title').boundingBox())!;
+    const intersects =
+      close.x < title.x + title.width && title.x < close.x + close.width &&
+      close.y < title.y + title.height && title.y < close.y + close.height;
+    expect(intersects, `overlap at ${viewport.width}px`).toBe(false);
+  }
+});
+
+test('toolbar buttons reflect the active format at the caret', async ({ page }) => {
+  await openNotes(page, { notes: [] });
+  await page.locator('[data-note-add]').click();
+  const editor = page.locator('.pb-note-editor');
+  const bold = editor.locator('[data-cmd="bold"]');
+  const bullet = editor.locator('[data-cmd="bullet"]');
+
+  await editor.locator('[data-body]').click();
+  await page.keyboard.type('ciao fine');
+  // Select "ciao" and bold it.
+  await page.keyboard.press('Home');
+  for (let k = 0; k < 4; k += 1) await page.keyboard.press('Shift+ArrowRight');
+  await bold.click();
+  await expect(bold).toHaveClass(/is-active/);
+
+  // Caret outside the bold run → inactive.
+  await page.keyboard.press('End');
+  await expect(bold).not.toHaveClass(/is-active/);
+
+  // Caret back inside the bold run → active again.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(bold).toHaveClass(/is-active/);
+
+  // Bullet toggles on and off.
+  await bullet.click();
+  await expect(bullet).toHaveClass(/is-active/);
+  await bullet.click();
+  await expect(bullet).not.toHaveClass(/is-active/);
+});
+
+/** Serialize the open editor's body with the app's own domToMd. */
+async function bodyMd(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const { domToMd } = await import('/src/sheet/markdown.js');
+    return domToMd(document.querySelector('.pb-note-editor [data-body]')!);
+  });
+}
+
+test('toggling the bullet list on and off restores separate paragraphs', async ({ page }) => {
+  await openNotes(page, { notes: [] });
+  await page.locator('[data-note-add]').click();
+  const editor = page.locator('.pb-note-editor');
+  const body = editor.locator('[data-body]');
+
+  await body.click();
+  await page.keyboard.type('uno');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('due');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('tre');
+  await page.keyboard.press('Control+A');
+
+  await editor.locator('[data-cmd="bullet"]').click();
+  await expect(body.locator(':scope > ul > li')).toHaveCount(3);
+  await editor.locator('[data-cmd="bullet"]').click();
+
+  await expect(body.locator('ul')).toHaveCount(0);
+  await expect(body.locator('br')).toHaveCount(0);
+  await expect(body.locator(':scope > p')).toHaveText(['uno', 'due', 'tre']);
+  const md = await bodyMd(page);
+  expect(md).toBe('uno\n\ndue\n\ntre');
+  expect(md).not.toMatch(/(^|\n)- /);
+  await expect(editor.locator('[data-cmd="bullet"]')).not.toHaveClass(/is-active/);
+});
+
+test('a bullet list added to a previously saved note is flat and saves as a list', async ({ page }) => {
+  const reqs = recordRequests(page);
+  const saved = [{ ...NOTES[0], note: 'uno\n\ndue\n\ntre' }];
+  await openNotes(page, { notes: saved });
+
+  await page.locator('.pb-note-row').click();
+  const editor = page.locator('.pb-note-editor');
+  const body = editor.locator('[data-body]');
+  await expect(body.locator(':scope > p')).toHaveCount(3);
+
+  await body.click();
+  await page.keyboard.press('Control+A');
+  await editor.locator('[data-cmd="bullet"]').click();
+
+  await expect(body.locator(':scope > ul > li')).toHaveText(['uno', 'due', 'tre']);
+  await expect(body.locator('p ul, li ul, li p')).toHaveCount(0);
+  expect(await bodyMd(page)).toBe('- uno\n- due\n- tre');
+
+  // The caret stays usable: typing continues at the end of the last item.
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.type(' quattro');
+  await expect(body.locator('li').last()).toHaveText('tre quattro');
+
+  await editor.locator('[data-save]').click();
+  const patch = reqs.find((r) => r.method === 'PATCH' && /\/notes\/note-1$/.test(r.url));
+  expect(JSON.parse(patch!.body!).note).toBe('- uno\n- due\n- tre quattro');
+});
