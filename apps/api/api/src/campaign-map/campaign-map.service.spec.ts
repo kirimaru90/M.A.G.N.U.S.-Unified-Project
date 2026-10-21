@@ -118,3 +118,18 @@ describe('CampaignMapService.replace', () => {
     );
   });
 });
+
+describe('CampaignMapService — codexEntryId', () => {
+  it('returns a public place codexEntryId to admins and players alike', async () => {
+    const places = [
+      place({ slug: 'dc', codexEntryId: 'e1' }),
+      place({ slug: 'plain' }),
+    ];
+    const { service } = makeService({ config: CONFIG, places });
+    for (const actor of [admin, player]) {
+      const result = await service.get(CAMPAIGN_ID, actor);
+      expect(result.places[0].codexEntryId).toBe('e1');
+      expect(result.places[1]).not.toHaveProperty('codexEntryId');
+    }
+  });
+});

@@ -12,6 +12,7 @@ import { renderInvSubtab } from '../tabs/gear.js';
 import { renderDiceTab, newDiceState } from '../tabs/dice.js';
 import { renderNotesTab } from '../tabs/notes.js';
 import { renderQuestsTab } from '../tabs/quests.js';
+import { renderCodexTab } from '../tabs/codex.js';
 import { renderMapTab } from '../tabs/map.js';
 import { getPrefs } from '../state/prefs.js';
 import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
@@ -23,7 +24,7 @@ import { requestWakeLock, releaseWakeLock } from '../engine/device.js';
 // including Vari (`misc`).
 //
 // Salute leads STATS, so a freshly opened sheet lands on it; INFO groups the
-// read-mostly screens (quest log and notes).
+// read-mostly screens (codex, quest log and notes), Codex first.
 const TAB_TREE = [
     { key: 'stats', label: 'STATS', subtabs: [
         { key: 'health', label: 'Salute', render: renderHealthTab },
@@ -39,6 +40,7 @@ const TAB_TREE = [
     ] },
     { key: 'dice', label: 'DADI', render: renderDiceTab },
     { key: 'info', label: 'INFO', subtabs: [
+        { key: 'codex', label: 'Codex', render: renderCodexTab },
         { key: 'quests', label: 'Quest', render: renderQuestsTab },
         { key: 'notes', label: 'Note', render: renderNotesTab },
     ] },
@@ -128,6 +130,10 @@ export function renderSheet(root, opts) {
     let immersive = false;
     // Set when an approach row is tapped, consumed by the DADI tab.
     let pendingApproach = null;
+    // Cross-tab intents, same contract as pendingApproach: set by a jump,
+    // handed to the target's next render only, then cleared.
+    let pendingMapFocus = null;
+    let pendingCodexEntry = null;
     // The roller's view state (including its register) survives tab switches
     // and PA-refund re-renders, but dies with the sheet — rolls are never persisted.
     const diceState = newDiceState();
@@ -358,6 +364,26 @@ export function renderSheet(root, opts) {
         selectTop('dice');
     }
 
+    /** Jump to a position, rendering it even when it is already active. */
+    function jumpTo(top, sub) {
+        activeTop = top;
+        if (sub) activeSub[top] = sub;
+        renderTabs();
+        renderActiveTab();
+    }
+
+    /** A codex entry's MAPPA: open the map focused on the place by slug. */
+    function goToMap(slug) {
+        pendingMapFocus = slug;
+        jumpTo('map');
+    }
+
+    /** A map popup's CODEX: open INFO › Codex on that entry's detail. */
+    function goToCodex(entryId) {
+        pendingCodexEntry = entryId;
+        jumpTo('info', 'codex');
+    }
+
     // The resources band is a fixed strip above the footer, shown only while the
     // INV tab is active — outside the scrolling content, so it is untouched by
     // scrolling. Resources are a character-level fact, rendered once here rather
@@ -417,7 +443,11 @@ export function renderSheet(root, opts) {
         renderFooter();
         renderResourceBand();
         const approach = pendingApproach;
+        const mapFocus = pendingMapFocus;
+        const codexEntry = pendingCodexEntry;
         pendingApproach = null;
+        pendingMapFocus = null;
+        pendingCodexEntry = null;
         leaf.render(contentEl, {
             campaignId,
             character,
@@ -427,7 +457,11 @@ export function renderSheet(root, opts) {
             editMode,
             onSectionUpdate,
             goToDice,
+            goToMap,
+            goToCodex,
             preselectApproach: approach,
+            focusPlaceSlug: mapFocus,
+            openEntryId: codexEntry,
             diceState,
             node: leaf,
             getEquipmentCatalog: () => equipmentCatalog,

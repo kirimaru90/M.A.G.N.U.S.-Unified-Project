@@ -15,6 +15,7 @@ import { TagCatalogModule } from './tag-catalog/tag-catalog.module';
 import { TalentsCatalogModule } from './talents-catalog/talents-catalog.module';
 import { CampaignMapModule } from './campaign-map/campaign-map.module';
 import { QuestsModule } from './quests/quests.module';
+import { CodexModule } from './codex/codex.module';
 import { HealthModule } from './health/health.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
@@ -40,6 +41,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
     TalentsCatalogModule,
     CampaignMapModule,
     QuestsModule,
+    CodexModule,
     HealthModule,
   ],
 })

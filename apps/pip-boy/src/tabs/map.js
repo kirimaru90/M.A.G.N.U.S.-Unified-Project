@@ -1,5 +1,6 @@
 import { esc } from '../engine/render.js';
 import { getCampaignMap } from '../api/campaign-map.js';
+import { getCharacterCodex } from '../api/codex.js';
 import * as L from '../vendor/leaflet/leaflet.esm.js';
 import {
     ancestors,
@@ -126,7 +127,7 @@ function publishForTests(map) {
 }
 
 export function renderMapTab(container, ctx = {}) {
-    const { campaignId, setImmersive, isImmersive } = ctx;
+    const { campaignId, character, canEdit, setImmersive, isImmersive, goToCodex, focusPlaceSlug } = ctx;
 
     if (currentMap) {
         currentMap.remove();
@@ -153,16 +154,31 @@ export function renderMapTab(container, ctx = {}) {
     const canvas = container.querySelector('[data-map-canvas]');
     const zoneEl = container.querySelector('[data-map-zone]');
 
-    getCampaignMap(campaignId).then((map) => {
+    // The ids of the codex entries this character sees, fetched once per mount
+    // alongside the map: a place's CODEX action shows only for one of them. Any
+    // failure (or a viewer who cannot read the codex) just leaves CODEX out.
+    const codexIds = canEdit && character
+        ? getCharacterCodex(campaignId, character.id)
+            .then((entries) => new Set((entries ?? []).map((e) => e.id)))
+            .catch(() => new Set())
+        : Promise.resolve(new Set());
+
+    Promise.all([getCampaignMap(campaignId), codexIds]).then(([map, visibleCodex]) => {
         // The tab may have been left while the fetch was in flight.
         if (!container.isConnected || !canvas.isConnected) return;
         canvas.querySelector('[data-map-skeleton]')?.remove();
-        mountMap(canvas, zoneEl, map, { setImmersive, isImmersive });
+        mountMap(canvas, zoneEl, map, {
+            setImmersive,
+            isImmersive,
+            visibleCodex,
+            goToCodex,
+            focusSlug: focusPlaceSlug,
+        });
     });
 }
 
-function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
-    const { setImmersive, isImmersive } = immersiveHooks;
+function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
+    const { setImmersive, isImmersive, visibleCodex = new Set(), goToCodex, focusSlug } = hooks;
     const bounds = L.latLngBounds(
         [config.bounds.south, config.bounds.west],
         [config.bounds.north, config.bounds.east],
@@ -258,11 +274,13 @@ function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
     /**
      * A marker's popup: the place name, its type, its description, and — for a
      * place with a local map (`hasLocalMap` and at least one child) — a
-     * *Vedi mappa* action that opens the interior. Built as a DOM node so the
-     * button's listener is wired directly; Leaflet keeps the node and reuses it.
+     * *Vedi mappa* action that opens the interior. A place linked to a codex
+     * entry the character sees also gets CODEX, which opens that entry. Built as
+     * a DOM node so the listeners are wired directly; Leaflet keeps the node.
      */
     function popupContent(place) {
         const canOpen = place.hasLocalMap && kids(places, place.slug).length > 0;
+        const codexId = place.codexEntryId && visibleCodex.has(place.codexEntryId) ? place.codexEntryId : null;
         const el = document.createElement('div');
         el.className = 'pb-map-popup';
         el.innerHTML = `
@@ -270,11 +288,15 @@ function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
             <div class="pb-map-popup-type">${esc(TYPE_LABEL[place.type] ?? place.type)}</div>
             ${place.desc ? `<div class="pb-map-popup-desc">${esc(place.desc)}</div>` : ''}
             ${canOpen ? `<button type="button" class="pb-map-popup-open" data-map-open>Vedi mappa</button>` : ''}
+            ${codexId ? `<button type="button" class="pb-map-popup-open" data-map-codex>CODEX</button>` : ''}
         `;
         if (canOpen) {
             el.querySelector('[data-map-open]').addEventListener('click', () => {
                 focusPlace(place, { open: true });
             });
+        }
+        if (codexId) {
+            el.querySelector('[data-map-codex]').addEventListener('click', () => goToCodex?.(codexId));
         }
         return el;
     }
@@ -729,8 +751,13 @@ function mountMap(canvas, zoneEl, { config, places }, immersiveHooks = {}) {
     syncMarkers(vrNow());
     renderZone();
 
-    // The pane has no size until the tab is laid out.
-    requestAnimationFrame(() => map.invalidateSize());
+    // The pane has no size until the tab is laid out. A one-shot focus intent
+    // (the codex's MAPPA) waits for that too: focusPlace measures the viewport.
+    requestAnimationFrame(() => {
+        map.invalidateSize();
+        const target = focusSlug ? places.find((p) => p.slug === focusSlug) : null;
+        if (target) focusPlace(target, { open: false });
+    });
 
     return map;
 }

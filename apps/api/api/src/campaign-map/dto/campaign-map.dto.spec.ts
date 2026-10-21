@@ -199,3 +199,35 @@ describe('PutCampaignMapDto', () => {
     expect(names).toContain('isNotEmpty');
   });
 });
+
+describe('PutCampaignMapDto — codexEntryId', () => {
+  it('accepts a place without codexEntryId', async () => {
+    expect(
+      await constraintsOf({ config: CONFIG, places: [place({ slug: 'a' })] }),
+    ).toEqual([]);
+  });
+
+  it('accepts a place with a codexEntryId, dangling or not', async () => {
+    expect(
+      await constraintsOf({
+        config: CONFIG,
+        places: [place({ slug: 'a', codexEntryId: 'no-such-entry' })],
+      }),
+    ).toEqual([]);
+  });
+
+  it('rejects a blank or non-string codexEntryId', async () => {
+    expect(
+      await constraintsOf({
+        config: CONFIG,
+        places: [place({ slug: 'a', codexEntryId: '' })],
+      }),
+    ).toContain('isNotEmpty');
+    expect(
+      await constraintsOf({
+        config: CONFIG,
+        places: [place({ slug: 'a', codexEntryId: 42 })],
+      }),
+    ).toContain('isString');
+  });
+});

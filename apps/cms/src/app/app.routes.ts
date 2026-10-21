@@ -54,6 +54,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/quests/quest-detail').then((m) => m.QuestDetailPage),
       },
+      // The codex list carries master-only secrets and every hidden entry.
+      {
+        path: 'codex',
+        canMatch: [adminGuard],
+        loadComponent: () => import('./features/codex/codex-list').then((m) => m.CodexListPage),
+      },
       // Authoring the map exposes non-public places, which the API only ships to
       // an admin — so the screen is admin-only for the same reason the catalogs are.
       {

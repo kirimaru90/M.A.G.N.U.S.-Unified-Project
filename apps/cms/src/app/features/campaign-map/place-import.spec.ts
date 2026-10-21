@@ -281,3 +281,36 @@ describe('mergePlaces', () => {
     expect(result.added).toBe(1);
   });
 });
+
+describe('mergePlaces — codexEntryId', () => {
+  it('imports a legacy file without the field exactly as before', () => {
+    const { places } = mergePlaces([], [{ name: 'Roma', lat: 41.9, lng: 12.5, isPublic: true }]);
+    expect(places[0]).not.toHaveProperty('codexEntryId');
+  });
+
+  it('keeps a non-empty string and drops any other value', () => {
+    const { places } = mergePlaces(
+      [],
+      [
+        { name: 'A', lat: 1, lng: 1, codexEntryId: 'e1' },
+        { name: 'B', lat: 2, lng: 2, codexEntryId: '' },
+        { name: 'C', lat: 3, lng: 3, codexEntryId: 42 },
+      ],
+    );
+    expect(places.map((x) => x.codexEntryId)).toEqual(['e1', undefined, undefined]);
+    expect(places[1]).not.toHaveProperty('codexEntryId');
+  });
+
+  it('survives an export and import round trip, without joining the duplicate rule', () => {
+    const exported = JSON.parse(
+      exportPlaces([p({ slug: 'dc', name: 'Diamond City', codexEntryId: 'e1' })]),
+    );
+    const into = mergePlaces([], exported);
+    expect(into.places[0].codexEntryId).toBe('e1');
+
+    // Same name and coordinates but another link is still a duplicate.
+    const again = mergePlaces(into.places, [{ ...exported[0], codexEntryId: 'e2' }]);
+    expect(again.dup).toBe(1);
+    expect(again.places[0].codexEntryId).toBe('e1');
+  });
+});

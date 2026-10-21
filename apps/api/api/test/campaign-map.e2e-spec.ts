@@ -303,4 +303,34 @@ describe('CampaignMapModule (e2e)', () => {
       expect(res.statusCode).toBe(200);
     });
   });
+
+  describe('codexEntryId', () => {
+    it('round-trips places with and without codexEntryId, dangling ids included', async () => {
+      const wrote = await put(adminToken, {
+        config: CONFIG,
+        places: [
+          place({ slug: 'linked', codexEntryId: 'no-such-entry' }),
+          place({ slug: 'plain' }),
+        ],
+      });
+      expect(wrote.statusCode).toBe(200);
+
+      for (const token of [adminToken, playerToken]) {
+        const places = JSON.parse((await get(token)).body).places as Array<
+          Record<string, unknown>
+        >;
+        const bySlug = new Map(places.map((p) => [p.slug, p]));
+        expect(bySlug.get('linked')?.codexEntryId).toBe('no-such-entry');
+        expect(bySlug.get('plain')).not.toHaveProperty('codexEntryId');
+      }
+    });
+
+    it('rejects a blank codexEntryId', async () => {
+      const res = await put(adminToken, {
+        config: CONFIG,
+        places: [place({ slug: 'a', codexEntryId: '' })],
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
 });

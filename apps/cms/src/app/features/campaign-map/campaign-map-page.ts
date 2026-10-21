@@ -15,11 +15,14 @@ import { ConfirmationService, MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { Select } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { Toast } from 'primeng/toast';
 import * as L from 'leaflet';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
+import { CodexApiService } from '../../core/codex/codex-api.service';
+import { CODEX_TYPE_LABELS, type CodexEntry } from '../../core/codex/codex.types';
 import { CampaignWorkspaceSwitcherComponent } from '../../layout/campaign-workspace-switcher';
 import {
   DEFAULT_PLACE_RADIUS_M,
@@ -98,6 +101,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
     ConfirmDialog,
     Toast,
     InputTextModule,
+    Select,
     CampaignWorkspaceSwitcherComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -459,6 +463,24 @@ type Mode = 'idle' | 'placing' | 'bounds';
                     ></textarea>
                   </label>
 
+                  <label data-testid="sel-codex-field">
+                    Voce del codex
+                    <p-select
+                      data-testid="sel-codex"
+                      [options]="codexOptions()"
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="Nessuna"
+                      [filter]="true"
+                      filterBy="label"
+                      [showClear]="true"
+                      styleClass="w-full"
+                      appendTo="body"
+                      [ngModel]="d.codexEntryId ?? null"
+                      (ngModelChange)="setCodexEntry($event)"
+                    />
+                  </label>
+
                   <button
                     type="button"
                     class="bo-btn danger"
@@ -759,6 +781,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
 })
 export class CampaignMapPage {
   private readonly api = inject(CampaignMapApiService);
+  private readonly codexApi = inject(CodexApiService);
   private readonly currentCampaign = inject(CurrentCampaignService);
   private readonly confirm = inject(ConfirmationService);
   private readonly toast = inject(MessageService);
@@ -787,6 +810,25 @@ export class CampaignMapPage {
   protected readonly collapsedBranches = signal<ReadonlySet<string>>(new Set());
 
   protected readonly campaignId = computed(() => this.currentCampaign.currentCampaign()?.id ?? null);
+
+  /** The campaign codex for the place card's link; `null` until loaded. */
+  protected readonly codexEntries = signal<CodexEntry[] | null>(null);
+
+  /**
+   * Every codex entry by name and type, deleted ones marked. A stored id that
+   * matches none is kept as `Voce non trovata`, so it shows and can be cleared.
+   */
+  protected readonly codexOptions = computed(() => {
+    const entries = this.codexEntries() ?? [];
+    const options = entries.map((e) => ({
+      value: e.id,
+      label: `${e.name} · ${CODEX_TYPE_LABELS[e.type]}${e.isDeleted ? ' (eliminata)' : ''}`,
+    }));
+    const id = this.draft()?.codexEntryId;
+    if (id && this.codexEntries() !== null && !entries.some((e) => e.id === id))
+      options.unshift({ value: id, label: 'Voce non trovata' });
+    return options;
+  });
 
   /**
    * A JSON snapshot of `{ config, places }` as last loaded (or saved). The switch
@@ -1013,6 +1055,12 @@ export class CampaignMapPage {
       },
       error: () => this.toast.add({ severity: 'error', summary: 'Caricamento fallito' }),
     });
+    this.codexEntries.set(null);
+    // The codex only labels the link; failing to read it must not block the map.
+    this.codexApi.list(id).subscribe({
+      next: (entries) => this.codexEntries.set(entries),
+      error: () => this.codexEntries.set([]),
+    });
   }
 
   /** "Annulla" — discard local edits by reloading the current campaign. */
@@ -1141,6 +1189,19 @@ export class CampaignMapPage {
     const next: MapPlace = { ...current, ...patch };
     // A pin has no interior, so it can hold neither a radius nor children.
     if (next.hasLocalMap === false) delete next.radius;
+    this.draft.set(next);
+    this.places.set(this.places().map((p) => (p.slug === next.slug ? next : p)));
+  }
+
+  /** Link the selected place to a codex entry, or drop the field when cleared. */
+  protected setCodexEntry(id: string | null): void {
+    if (id) {
+      this.patchPlace({ codexEntryId: id });
+      return;
+    }
+    const current = this.draft();
+    if (!current) return;
+    const { codexEntryId: _dropped, ...next } = current;
     this.draft.set(next);
     this.places.set(this.places().map((p) => (p.slug === next.slug ? next : p)));
   }

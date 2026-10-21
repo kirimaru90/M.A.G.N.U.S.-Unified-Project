@@ -98,6 +98,10 @@ export class MapPlace {
   /** Overrides the type's default icon. Resolved at render, never copied. */
   @Prop()
   icon?: string;
+
+  /** The `id` of a codex entry of this campaign. Never validated; may dangle. */
+  @Prop()
+  codexEntryId?: string;
 }
 export const MapPlaceSchema = SchemaFactory.createForClass(MapPlace);
 

@@ -73,10 +73,10 @@ test('the subtab row appears only for tabs that define subtabs', async ({ page }
   await page.locator('.pb-tab', { hasText: 'INV' }).click();
   await expect(page.locator('.pb-subtab')).toHaveText(['Armi', 'Armature', 'Consumabili', 'Vari']);
 
-  // INFO → Quest and Note, Quest active on first visit.
+  // INFO → Codex, Quest and Note, Codex active on first visit.
   await page.locator('.pb-tab', { hasText: 'INFO' }).click();
-  await expect(page.locator('.pb-subtab')).toHaveText(['Quest', 'Note']);
-  await expect(page.locator('.pb-subtab.active')).toHaveText('Quest');
+  await expect(page.locator('.pb-subtab')).toHaveText(['Codex', 'Quest', 'Note']);
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Codex');
 });
 
 test('each first-level tab remembers its last-active subtab', async ({ page }) => {
@@ -124,8 +124,11 @@ test('INFO sits between DADI and MAPPA in the flattened order', async ({ page })
   await openSheet(page, { character: ownedCharacter() });
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
 
-  await swipe(page, -120); // DADI → Quest
+  await swipe(page, -120); // DADI → Codex
   await expect(page.locator('.pb-tab.active')).toHaveText('INFO');
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Codex');
+
+  await swipe(page, -120); // → Quest
   await expect(page.locator('.pb-subtab.active')).toHaveText('Quest');
 
   await swipe(page, -120); // → Note
@@ -133,6 +136,17 @@ test('INFO sits between DADI and MAPPA in the flattened order', async ({ page })
 
   await swipe(page, -120); // → MAPPA (last position)
   await expect(page.locator('.pb-tab.active')).toHaveText('MAPPA');
+});
+
+test('retreating from Codex lands on DADI, and from Quest on Codex', async ({ page }) => {
+  await openSheet(page, { character: ownedCharacter() });
+  await gotoTab(page, 'INFO', 'Quest');
+
+  await swipe(page, 120); // Quest → Codex
+  await expect(page.locator('.pb-subtab.active')).toHaveText('Codex');
+
+  await swipe(page, 120); // Codex → DADI
+  await expect(page.locator('.pb-tab.active')).toHaveText('DADI');
 });
 
 test('the two ends of the order do not wrap', async ({ page }) => {

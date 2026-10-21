@@ -42,6 +42,8 @@ export interface MapPlace {
   desc?: string;
   /** Overrides the type's default icon. Resolved at render, never copied. */
   icon?: string;
+  /** The `id` of a codex entry of this campaign. Unvalidated, so it may dangle. */
+  codexEntryId?: string;
 }
 
 export interface CampaignMapDto {

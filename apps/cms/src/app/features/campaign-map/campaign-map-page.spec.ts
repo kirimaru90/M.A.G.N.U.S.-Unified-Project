@@ -9,6 +9,7 @@ import * as L from 'leaflet';
 import { BASEMAP_ATTRIBUTION, CampaignMapPage, cartoTileUrl } from './campaign-map-page';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
+import { CodexApiService } from '../../core/codex/codex-api.service';
 import type { CampaignDto } from '../../core/campaign/campaign.types';
 import type { CampaignMapDto, MapPlace } from '../../core/campaign-map/campaign-map.types';
 
@@ -44,6 +45,7 @@ describe('CampaignMapPage', () => {
   let replaceSpy: ReturnType<typeof vi.fn>;
   let currentCampaign: WritableSignal<CampaignDto | null>;
   let setCurrentSpy: ReturnType<typeof vi.fn>;
+  let codexListSpy: ReturnType<typeof vi.fn>;
 
   // `initial: null` mimics a hard refresh landed straight on the map route,
   // where the campaign resolves after the component is created.
@@ -53,6 +55,12 @@ describe('CampaignMapPage', () => {
     replaceSpy = vi.fn().mockReturnValue(of(dto));
     currentCampaign = signal<CampaignDto | null>(initial);
     setCurrentSpy = vi.fn();
+    codexListSpy = vi.fn().mockReturnValue(
+      of([
+        { id: 'e1', name: 'Diamond City', type: 'luogo', isDeleted: false },
+        { id: 'e2', name: 'Mirelurk', type: 'creatura', isDeleted: true },
+      ]),
+    );
 
     await TestBed.configureTestingModule({
       imports: [CampaignMapPage],
@@ -60,6 +68,7 @@ describe('CampaignMapPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: CampaignMapApiService, useValue: { get: getSpy, replace: replaceSpy } },
+        { provide: CodexApiService, useValue: { list: codexListSpy } },
         {
           provide: CurrentCampaignService,
           useValue: {
@@ -448,6 +457,43 @@ describe('CampaignMapPage', () => {
       expect(moved.lat).toBe(50);
       expect(moved.lng).toBe(20);
       expect(state<string>('mode')).toBe('idle');
+    });
+  });
+
+  describe('the codex link', () => {
+    type CodexInternals = {
+      select(slug: string | null): void;
+      setCodexEntry(id: string | null): void;
+      codexOptions(): { value: string; label: string }[];
+    };
+    const internals = () => component as unknown as CodexInternals;
+
+    it('loads the campaign codex and lists entries by name and type, deleted ones marked', async () => {
+      await setup([place({ slug: 'dc' })]);
+      expect(codexListSpy).toHaveBeenCalledWith('c1');
+      internals().select('dc');
+      expect(internals().codexOptions()).toEqual([
+        { value: 'e1', label: 'Diamond City · Luogo' },
+        { value: 'e2', label: 'Mirelurk · Creatura (eliminata)' },
+      ]);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector('[data-testid="sel-codex-field"]')).toBeTruthy();
+    });
+
+    it('links and clears a place, removing the field on clear', async () => {
+      await setup([place({ slug: 'dc' })]);
+      internals().select('dc');
+      internals().setCodexEntry('e1');
+      expect(state<MapPlace[]>('places')[0].codexEntryId).toBe('e1');
+      internals().setCodexEntry(null);
+      expect(state<MapPlace[]>('places')[0]).not.toHaveProperty('codexEntryId');
+      expect(state<MapPlace | null>('draft')).not.toHaveProperty('codexEntryId');
+    });
+
+    it('shows a dangling id as Voce non trovata', async () => {
+      await setup([place({ slug: 'dc', codexEntryId: 'ghost' })]);
+      internals().select('dc');
+      expect(internals().codexOptions()[0]).toEqual({ value: 'ghost', label: 'Voce non trovata' });
     });
   });
 

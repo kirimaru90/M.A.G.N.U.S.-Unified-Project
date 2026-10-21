@@ -161,6 +161,11 @@ export function mergePlaces(existing: MapPlace[], incoming: unknown): MergeResul
       parent: typeof e['parent'] === 'string' && e['parent'] ? e['parent'] : null,
       ...(typeof e['desc'] === 'string' ? { desc: e['desc'] } : {}),
       ...(typeof e['icon'] === 'string' && e['icon'] ? { icon: e['icon'] } : {}),
+      // Optional and unvalidated: a file from before the field, or one whose
+      // value is not a usable id, imports without the link.
+      ...(typeof e['codexEntryId'] === 'string' && e['codexEntryId'].trim()
+        ? { codexEntryId: e['codexEntryId'] }
+        : {}),
     });
   }
 

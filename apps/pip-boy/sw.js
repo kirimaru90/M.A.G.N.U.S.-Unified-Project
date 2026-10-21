@@ -92,10 +92,13 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/note-editor.js',
   './src/tabs/quests.js',
   './src/tabs/quest-editor.js',
+  './src/tabs/codex.js',
+  './src/tabs/codex-editor.js',
   './src/tabs/confirm-dialog.js',
   './src/api/campaign-map.js',
   './src/api/notes.js',
   './src/api/quests.js',
+  './src/api/codex.js',
   './src/state/quest-seen.js',
   './src/sheet/markdown.js',
   // Vendored Leaflet — without it the map tab cannot render offline. The

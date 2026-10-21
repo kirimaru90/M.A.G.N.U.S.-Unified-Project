@@ -1053,6 +1053,113 @@ export interface paths {
         patch: operations["CharacterQuestsController_updateStage"];
         trace?: never;
     };
+    "/campaigns/{campaignId}/codex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List codex entries, deleted included (admin) */
+        get: operations["CodexController_list"];
+        put?: never;
+        /** Create a codex entry (admin) */
+        post: operations["CodexController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/codex/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export every codex entry as JSON (admin) */
+        get: operations["CodexController_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/codex/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append-only import of codex entries (admin) */
+        post: operations["CodexController_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/codex/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a codex entry, deleted or not (admin) */
+        get: operations["CodexController_get"];
+        put?: never;
+        post?: never;
+        /** Permanently delete a codex entry (admin) */
+        delete: operations["CodexController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a codex entry; isDeleted false restores it (admin) */
+        patch: operations["CodexController_update"];
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/codex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the codex entries a character sees (owner or admin) */
+        get: operations["CharacterCodexController_list"];
+        put?: never;
+        /** Create a codex entry as the character */
+        post: operations["CharacterCodexController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/campaigns/{campaignId}/characters/{characterId}/codex/{entryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Soft-delete a visible, editable codex entry */
+        delete: operations["CharacterCodexController_remove"];
+        options?: never;
+        head?: never;
+        /** Edit a visible, editable codex entry */
+        patch: operations["CharacterCodexController_update"];
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -1461,6 +1568,8 @@ export interface components {
             desc?: string;
             /** @description Overrides the type's default icon */
             icon?: string;
+            /** @description The id of a codex entry of this campaign; not validated */
+            codexEntryId?: string;
         };
         PutCampaignMapDto: {
             config: components["schemas"]["MapConfigDto"];
@@ -1525,6 +1634,65 @@ export interface components {
             /** @enum {string} */
             status?: "in_corso" | "standby" | "completata";
             isMilestone?: boolean;
+        };
+        ImportCodexDto: {
+            entries: Record<string, never>[];
+        };
+        CreateCodexEntryDto: {
+            /** @enum {string} */
+            type: "personaggio" | "luogo" | "fazione" | "creatura";
+            name: string;
+            description?: string;
+            /** @description Visible only to the master */
+            secretDescription?: string;
+            /** @description An http(s) URL */
+            imageUrl?: string | null;
+            /** @default false */
+            isPublic: boolean;
+            visibleToCharacterIds?: string[];
+            /** @default false */
+            isEditable: boolean;
+            /** @description A place slug of the campaign map */
+            mapPlaceSlug?: string | null;
+        };
+        UpdateCodexEntryDto: {
+            /** @enum {string} */
+            type?: "personaggio" | "luogo" | "fazione" | "creatura";
+            name?: string;
+            description?: string;
+            secretDescription?: string;
+            /** @description An http(s) URL, or null to clear */
+            imageUrl?: string | null;
+            isPublic?: boolean;
+            visibleToCharacterIds?: string[];
+            isEditable?: boolean;
+            /** @description A place slug, or null to clear */
+            mapPlaceSlug?: string | null;
+            /** @description false restores, true soft-deletes */
+            isDeleted?: boolean;
+        };
+        CreatePlayerCodexEntryDto: {
+            /** @enum {string} */
+            type: "personaggio" | "luogo" | "fazione" | "creatura";
+            name: string;
+            description?: string;
+            /** @description An http(s) URL */
+            imageUrl?: string | null;
+            /** @default false */
+            isPublic: boolean;
+            /** @description A place slug of the campaign map */
+            mapPlaceSlug?: string | null;
+        };
+        UpdatePlayerCodexEntryDto: {
+            /** @enum {string} */
+            type?: "personaggio" | "luogo" | "fazione" | "creatura";
+            name?: string;
+            description?: string;
+            /** @description An http(s) URL, or null to clear */
+            imageUrl?: string | null;
+            isPublic?: boolean;
+            /** @description A place slug, or null to clear */
+            mapPlaceSlug?: string | null;
         };
     };
     responses: never;
@@ -3648,6 +3816,256 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCodexEntryDto"];
+            };
+        };
+        responses: {
+            /** @description Character outside the campaign */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_export: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportCodexDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Entry not in this campaign */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CodexController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCodexEntryDto"];
+            };
+        };
+        responses: {
+            /** @description Character outside the campaign */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterCodexController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterCodexController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlayerCodexEntryDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterCodexController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Entry not editable */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CharacterCodexController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaignId: string;
+                characterId: string;
+                entryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlayerCodexEntryDto"];
+            };
+        };
+        responses: {
+            /** @description Stored, but no longer visible to the character */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Entry not editable */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

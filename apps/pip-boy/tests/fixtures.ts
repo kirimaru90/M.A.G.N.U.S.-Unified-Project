@@ -131,6 +131,12 @@ export interface StubOptions {
    * as the API would. A number is served as that HTTP error status instead.
    */
   quests?: Array<Record<string, unknown>> | number;
+  /**
+   * What `GET /campaigns/:cid/characters/:id/codex` returns — already projected,
+   * as the API would. A number is served as that HTTP error status instead.
+   * Writes mutate this list in memory.
+   */
+  codex?: Array<Record<string, unknown>> | number;
   allowServiceWorker?: boolean;
 }
 
@@ -341,6 +347,46 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
     typeof quests === 'number'
       ? route.fulfill({ status: quests, contentType: 'application/json', body: '{}' })
       : route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(quests) }));
+
+  // --- per-character codex (projected by the API; writes kept in memory) ---
+  const codex = typeof opts.codex === 'number' ? opts.codex : [...(opts.codex ?? [])];
+  await page.route(/\/characters\/[^/]+\/codex$/, (route) => {
+    if (typeof codex === 'number') {
+      return route.fulfill({ status: codex, contentType: 'application/json', body: '{}' });
+    }
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() ?? {};
+      const now = new Date().toISOString();
+      const created = {
+        id: `codex-${codex.length + 1}`,
+        description: null,
+        imageUrl: null,
+        mapPlaceSlug: null,
+        ...body,
+        isPublic: body.isPublic ?? false,
+        isEditable: true,
+        isOwn: true,
+        createdAt: now,
+        updatedAt: now,
+      };
+      codex.push(created);
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(created) });
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(codex) });
+  });
+  await page.route(/\/characters\/[^/]+\/codex\/[^/]+$/, (route) => {
+    if (typeof codex === 'number') return route.fulfill({ status: codex, body: '{}' });
+    const id = new URL(route.request().url()).pathname.split('/').pop();
+    const idx = codex.findIndex((e) => e.id === id);
+    if (idx < 0) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    if (route.request().method() === 'DELETE') {
+      codex.splice(idx, 1);
+      return route.fulfill({ status: 204, body: '' });
+    }
+    const body = route.request().postDataJSON() ?? {};
+    codex[idx] = { ...codex[idx], ...body, updatedAt: new Date().toISOString() };
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(codex[idx]) });
+  });
 
   await page.route(/\/characters\/[^/]+\/background$/, (route) => {
     if (notesForbidden) return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
@@ -559,7 +605,11 @@ export async function openSheet(page: Page, characterName = 'Marta Voss') {
  * at `INFO › Note`, so specs go through here rather than clicking first-level
  * tabs that no longer exist.
  */
+/** Exact label match, so a subtab name can never select another containing it. */
+const exactly = (label: string) =>
+  new RegExp(`^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`);
+
 export async function gotoTab(page: Page, top: string, sub?: string) {
-  await page.locator('#pb-tabs-top .pb-tab', { hasText: top }).click();
-  if (sub) await page.locator('#pb-tabs-sub .pb-subtab', { hasText: sub }).click();
+  await page.locator('#pb-tabs-top .pb-tab', { hasText: exactly(top) }).click();
+  if (sub) await page.locator('#pb-tabs-sub .pb-subtab', { hasText: exactly(sub) }).click();
 }

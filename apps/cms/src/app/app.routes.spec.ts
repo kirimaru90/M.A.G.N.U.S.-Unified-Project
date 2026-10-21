@@ -31,6 +31,12 @@ describe('app routes', () => {
     expect(campaigns?.canMatch ?? []).not.toContain(adminGuard);
   });
 
+  it('registers /codex lazily, behind adminGuard', () => {
+    const route = shellChildren().find((r) => r.path === 'codex');
+    expect(route?.canMatch).toContain(adminGuard);
+    expect(route?.loadComponent).toBeTypeOf('function');
+  });
+
   describe('campaign-map', () => {
     const route = () => shellChildren().find((r) => r.path === 'campaign-map');
 

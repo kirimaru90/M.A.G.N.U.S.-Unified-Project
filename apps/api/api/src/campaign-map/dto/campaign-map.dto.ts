@@ -173,6 +173,14 @@ export class MapPlaceDto {
   @IsString()
   @IsNotEmpty()
   icon?: string;
+
+  @ApiPropertyOptional({
+    description: 'The id of a codex entry of this campaign; not validated',
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  codexEntryId?: string;
 }
 
 /**

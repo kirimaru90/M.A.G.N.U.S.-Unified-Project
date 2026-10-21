@@ -3207,6 +3207,440 @@
         ]
       }
     },
+    "/campaigns/{campaignId}/codex": {
+      "get": {
+        "operationId": "CodexController_list",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List codex entries, deleted included (admin)",
+        "tags": [
+          "codex"
+        ]
+      },
+      "post": {
+        "operationId": "CodexController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCodexEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Character outside the campaign"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a codex entry (admin)",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/codex/export": {
+      "get": {
+        "operationId": "CodexController_export",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Export every codex entry as JSON (admin)",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/codex/import": {
+      "post": {
+        "operationId": "CodexController_import",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCodexDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Append-only import of codex entries (admin)",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/codex/{entryId}": {
+      "get": {
+        "operationId": "CodexController_get",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "404": {
+            "description": "Entry not in this campaign"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get a codex entry, deleted or not (admin)",
+        "tags": [
+          "codex"
+        ]
+      },
+      "patch": {
+        "operationId": "CodexController_update",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCodexEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "description": "Character outside the campaign"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a codex entry; isDeleted false restores it (admin)",
+        "tags": [
+          "codex"
+        ]
+      },
+      "delete": {
+        "operationId": "CodexController_remove",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Permanently delete a codex entry (admin)",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/codex": {
+      "get": {
+        "operationId": "CharacterCodexController_list",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List the codex entries a character sees (owner or admin)",
+        "tags": [
+          "codex"
+        ]
+      },
+      "post": {
+        "operationId": "CharacterCodexController_create",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlayerCodexEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a codex entry as the character",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
+    "/campaigns/{campaignId}/characters/{characterId}/codex/{entryId}": {
+      "patch": {
+        "operationId": "CharacterCodexController_update",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlayerCodexEntryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Stored, but no longer visible to the character"
+          },
+          "403": {
+            "description": "Entry not editable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Edit a visible, editable codex entry",
+        "tags": [
+          "codex"
+        ]
+      },
+      "delete": {
+        "operationId": "CharacterCodexController_remove",
+        "parameters": [
+          {
+            "name": "campaignId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "characterId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entryId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "403": {
+            "description": "Entry not editable"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Soft-delete a visible, editable codex entry",
+        "tags": [
+          "codex"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "HealthController_check",
@@ -4536,6 +4970,10 @@
           "icon": {
             "type": "string",
             "description": "Overrides the type's default icon"
+          },
+          "codexEntryId": {
+            "type": "string",
+            "description": "The id of a codex entry of this campaign; not validated"
           }
         },
         "required": [
@@ -4741,6 +5179,192 @@
           },
           "isMilestone": {
             "type": "boolean"
+          }
+        }
+      },
+      "ImportCodexDto": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "entries"
+        ]
+      },
+      "CreateCodexEntryDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personaggio",
+              "luogo",
+              "fazione",
+              "creatura"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "secretDescription": {
+            "type": "string",
+            "description": "Visible only to the master"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "An http(s) URL"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": false
+          },
+          "visibleToCharacterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isEditable": {
+            "type": "boolean",
+            "default": false
+          },
+          "mapPlaceSlug": {
+            "type": "string",
+            "nullable": true,
+            "description": "A place slug of the campaign map"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ]
+      },
+      "UpdateCodexEntryDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personaggio",
+              "luogo",
+              "fazione",
+              "creatura"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "secretDescription": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "An http(s) URL, or null to clear"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "visibleToCharacterIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isEditable": {
+            "type": "boolean"
+          },
+          "mapPlaceSlug": {
+            "type": "string",
+            "nullable": true,
+            "description": "A place slug, or null to clear"
+          },
+          "isDeleted": {
+            "type": "boolean",
+            "description": "false restores, true soft-deletes"
+          }
+        }
+      },
+      "CreatePlayerCodexEntryDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personaggio",
+              "luogo",
+              "fazione",
+              "creatura"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "An http(s) URL"
+          },
+          "isPublic": {
+            "type": "boolean",
+            "default": false
+          },
+          "mapPlaceSlug": {
+            "type": "string",
+            "nullable": true,
+            "description": "A place slug of the campaign map"
+          }
+        },
+        "required": [
+          "type",
+          "name"
+        ]
+      },
+      "UpdatePlayerCodexEntryDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "personaggio",
+              "luogo",
+              "fazione",
+              "creatura"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "description": "An http(s) URL, or null to clear"
+          },
+          "isPublic": {
+            "type": "boolean"
+          },
+          "mapPlaceSlug": {
+            "type": "string",
+            "nullable": true,
+            "description": "A place slug, or null to clear"
           }
         }
       }

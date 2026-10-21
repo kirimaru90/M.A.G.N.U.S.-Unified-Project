@@ -2157,3 +2157,49 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-quest-editor textarea { resize: vertical; max-width: 100%; }
 .pb-quest-editor .pb-toggle-row { margin-top: 0; }
 .pb-quest-editor .pb-error { flex: none; margin: 0; }
+
+/* ── INFO › Codex ────────────────────────────────────────────────── */
+
+/* Search and type filter share one row; the select keeps its natural width. */
+.pb-codex-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.pb-codex-toolbar .pb-input { flex: 1; min-width: 0; }
+.pb-codex-toolbar .pb-select { flex: none; width: auto; }
+
+.pb-codex-group .pb-quest-group-head { margin-top: 10px; }
+.pb-codex-row-name { min-width: 0; overflow-wrap: anywhere; }
+
+/* The image leads the detail, uncropped: contained within the pane's width and
+   40% of the viewport's height, whatever its proportions. */
+.pb-codex-img-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+    border: 1px solid var(--green-border-soft);
+    background: var(--green-fill);
+}
+.pb-codex-img {
+    display: block;
+    max-width: 100%;
+    max-height: 40vh;
+    object-fit: contain;
+}
+
+.pb-codex-head { margin-bottom: 8px; }
+.pb-codex-place {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 8px 0 10px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--green-border);
+    font-size: 13px;
+}
+.pb-codex-desc { margin-top: 6px; }
+
+/* Editor: the four type toggles wrap on a phone; the place field is a picker
+   trigger with a clear control beside it. */
+.pb-codex-type-row { flex-wrap: wrap; }
+.pb-toggle-row--invalid .pb-toggle { border-color: var(--critical-border); box-shadow: var(--critical-glow); }
+.pb-codex-place-field { display: flex; gap: 6px; }
+.pb-codex-place-pick { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
