@@ -14,6 +14,8 @@ import {
 } from '../characters/schemas/character.schema';
 
 const INVALID_CREDENTIALS = 'Invalid credentials';
+const DEFAULT_TTL_SECONDS = 86400;
+const REMEMBERED_TTL_SECONDS = 365 * 86400;
 
 @Injectable()
 export class AuthService {
@@ -25,18 +27,19 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async login(username: string, password: string) {
+  async login(username: string, password: string, rememberMe = false) {
     const user = await this.userModel.findOne({ username }).lean();
     if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS);
 
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) throw new UnauthorizedException(INVALID_CREDENTIALS);
 
-    const token = this.jwtService.sign({
-      sub: String(user._id),
-      role: user.role,
-    });
-    return { accessToken: token, role: user.role, expiresIn: 86400 };
+    const expiresIn = rememberMe ? REMEMBERED_TTL_SECONDS : DEFAULT_TTL_SECONDS;
+    const token = this.jwtService.sign(
+      { sub: String(user._id), role: user.role },
+      { expiresIn: rememberMe ? '365d' : '24h' },
+    );
+    return { accessToken: token, role: user.role, expiresIn };
   }
 
   async me(userId: string) {

@@ -30,12 +30,29 @@ const MIME = {
 // clears it so state never leaks into later tests. `count` lets a spec tell
 // whether a given request actually reached the server or was served from the
 // browser's own HTTP cache without a network round trip.
+//
+// Overrides are scoped by the `pb-test-scope` cookie so parallel workers can
+// share this one server: a spec sets a unique cookie on its browser context,
+// and only requests carrying that cookie (page loads, `page.request`, the
+// service worker's own fetches) see its overrides. Everyone else gets the
+// real file from disk.
 const overrides = new Map();
+const SCOPE_COOKIE = 'pb-test-scope';
+
+function scopeOf(req) {
+  for (const part of (req.headers.cookie || '').split(';')) {
+    const [name, ...value] = part.trim().split('=');
+    if (name === SCOPE_COOKIE) return decodeURIComponent(value.join('='));
+  }
+  return '';
+}
 
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     const pathname = decodeURIComponent(url.pathname);
+    const scope = scopeOf(req);
+    const keyOf = (path) => `${scope}|${path}`;
 
     if (pathname === '/__test-override__') {
       if (req.method === 'PUT') {
@@ -46,24 +63,24 @@ createServer(async (req, res) => {
         // spec updates the body mid-test to simulate a deploy, and needs the
         // count to keep accumulating so it can tell whether a later request
         // actually reached the server.
-        const count = overrides.get(path)?.count ?? 0;
-        overrides.set(path, { body, headers: headers || {}, count });
+        const count = overrides.get(keyOf(path))?.count ?? 0;
+        overrides.set(keyOf(path), { body, headers: headers || {}, count });
         res.writeHead(204).end();
         return;
       }
       if (req.method === 'DELETE') {
-        overrides.delete(url.searchParams.get('path'));
+        overrides.delete(keyOf(url.searchParams.get('path')));
         res.writeHead(204).end();
         return;
       }
       if (req.method === 'GET') {
-        const entry = overrides.get(url.searchParams.get('path'));
+        const entry = overrides.get(keyOf(url.searchParams.get('path')));
         res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ count: entry?.count ?? 0 }));
         return;
       }
     }
 
-    const override = overrides.get(pathname);
+    const override = overrides.get(keyOf(pathname));
     if (override) {
       override.count += 1;
       res.writeHead(200, {

@@ -447,6 +447,59 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
 }
 
 /**
+ * Wait for the dice tumble to settle, without a fixed sleep. Call it *before*
+ * the roll/reroll click and await the returned function afterwards, so a spec
+ * can assert mid-tumble in between:
+ *
+ *   const settled = await nextDiceSettle(page);
+ *   await page.locator('#pb-dice-roll').click();
+ *   await settled();
+ *
+ * `#pb-dice-roll` is disabled exactly while the dice tumble, so a settle is its
+ * disabled → enabled edge. Counting edges (rather than waiting for "enabled")
+ * matters for a reroll: it awaits the PA PATCH before tumbling, so the button
+ * is still enabled right after the click.
+ */
+export async function nextDiceSettle(page: Page): Promise<() => Promise<void>> {
+  const before = await page.evaluate(() => {
+    const w = window as unknown as { __pbDiceSettles?: number };
+    if (w.__pbDiceSettles === undefined) {
+      w.__pbDiceSettles = 0;
+      const rolling = () => !!document.querySelector('#pb-dice-roll[disabled]');
+      let was = rolling();
+      new MutationObserver(() => {
+        const now = rolling();
+        if (was && !now) w.__pbDiceSettles! += 1;
+        was = now;
+      }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled'] });
+    }
+    return w.__pbDiceSettles;
+  });
+  return async () => {
+    await page.waitForFunction(
+      (n) => (window as unknown as { __pbDiceSettles: number }).__pbDiceSettles > n,
+      before,
+    );
+  };
+}
+
+/** Roll and wait for the tumble to settle. */
+export async function rollAndSettle(page: Page) {
+  const settled = await nextDiceSettle(page);
+  await page.locator('#pb-dice-roll').click();
+  await settled();
+}
+
+/**
+ * Let the page render the next two frames. Enough after a non-animated Leaflet
+ * `setView`, whose move/zoom handlers (and so the app's marker sync) run
+ * synchronously inside the call.
+ */
+export async function nextFrames(page: Page) {
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+}
+
+/**
  * Seed the roller's injectable random source so specs assert on exact faces
  * rather than on real randomness. Faces are consumed one die at a time and the
  * sequence wraps, so a roll then a reroll can both be described.

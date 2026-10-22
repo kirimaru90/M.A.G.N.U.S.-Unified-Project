@@ -20,7 +20,7 @@
             "description": ""
           }
         },
-        "summary": "Real-user login — returns a 24h JWT",
+        "summary": "Real-user login — returns a 24h JWT (365 days with rememberMe)",
         "tags": [
           "auth"
         ]
@@ -3682,6 +3682,10 @@
           },
           "password": {
             "type": "string"
+          },
+          "rememberMe": {
+            "type": "boolean",
+            "description": "Issue a 365-day token instead of the default 24h one"
           }
         },
         "required": [

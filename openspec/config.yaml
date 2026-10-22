@@ -51,6 +51,10 @@ rules:
     - For all specs - every task group that adds or changes behavior MUST include a paired
       test task in the same change. A change is NOT complete, and MUST NOT be archived,
       while any test is red.
+    - For all specs - per-task verification runs ONLY the spec files the task added or
+      touched (e.g. `npx playwright test tests/<name>.spec.ts`, `npx jest <path>`,
+      `npx ng test --include <path>`), never a whole suite. Full suites run exactly once,
+      in the final wrap-up task, before the change is archived.
     - For api-* specs - the final task MUST run `npm test` from apps/api/api and, when
       endpoints or persistence change, `npm run test:e2e`, confirming all pass. Changed
       files MUST meet >= 80% line coverage via `npm run test:cov`.

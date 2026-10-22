@@ -4,6 +4,12 @@ import { AuthApi, AuthUser, LoginDto } from '../../../api/auth.api';
 
 const TOKEN_KEY = 'magnus.auth.token';
 
+/**
+ * Read order: localStorage first, then sessionStorage. Accessors, because touching
+ * a store can itself throw when storage is disabled by policy.
+ */
+const STORES: ReadonlyArray<() => Storage> = [() => localStorage, () => sessionStorage];
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly api = inject(AuthApi);
@@ -14,7 +20,7 @@ export class AuthService {
 
   async login(creds: LoginDto): Promise<AuthUser | null> {
     const response = await firstValueFrom(this.api.login(creds));
-    this.persistToken(response.accessToken);
+    this.persistToken(response.accessToken, creds.rememberMe ?? false);
     this.token.set(response.accessToken);
     // The login response carries no user object, so hydrate `currentUser`
     // (including `role`) from GET /auth/me before resolving. This makes
@@ -45,26 +51,40 @@ export class AuthService {
   clear(): void {
     this.token.set(null);
     this.currentUser.set(null);
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      // ignore
+    for (const store of STORES) {
+      try {
+        store().removeItem(TOKEN_KEY);
+      } catch {
+        // ignore
+      }
     }
   }
 
-  private persistToken(token: string): void {
+  /** "Ricordami" → localStorage; otherwise sessionStorage. Only one store holds the key. */
+  private persistToken(token: string, remember: boolean): void {
+    const [local, session] = STORES;
+    const [target, other] = remember ? [local, session] : [session, local];
     try {
-      localStorage.setItem(TOKEN_KEY, token);
+      target().setItem(TOKEN_KEY, token);
+    } catch {
+      // ignore
+    }
+    try {
+      other().removeItem(TOKEN_KEY);
     } catch {
       // ignore
     }
   }
 
   private readToken(): string | null {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
+    for (const store of STORES) {
+      try {
+        const token = store().getItem(TOKEN_KEY);
+        if (token) return token;
+      } catch {
+        // ignore
+      }
     }
+    return null;
   }
 }

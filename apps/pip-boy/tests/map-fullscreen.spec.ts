@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, nextFrames, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab's immersive (full-screen) mode: the toggle expands the
 // map to fill the CRT screen and hides the sheet chrome, an explicit exit
@@ -85,13 +85,29 @@ async function setView(page: Page, lat: number, lng: number, zoom: number) {
     ({ lat, lng, zoom }) => (window as any).__PB_MAP__.setView([lat, lng], zoom, { animate: false }),
     { lat, lng, zoom },
   );
-  await page.waitForTimeout(150);
+  await nextFrames(page);
 }
+
+/**
+ * The toggle's revalidation (invalidateSize + marker sync) has run: Leaflet's
+ * cached size only catches up with the resized container inside it.
+ */
+const revalidated = (page: Page) =>
+  expect
+    .poll(() =>
+      page.evaluate(() => {
+        const map = (window as any).__PB_MAP__;
+        const el = map.getContainer();
+        const size = map.getSize();
+        return size.x === el.clientWidth && size.y === el.clientHeight;
+      }),
+    )
+    .toBe(true);
 
 async function enter(page: Page) {
   await fsToggle(page).click();
-  await page.waitForTimeout(80); // let the revalidation timeout fire
   await expect.poll(() => isImmersive(page)).toBe(true);
+  await revalidated(page);
 }
 
 test('the toggle expands the map and hides the sheet chrome, keeping bezel + CRT overlays', async ({ page }) => {
@@ -278,8 +294,8 @@ test.describe('level of detail is revalidated on toggle', () => {
 
     // Leaving restores the finer level of detail.
     await fsToggle(page).click();
-    await page.waitForTimeout(80);
     await expect.poll(() => isImmersive(page)).toBe(false);
+    await revalidated(page);
     expect(await zoneMarkers(page)).toEqual(before);
   });
 });

@@ -21,6 +21,10 @@ export function renderLogin(root, { onSuccess }) {
                     <span class="pb-label">CODICE DI ACCESSO</span>
                     <input class="pb-input" id="pb-login-password" type="password" autocomplete="current-password" required>
                 </label>
+                <label class="pb-field pb-login-remember">
+                    <input id="pb-login-remember" type="checkbox">
+                    <span class="pb-label">RICORDAMI</span>
+                </label>
 
                 <div class="pb-error" id="pb-login-error" style="display:none;"></div>
                 <button class="pb-btn pb-btn--primary pb-btn--block" type="submit" id="pb-login-submit">▸ ACCEDI</button>
@@ -33,6 +37,7 @@ export function renderLogin(root, { onSuccess }) {
     const passwordEl = root.querySelector('#pb-login-password');
     const errorEl = root.querySelector('#pb-login-error');
     const submitBtn = root.querySelector('#pb-login-submit');
+    const rememberEl = root.querySelector('#pb-login-remember');
 
     // A native form submit already fires on Enter in either field.
     form.addEventListener('submit', async (e) => {
@@ -40,7 +45,7 @@ export function renderLogin(root, { onSuccess }) {
         errorEl.style.display = 'none';
         submitBtn.disabled = true;
         try {
-            const user = await login(usernameEl.value, passwordEl.value);
+            const user = await login(usernameEl.value, passwordEl.value, rememberEl.checked);
             onSuccess(user);
         } catch (err) {
             errorEl.textContent = (err instanceof InvalidCredentialsError)

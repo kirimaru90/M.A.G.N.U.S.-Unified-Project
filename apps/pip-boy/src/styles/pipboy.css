@@ -1292,6 +1292,8 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-login-subtitle { font-size: 10px; letter-spacing: 2px; opacity: 0.6; text-transform: uppercase; }
 .pb-login-flavor { font-size: 11px; opacity: 0.7; letter-spacing: 1px; align-self: flex-start; }
 .pb-login-form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 280px; }
+.pb-login-remember { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; }
+.pb-login-remember input { accent-color: var(--phosphor); margin: 0; }
 
 @media (max-width: 420px) {
     .pb-case { border-radius: 16px; padding: 10px 8px 8px; }

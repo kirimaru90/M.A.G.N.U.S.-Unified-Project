@@ -32,6 +32,20 @@ async function openMap(page: Page) {
   await expect(page.locator('.leaflet-container')).toBeVisible();
 }
 
+/** Run a pan/zoom on the map and wait for its zoom animation to end. */
+async function panAndZoom(page: Page, zoom: number) {
+  await page.evaluate(
+    (z) =>
+      new Promise<void>((resolve) => {
+        const map = (window as any).__PB_MAP__;
+        map.once('zoomend', () => resolve());
+        map.panBy([60, 0]);
+        map.setZoom(z);
+      }),
+    zoom,
+  );
+}
+
 const attr = (page: Page) => page.locator('[data-map-attr]');
 
 // ── Both modes ────────────────────────────────────────────────────────────────
@@ -63,8 +77,14 @@ test('no Leaflet attribution control is ever rendered', async ({ page }) => {
   await openMap(page);
 
   await expect(page.locator('.leaflet-control-attribution')).toHaveCount(0);
-  await page.evaluate(() => (window as any).__PB_MAP__.setZoom(15));
-  await page.waitForTimeout(200);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const map = (window as any).__PB_MAP__;
+        map.once('zoomend', () => resolve());
+        map.setZoom(15);
+      }),
+  );
   await expect(page.locator('.leaflet-control-attribution')).toHaveCount(0);
 });
 
@@ -107,8 +127,11 @@ test('its links are clickable despite the pass-through line', async ({ page }) =
 test('the shipped default is permanent: no override, still there after 6 s', async ({ page }) => {
   // No seedAttributionDelay: this pins ATTRIBUTION_COLLAPSE_MS itself, so
   // flipping the constant to a delay fails here instead of slipping through.
+  // A fake clock jumps the 6 s instead of sleeping it, firing any collapse
+  // timer that would have come due.
+  await page.clock.install();
   await openMap(page);
-  await page.waitForTimeout(6000);
+  await page.clock.fastForward(6000);
 
   await expect(attr(page)).toBeVisible();
 });
@@ -117,12 +140,7 @@ test('permanent mode survives pan and zoom', async ({ page }) => {
   await seedAttributionDelay(page, null);
   await openMap(page);
 
-  await page.evaluate(() => {
-    const map = (window as any).__PB_MAP__;
-    map.panBy([60, 0]);
-    map.setZoom(15);
-  });
-  await page.waitForTimeout(300);
+  await panAndZoom(page, 15);
 
   await expect(attr(page)).toBeVisible();
   await expect(attr(page)).toHaveCount(1);
@@ -155,12 +173,7 @@ test('collapse mode: it does not reappear on pan or zoom within the same visit',
   await openMap(page);
   await expect(attr(page)).toHaveCount(0, { timeout: 5000 });
 
-  await page.evaluate(() => {
-    const map = (window as any).__PB_MAP__;
-    map.panBy([60, 0]);
-    map.setZoom(15);
-  });
-  await page.waitForTimeout(300);
+  await panAndZoom(page, 15);
 
   await expect(attr(page)).toHaveCount(0);
 });

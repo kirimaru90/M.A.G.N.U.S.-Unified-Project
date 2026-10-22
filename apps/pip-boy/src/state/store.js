@@ -1,5 +1,5 @@
 // Central in-memory app state. Not persisted — session/last-selection are the
-// durable state, held server-side and in sessionStorage (see api/session.js).
+// durable state, held server-side and in local/sessionStorage (see api/session.js).
 
 export const state = {
     campaignId: null,

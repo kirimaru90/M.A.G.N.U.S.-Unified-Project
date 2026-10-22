@@ -8,6 +8,7 @@ import {
   readDevice,
   seedPrefs,
   breakLocalStorage,
+  rollAndSettle,
 } from './fixtures';
 
 const POPUP = '#pb-settings-popup';
@@ -465,8 +466,7 @@ test('with every device API absent the app boots, settles a roll, and every wrap
   await page.locator(`${POPUP} [data-close]`).click();
 
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
-  await page.locator('#pb-dice-roll').click();
-  await page.waitForTimeout(900);
+  await rollAndSettle(page);
   await expect(page.locator('#pb-dice-result')).toBeVisible();
 
   expect((await readDevice(page)).unhandled).toEqual([]);
@@ -538,7 +538,6 @@ test('an explicit stored vibration choice outranks reduced-motion', async ({ pag
   // A user who asks for reduced motion may still turn rumble on and have it honoured.
   await page.locator(`${POPUP} [data-close]`).click();
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
-  await page.locator('#pb-dice-roll').click();
-  await page.waitForTimeout(900);
+  await rollAndSettle(page);
   expect((await readDevice(page)).vibrate.length).toBeGreaterThan(0);
 });

@@ -1,5 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
 
 function makeService({
   user,
@@ -216,5 +218,61 @@ describe('AuthService.me', () => {
     });
     const result = await svc.me('1');
     expect(result.lastCharacterId).toBe('char-1');
+  });
+});
+
+describe('AuthService.login', () => {
+  const jwtService = new JwtService({
+    secret: 'test-secret',
+    signOptions: { expiresIn: '24h' },
+  });
+
+  async function makeLoginService() {
+    const passwordHash = await bcrypt.hash('pw', 4);
+    const userModel = {
+      findOne: jest.fn().mockReturnValue({
+        lean: () =>
+          Promise.resolve({ _id: 'u1', role: 'player', passwordHash }),
+      }),
+    };
+    return new AuthService(
+      userModel as never,
+      {} as never,
+      {} as never,
+      jwtService,
+    );
+  }
+
+  function lifetime(token: string) {
+    const { iat, exp } = jwtService.decode<{ iat: number; exp: number }>(token);
+    return exp - iat;
+  }
+
+  it('issues a 24h token by default', async () => {
+    const svc = await makeLoginService();
+    const result = await svc.login('alice', 'pw');
+    expect(result.expiresIn).toBe(86400);
+    expect(lifetime(result.accessToken)).toBe(86400);
+  });
+
+  it('issues a 24h token when rememberMe is false', async () => {
+    const svc = await makeLoginService();
+    const result = await svc.login('alice', 'pw', false);
+    expect(result.expiresIn).toBe(86400);
+    expect(lifetime(result.accessToken)).toBe(86400);
+  });
+
+  it('issues a 365-day token when rememberMe is true', async () => {
+    const svc = await makeLoginService();
+    const result = await svc.login('alice', 'pw', true);
+    expect(result.expiresIn).toBe(31536000);
+    expect(lifetime(result.accessToken)).toBe(31536000);
+  });
+
+  it('rejects a wrong password', async () => {
+    const svc = await makeLoginService();
+    await expect(svc.login('alice', 'nope', true)).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 });

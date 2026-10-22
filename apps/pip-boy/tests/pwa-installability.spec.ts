@@ -106,8 +106,13 @@ test.describe(() => {
   // a shell URL is served with a real `Cache-Control: max-age` header, primed
   // into the browser's HTTP cache by the app's own module-graph load, then its
   // content changes server-side before the service worker installs.
-  test('install fetch ignores a stale HTTP cache entry for a shell asset', async ({ page }) => {
+  test('install fetch ignores a stale HTTP cache entry for a shell asset', async ({ page, context, baseURL }, testInfo) => {
     const shellPath = '/src/tabs/dice.js';
+    // Scope the override to this context so parallel workers loading dice.js
+    // keep getting the real file (see static-server.mjs).
+    await context.addCookies([
+      { name: 'pb-test-scope', value: `${testInfo.workerIndex}-${testInfo.testId}`, url: baseURL! },
+    ]);
     const setOverride = (body: string) =>
       page.request.put('/__test-override__', {
         data: { path: shellPath, body, headers: { 'Cache-Control': 'max-age=3600' } },

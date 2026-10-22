@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, seedDice, stubDeviceApis, readDevice, seedPrefs } from './fixtures';
-
-const SETTLE_MS = 900; // tumble is 9 ticks × 60ms ≈ 540ms
+import {
+  stubEnvironment, login, makeCharacter, seedDice, stubDeviceApis, readDevice, seedPrefs, nextDiceSettle, rollAndSettle,
+} from './fixtures';
 
 /**
  * `seedDice` must run before the app boots, so it is applied inside this helper
@@ -31,11 +31,6 @@ async function openDice(
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
   return stub;
 }
-
-const rollAndSettle = async (page: Page) => {
-  await page.locator('#pb-dice-roll').click();
-  await page.waitForTimeout(SETTLE_MS);
-};
 
 // ── 7.T.1 pool composition ──────────────────────────────────────────
 
@@ -155,13 +150,14 @@ test('a reroll holds the previous outcome in the result box until it settles', a
 
   await page.locator('button[data-die="0"]').click();
   await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
 
   // Mid-tumble the box keeps showing the previous outcome, unchanged.
   await expect(page.locator('#pb-dice-result')).toHaveText('FALLIMENTO');
   await expect(page.locator('#pb-dice-result')).toHaveCSS('opacity', '1');
 
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
   await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });
 
@@ -345,8 +341,9 @@ test('a reroll costs exactly 1 PA and never refunds, even on sixes', async ({ pa
     }
   });
 
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
 
   // paCurrent 3 → 2, and no refund follows even though the reroll shows sixes
   expect(patches).toEqual([{ paCurrent: 2 }]);
@@ -410,12 +407,13 @@ test('dice are not selectable mid-tumble', async ({ page }) => {
   await openDice(page, { faces: [1, 2, 3] });
   await page.locator('[data-approach="strength"]').click();
 
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-roll').click();
   // mid-tumble: every die button is disabled
   await expect(page.locator('.pb-die[disabled]').first()).toBeVisible();
   await expect(page.locator('#pb-dice-roll')).toBeDisabled();
 
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
   await expect(page.locator('.pb-die[disabled]')).toHaveCount(0);
   await expect(page.locator('#pb-dice-roll')).toBeEnabled();
 });
@@ -462,6 +460,7 @@ test('a reroll animates only the selected die; the kept dice hold steady and the
   await expect(page.locator('#pb-dice-hint')).toContainText('1 selezionati');
   await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
 
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
 
   // Mid-tumble the kept dice (original indices 0, 2, 3) hold their settled faces
@@ -477,7 +476,7 @@ test('a reroll animates only the selected die; the kept dice hold steady and the
   }
   expect(sawTumble).toBe(true);
 
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
   // the rerolled die lands a 6 → the full pool [1, 6, 3, 4] resolves as a full success
   await expect(page.locator('#pb-dice-result')).toHaveText('SUCCESSO PIENO');
 });
@@ -562,8 +561,9 @@ test('a reroll pulses for the dice in flight, not for the whole pool', async ({ 
   await page.locator('button[data-die="0"]').click();
   await page.locator('button[data-die="1"]').click();
   await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
 
   const rerollPulses = (await vibrations(page)).slice(rollPulses.length);
   expect(rerollPulses).toHaveLength(TUMBLE_PULSES);
@@ -579,8 +579,9 @@ test('vibration off issues no vibration request from a roll or a reroll', async 
 
   await page.locator('button[data-die="0"]').click();
   await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
 
   // Not "a request that does nothing" — no request at all.
   expect(await vibrations(page)).toEqual([]);
@@ -644,6 +645,7 @@ test('a reroll holds every die in its settled cell during the tumble and re-sort
   await page.locator('button[data-die="0"]').click();
   await expect(page.locator('#pb-dice-hint')).toContainText('1 selezionati');
   await page.locator('#pb-dice-reroll-skill').selectOption('lockpicking');
+  const settled = await nextDiceSettle(page);
   await page.locator('#pb-dice-reroll').click();
 
   // Sample the cell order synchronously for the whole tumble (auto-waiting
@@ -672,7 +674,7 @@ test('a reroll holds every die in its settled cell during the tumble and re-sort
   expect(samples.length).toBeGreaterThan(0);
   for (const order of samples) expect(order).toEqual(settledOrder);
 
-  await page.waitForTimeout(SETTLE_MS);
+  await settled();
   // Only after settling is the pool re-sorted: the rerolled 6 moves to the front.
   await expect(dice).toHaveText(['6', '4', '3', '2']);
   expect(await cellOrder()).toEqual(['0', '3', '2', '1']);

@@ -13,7 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Real-user login — returns a 24h JWT */
+        /** Real-user login — returns a 24h JWT (365 days with rememberMe) */
         post: operations["AuthController_login"];
         delete?: never;
         options?: never;
@@ -1184,6 +1184,8 @@ export interface components {
         LoginDto: {
             username: string;
             password: string;
+            /** @description Issue a 365-day token instead of the default 24h one */
+            rememberMe?: boolean;
         };
         CreateUserDto: {
             /** @example alice */

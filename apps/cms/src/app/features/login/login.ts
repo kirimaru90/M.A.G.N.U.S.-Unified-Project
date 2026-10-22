@@ -73,6 +73,13 @@ import { AuthService } from '../../core/auth/auth.service';
           />
         </div>
 
+        <div class="bo-field">
+          <label for="remember">
+            <input id="remember" type="checkbox" formControlName="remember" />
+            Ricordami
+          </label>
+        </div>
+
         @if (errorMessage()) {
           <div class="error-row">
             <span class="bo-pill danger">
@@ -99,6 +106,7 @@ export class LoginPage {
   protected readonly form = this.fb.nonNullable.group({
     username: ['', [Validators.required]],
     password: ['', [Validators.required]],
+    remember: [false],
   });
 
   protected readonly submitting = signal(false);
@@ -111,7 +119,8 @@ export class LoginPage {
     this.errorMessage.set(null);
     this.submitting.set(true);
     try {
-      await this.auth.login(this.form.getRawValue());
+      const { username, password, remember } = this.form.getRawValue();
+      await this.auth.login({ username, password, rememberMe: remember });
       await this.router.navigate(['/campaigns']);
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 401) {

@@ -8,11 +8,13 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
-  // Serial by necessity: tests/static-server.mjs stalls under concurrent
-  // connections, which makes `page.goto` time out waiting for `load` on a
-  // random subset of specs. The whole suite runs in ~35s on one worker.
-  // Raise this once the static server handles concurrency.
-  workers: 1,
+  // Two workers is the measured sweet spot: dice-roller.spec.ts runs in ~48s vs
+  // ~1.5m on one worker. At four, `page.goto` intermittently times out with the
+  // ES-module graph stalled before DOMContentLoaded — not the static server,
+  // which serves 50 concurrent curls in ~20ms each. static-server.mjs scopes its
+  // test overrides per browser context, so specs can share it in parallel.
+  // PW_WORKERS overrides.
+  workers: process.env.PW_WORKERS ? Number(process.env.PW_WORKERS) : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['json', { outputFile: 'test-results/results.json' }]],

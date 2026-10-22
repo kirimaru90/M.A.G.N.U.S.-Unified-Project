@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, nextFrames, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab's name search: the lens toggles an autocomplete field
 // that matches place names case- and accent-insensitively over the received set,
@@ -49,7 +49,7 @@ async function setView(page: Page, lat: number, lng: number, zoom: number) {
     ({ lat, lng, zoom }) => (window as any).__PB_MAP__.setView([lat, lng], zoom, { animate: false }),
     { lat, lng, zoom },
   );
-  await page.waitForTimeout(150);
+  await nextFrames(page);
 }
 
 const lens = (page: Page) => page.locator('.pb-map-search-lens');

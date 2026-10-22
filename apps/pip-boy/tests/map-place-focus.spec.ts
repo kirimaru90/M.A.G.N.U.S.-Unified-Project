@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, nextFrames, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab's place-focus behaviour: a marker tap centres the place
 // and opens a description popup; the popup carries Vedi mappa for a place with an
@@ -54,7 +54,7 @@ async function setView(page: Page, lat: number, lng: number, zoom: number) {
     },
     { lat, lng, zoom },
   );
-  await page.waitForTimeout(150);
+  await nextFrames(page);
 }
 
 /**

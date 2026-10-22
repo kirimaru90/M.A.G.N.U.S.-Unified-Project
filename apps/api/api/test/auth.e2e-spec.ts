@@ -76,6 +76,51 @@ describe('AuthModule (e2e)', () => {
     expect(body.expiresIn).toBe(86400);
   });
 
+  describe('POST /auth/login rememberMe', () => {
+    function tokenLifetime(accessToken: string) {
+      const payload = JSON.parse(
+        Buffer.from(accessToken.split('.')[1], 'base64url').toString(),
+      );
+      return payload.exp - payload.iat;
+    }
+
+    async function login(extra: object) {
+      return app.inject({
+        method: 'POST',
+        url: '/auth/login',
+        payload: { username: 'admin1', password: 'password123', ...extra },
+      });
+    }
+
+    it('without rememberMe → 24h token', async () => {
+      const res = await login({});
+      const body = JSON.parse(res.body);
+      expect(body.expiresIn).toBe(86400);
+      expect(tokenLifetime(body.accessToken)).toBe(86400);
+    });
+
+    it('rememberMe: false → 24h token', async () => {
+      const res = await login({ rememberMe: false });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.expiresIn).toBe(86400);
+      expect(tokenLifetime(body.accessToken)).toBe(86400);
+    });
+
+    it('rememberMe: true → 365-day token', async () => {
+      const res = await login({ rememberMe: true });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.expiresIn).toBe(31536000);
+      expect(tokenLifetime(body.accessToken)).toBe(31536000);
+    });
+
+    it('non-boolean rememberMe → 400', async () => {
+      const res = await login({ rememberMe: 'yes' });
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
   it('POST /auth/login with wrong password → 401 generic', async () => {
     const res = await app.inject({
       method: 'POST',

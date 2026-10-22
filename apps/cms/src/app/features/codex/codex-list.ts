@@ -220,10 +220,7 @@ export function toCodexRow(
                         [style.text-decoration]="c.deleted ? 'line-through' : null"
                         [title]="c.deleted ? 'Personaggio eliminato' : ''"
                         >{{ c.name || '?' }}</span
-                      >
-                      @if (!last) {
-                        ,
-                      }
+                      >@if (!last) {, }
                     } @empty {
                       Nessuno
                     }

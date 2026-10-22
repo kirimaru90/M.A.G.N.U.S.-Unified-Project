@@ -6,6 +6,19 @@ export function mountLoginReal(loginEl, { setKeyHandler }) {
     const usernameEl = loginEl.querySelector('#login-real-username');
     const passwordEl = loginEl.querySelector('#login-real-password');
     const errorEl    = loginEl.querySelector('#login-real-error');
+    const rememberEl = loginEl.querySelector('#login-real-remember');
+    let remember = false;
+
+    function setRemember(on) {
+        remember = on;
+        rememberEl.textContent = on ? '[X] RICORDAMI' : '[ ] RICORDAMI';
+        rememberEl.setAttribute('aria-pressed', String(on));
+    }
+
+    rememberEl.addEventListener('click', () => {
+        clickSound();
+        setRemember(!remember);
+    });
 
     passwordEl.addEventListener('keydown', e => {
         if (e.key === 'Enter') loginEl.querySelector('#login-real-submit').click();
@@ -15,6 +28,7 @@ export function mountLoginReal(loginEl, { setKeyHandler }) {
         usernameEl.value = '';
         passwordEl.value = '';
         errorEl.style.display = 'none';
+        setRemember(false);
         loginEl.style.display = 'flex';
 
         // Clone buttons to wipe previous onclick listeners before re-binding.
@@ -32,7 +46,7 @@ export function mountLoginReal(loginEl, { setKeyHandler }) {
             const btn = loginEl.querySelector('#login-real-submit');
             btn.disabled = true;
             try {
-                await sessionLogin(usernameEl.value, passwordEl.value);
+                await sessionLogin(usernameEl.value, passwordEl.value, remember);
                 loginEl.style.display = 'none';
                 onSuccess();
             } catch (err) {
@@ -53,6 +67,7 @@ export function mountLoginReal(loginEl, { setKeyHandler }) {
         const focusables = [
             usernameEl,
             passwordEl,
+            rememberEl,
             loginEl.querySelector('#login-real-submit'),
             loginEl.querySelector('#login-real-back'),
         ];

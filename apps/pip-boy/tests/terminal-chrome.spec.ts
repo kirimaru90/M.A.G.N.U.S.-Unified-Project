@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs, TWO_CAMPAIGNS } from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs, TWO_CAMPAIGNS, rollAndSettle } from './fixtures';
 
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
@@ -631,8 +631,7 @@ test('a select option renders on the dark screen theme, not white', async ({ pag
 
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
   await page.locator('[data-approach="strength"]').click();
-  await page.locator('#pb-dice-roll').click();
-  await page.waitForTimeout(900); // let the tumble settle so the reroll row renders
+  await rollAndSettle(page); // the reroll row renders once the tumble settles
 
   const bg = await page
     .locator('#pb-dice-reroll-skill option')

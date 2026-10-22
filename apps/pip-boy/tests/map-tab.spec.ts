@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, nextFrames, type StubOptions } from './fixtures';
 
 // Covers pipboy-map-tab: the tab renders, level-of-detail follows viewport
 // containment, the breadcrumb tracks the centre, and the map owns horizontal
@@ -58,7 +58,7 @@ async function setView(page: Page, lat: number, lng: number, zoom: number) {
     },
     { lat, lng, zoom },
   );
-  await page.waitForTimeout(150);
+  await nextFrames(page);
 }
 
 const markerNames = (page: Page) =>

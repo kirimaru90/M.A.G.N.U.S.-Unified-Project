@@ -19,9 +19,11 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Real-user login — returns a 24h JWT' })
+  @ApiOperation({
+    summary: 'Real-user login — returns a 24h JWT (365 days with rememberMe)',
+  })
   login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.username, dto.password);
+    return this.authService.login(dto.username, dto.password, dto.rememberMe);
   }
 
   @Post('logout')

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter } from './fixtures';
+import { stubEnvironment, login, makeCharacter, nextFrames } from './fixtures';
 
 // Session re-verification on resume (Task 8). A returning-to-foreground event
 // (visibilitychange → visible) re-checks the session via GET /auth/me: a valid
@@ -60,10 +60,13 @@ test('resume while offline keeps the current screen and does not log out', async
   // A transport failure (no HTTP status) must not be treated as expired.
   await page.route('**/auth/me', (route) => route.abort());
 
+  const failed = page.waitForEvent('requestfailed', (r) => r.url().includes('/auth/me'));
   await resume(page);
 
-  // Give the aborted request a beat to settle, then confirm we stayed put.
-  await page.waitForTimeout(300);
+  // Once the aborted request has failed and the app has had a frame to react,
+  // confirm we stayed put.
+  await failed;
+  await nextFrames(page);
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
   await expect(page.locator('#pb-login-username')).toHaveCount(0);
 });
@@ -78,7 +81,12 @@ test('resume while anonymous issues no /auth/me request', async ({ page }) => {
   page.on('request', (req) => { if (req.url().includes('/auth/me')) meCalls += 1; });
 
   await resume(page);
-  await page.waitForTimeout(300);
+  // The resume handler runs inside dispatchEvent, so any /auth/me it issued
+  // would reach Playwright before this later sentinel request does.
+  await Promise.all([
+    page.waitForRequest('**/manifest.webmanifest'),
+    page.evaluate(() => fetch('manifest.webmanifest')),
+  ]);
 
   expect(meCalls).toBe(0);
   await expect(page.locator('#pb-login-username')).toBeVisible();

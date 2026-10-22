@@ -1,7 +1,8 @@
 import { apiGet, apiPost } from './client.js';
 
 // Single owner of the real-user session: the bearer token (persisted in
-// sessionStorage so a reload can rehydrate it) and the current user (in memory).
+// localStorage when the user chose "Ricordami", otherwise sessionStorage, so a
+// reload can rehydrate it) and the current user (in memory).
 
 const SESSION_KEY = 'pipboy_session';
 
@@ -9,19 +10,30 @@ let _currentUser = null;
 
 // Declared as a hoisted function so client.js can import it across the
 // session<->client circular import without a temporal-dead-zone hazard.
+// localStorage first, then sessionStorage. Accessors, because touching a
+// store can itself throw when storage is disabled by policy.
+const STORES = [() => localStorage, () => sessionStorage];
+
 export function getToken() {
-    try {
-        return sessionStorage.getItem(SESSION_KEY) || null;
-    } catch (_) {
-        return null;
+    for (const store of STORES) {
+        try {
+            const token = store().getItem(SESSION_KEY);
+            if (token) return token;
+        } catch (_) {}
     }
+    return null;
 }
 
-function _setToken(token) {
-    try {
-        if (token) sessionStorage.setItem(SESSION_KEY, token);
-        else sessionStorage.removeItem(SESSION_KEY);
-    } catch (_) {}
+// Writes into localStorage when `remember`, sessionStorage otherwise, and
+// removes the key from the other so at most one holds it. A null token clears both.
+function _setToken(token, remember = false) {
+    const target = remember ? 0 : 1;
+    STORES.forEach((store, i) => {
+        try {
+            if (token && i === target) store().setItem(SESSION_KEY, token);
+            else store().removeItem(SESSION_KEY);
+        } catch (_) {}
+    });
 }
 
 export function getUser() {
@@ -45,17 +57,17 @@ export class InvalidCredentialsError extends Error {
     }
 }
 
-export async function login(username, password) {
+export async function login(username, password, rememberMe = false) {
     let res;
     try {
-        res = await apiPost('/auth/login', { username, password });
+        res = await apiPost('/auth/login', { username, password, rememberMe });
     } catch (err) {
         if (err && err.status === 401) throw new InvalidCredentialsError();
         throw err;
     }
     const token = res && (res.accessToken || res.token);
     if (!token) throw new Error('login response missing token');
-    _setToken(token);
+    _setToken(token, rememberMe);
     _currentUser = await apiGet('/auth/me');
     return _currentUser;
 }
