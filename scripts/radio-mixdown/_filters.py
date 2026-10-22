@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import math
 from pathlib import Path
 
 import numpy as np
-from scipy.signal import butter, lfilter, sosfiltfilt
+import soundfile as sf
+from scipy.signal import butter, lfilter, resample_poly, sosfiltfilt
 
 DEFAULT_TARGET_PEAK = 0.95
+WORKING_SAMPLE_RATE = 48000
+NOISE_FADE_MS = 150.0
+OUTPUT_FORMATS = {".wav": ("WAV", "PCM_16"), ".mp3": ("MP3", "MPEG_LAYER_III")}
 
 
 @dataclasses.dataclass
@@ -41,6 +46,70 @@ def load_preset(path: str | Path) -> Preset:
 
 def save_preset(path: str | Path, preset: Preset) -> None:
     Path(path).write_text(json.dumps(preset.to_dict(), indent=2))
+
+
+def read_clip(path: str | Path) -> tuple[np.ndarray, int]:
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Input clip not found: {path}")
+    try:
+        audio, sample_rate = sf.read(str(path), dtype="float64", always_2d=False)
+    except Exception as exc:
+        if path.suffix.lower() == ".mp3":
+            raise RuntimeError(
+                f"Could not decode MP3 file '{path}'. The installed soundfile/libsndfile "
+                "build may not support MP3 decoding on this system. "
+                "Try converting the file to WAV and re-running."
+            ) from exc
+        raise RuntimeError(f"Could not read audio file '{path}': {exc}") from exc
+    return to_mono(audio), sample_rate
+
+
+def resample(audio: np.ndarray, from_rate: int, to_rate: int) -> np.ndarray:
+    if from_rate == to_rate:
+        return audio
+    g = math.gcd(from_rate, to_rate)
+    return resample_poly(audio, to_rate // g, from_rate // g)
+
+
+def load_clips(
+    paths: list[str | Path],
+    sample_rate: int = WORKING_SAMPLE_RATE,
+) -> tuple[list[np.ndarray], int, list[tuple[Path, int]]]:
+    """Read clips as mono and conform them to one working sample rate.
+
+    Returns the clips, the working rate, and (path, original_rate) for every
+    clip that had to be resampled.
+    """
+    clips = []
+    resampled = []
+    for path in paths:
+        audio, sr = read_clip(path)
+        if sr != sample_rate:
+            audio = resample(audio, sr, sample_rate)
+            resampled.append((Path(path), sr))
+        clips.append(audio)
+    return clips, sample_rate, resampled
+
+
+def write_audio(path: str | Path, audio: np.ndarray, sample_rate: int) -> None:
+    """Write WAV or MP3, chosen by the file extension."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+    if suffix not in OUTPUT_FORMATS:
+        supported = ", ".join(OUTPUT_FORMATS)
+        raise ValueError(f"Unsupported output format '{path.suffix}' for '{path}'. Supported: {supported}.")
+    fmt, subtype = OUTPUT_FORMATS[suffix]
+    try:
+        sf.write(str(path), audio, sample_rate, format=fmt, subtype=subtype)
+    except Exception as exc:
+        path.unlink(missing_ok=True)
+        if suffix == ".mp3":
+            raise RuntimeError(
+                f"Could not encode MP3 '{path}'. The installed soundfile/libsndfile build "
+                "may not support MP3 encoding on this system. Use a .wav output instead."
+            ) from exc
+        raise RuntimeError(f"Could not write audio file '{path}': {exc}") from exc
 
 
 def normalize_peak(audio: np.ndarray, target_peak: float = DEFAULT_TARGET_PEAK) -> np.ndarray:
@@ -93,11 +162,34 @@ def compress(
     return compressed * (peak_before / peak_after)
 
 
-def add_hiss(audio: np.ndarray, level: float, rng: np.random.Generator) -> np.ndarray:
+def fade_edges(audio: np.ndarray, sample_rate: int, fade_ms: float = NOISE_FADE_MS) -> np.ndarray:
+    n = min(int(sample_rate * fade_ms / 1000), len(audio) // 2)
+    if n <= 0:
+        return audio
+    out = audio.copy()
+    ramp = np.linspace(0.0, 1.0, n, endpoint=False)
+    out[:n] *= ramp
+    out[-n:] *= ramp[::-1]
+    return out
+
+
+def add_hiss(
+    audio: np.ndarray,
+    level: float,
+    sample_rate: int,
+    low_hz: float,
+    high_hz: float,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Add hiss heard *through* the radio: band-limited, at an absolute RMS level, faded in/out."""
     if level <= 0:
         return audio
-    noise = rng.standard_normal(audio.shape)
-    return audio + noise * level * DEFAULT_TARGET_PEAK
+    noise = bandpass_filter(rng.standard_normal(audio.shape), sample_rate, low_hz, high_hz)
+    rms = np.sqrt(np.mean(noise**2))
+    if rms < 1e-12:
+        return audio
+    noise *= level * DEFAULT_TARGET_PEAK / rms
+    return audio + fade_edges(noise, sample_rate)
 
 
 def add_crackle(
@@ -148,9 +240,11 @@ def apply_filter_chain(
     out = bandpass_filter(audio, sample_rate, preset.bandpass_low_hz, preset.bandpass_high_hz)
     out = to_mono(out)
     out = compress(out, preset.compression_amount, sample_rate)
-    out = add_hiss(out, preset.hiss_level, rng)
-    out = add_crackle(out, preset.crackle_density, preset.crackle_intensity, sample_rate, rng)
+    # Saturation shapes only the program; hiss/crackle sit on top so their level
+    # doesn't get lifted by saturate()'s drive + peak make-up gain.
     out = saturate(out, preset.saturation_amount)
+    out = add_hiss(out, preset.hiss_level, sample_rate, preset.bandpass_low_hz, preset.bandpass_high_hz, rng)
+    out = add_crackle(out, preset.crackle_density, preset.crackle_intensity, sample_rate, rng)
 
     out = np.nan_to_num(out, nan=0.0, posinf=1.0, neginf=-1.0)
     out = np.clip(out, -1.0, 1.0)

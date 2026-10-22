@@ -135,6 +135,32 @@ describe('PutCampaignMapDto', () => {
     expect(names).not.toContain('minZoomNotAboveMaxZoom');
   });
 
+  it('rejects startZoom below minZoom', async () => {
+    const names = await constraintsOf({
+      config: { ...CONFIG, minZoom: 8, maxZoom: 16, startZoom: 6 },
+      places: [],
+    });
+    expect(names).toContain('startZoomWithinRange');
+  });
+
+  it('rejects startZoom above maxZoom', async () => {
+    const names = await constraintsOf({
+      config: { ...CONFIG, minZoom: 8, maxZoom: 16, startZoom: 17 },
+      places: [],
+    });
+    expect(names).toContain('startZoomWithinRange');
+  });
+
+  it('accepts startZoom on either edge of the range', async () => {
+    for (const startZoom of [8, 16]) {
+      const names = await constraintsOf({
+        config: { ...CONFIG, minZoom: 8, maxZoom: 16, startZoom },
+        places: [],
+      });
+      expect(names).toEqual([]);
+    }
+  });
+
   it('rejects a radius on a place with no local map', async () => {
     const names = await constraintsOf({
       config: CONFIG,

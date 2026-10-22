@@ -8,7 +8,7 @@ Session recaps and in-fiction radio broadcasts are a natural fit for this Fallou
 - Add `mix.py`: a zero-setup CLI (`uv run mix.py opening mid closing -o out.wav [--preset presets/name.json]`) that peak-normalizes each input clip independently, hard-cut concatenates them in order, and applies an old-timey radio filter chain (bandpass, mono downmix, compression, hiss, saturation, crackle/pop) over the full result.
 - Add `playground.py`: a local Gradio web app (`uv run playground.py`) for interactively tuning the filter chain's parameters against real clips, with instant render-and-preview and Save/Load preset controls.
 - Add a JSON preset format under `scripts/radio-mixdown/presets/` shared by both tools, so parameters tuned in the playground are usable by the CLI with no manual transcription.
-- Support both WAV and MP3 as input formats; output is always WAV.
+- Support both WAV and MP3 as input formats; output is WAV or MP3, chosen by the user.
 
 ## Capabilities
 

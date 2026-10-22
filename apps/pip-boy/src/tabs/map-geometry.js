@@ -265,3 +265,153 @@ export function chain(places, centre, vr, radii) {
         .reverse();
     return [...line, best];
 }
+
+// --- Declutter -------------------------------------------------------------
+// What `visible` lets through can still overlap on screen: top-level places
+// have no ancestor to hide behind, so zooming out piles them up. These resolve
+// that in projected pixel space. Items carry `x, y` from
+// `map.project(latlng, zoom)` — absolute world pixels at that zoom — so the
+// outcome depends on zoom alone and a pan cannot change it.
+
+/** The icon box side, in px — `.pb-map-marker-inner` in pipboy.css. */
+export const MARKER_BOX = 26;
+/** Breathing room added to the box before two icons count as colliding. */
+export const MARKER_PAD = 4;
+/** Where the label's top edge sits below the icon's top edge — `.pb-map-marker-label`. */
+const LABEL_TOP = 27;
+
+/** Declutter priority by type, lower wins. Ties share a rank on purpose. */
+export const TYPE_RANK = {
+    region: 1,
+    settlement: 2,
+    vault: 2,
+    landmark: 3,
+    poi: 3,
+    building: 4,
+    room: 5,
+};
+
+const rankOf = (type) => TYPE_RANK[type] ?? Number.MAX_SAFE_INTEGER;
+
+/**
+ * Priority order: focused place first, then type rank, larger effective radius,
+ * name, slug — total, so the outcome never depends on input order.
+ */
+function byPriority(focused) {
+    return (a, b) => {
+        const fa = a.slug === focused ? 0 : 1;
+        const fb = b.slug === focused ? 0 : 1;
+        return fa - fb
+            || rankOf(a.type) - rankOf(b.type)
+            || (b.radius ?? 0) - (a.radius ?? 0)
+            || (a.name ?? '').localeCompare(b.name ?? '')
+            || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0);
+    };
+}
+
+/**
+ * Greedy marker declutter. In priority order each item is **placed** unless its
+ * box hits an already-placed one, in which case it is **absorbed** by the first
+ * (= highest-priority) placed item it hits. An absorbed item occupies nothing:
+ * in a chain A–B–C where only neighbours overlap, A and C both place.
+ *
+ *   → { placed: Set<slug> (in priority order),
+ *       absorbedBy: Map<slug, winnerSlug>,
+ *       groups: Map<winnerSlug, slug[]> (absorbed, in priority order) }
+ */
+export function declutter(items, { focused = null, box = MARKER_BOX, pad = MARKER_PAD } = {}) {
+    const reach = box + pad;
+    const order = [...items].sort(byPriority(focused));
+    const placedItems = [];
+    const placed = new Set();
+    const absorbedBy = new Map();
+    const groups = new Map();
+    for (const p of order) {
+        const hit = placedItems.find(
+            (q) => Math.abs(p.x - q.x) < reach && Math.abs(p.y - q.y) < reach,
+        );
+        if (hit) {
+            absorbedBy.set(p.slug, hit.slug);
+            groups.get(hit.slug).push(p.slug);
+        } else {
+            placedItems.push(p);
+            placed.add(p.slug);
+            groups.set(p.slug, []);
+        }
+    }
+    for (const [slug, list] of groups) if (list.length === 0) groups.delete(slug);
+    return { placed, absorbedBy, groups };
+}
+
+const intersects = (a, b) =>
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/**
+ * The label pass, run on the placed markers only. In `order` (priority order,
+ * as `declutter().placed` iterates), each label box — centred under its icon —
+ * is tested against every placed icon box and every label already shown. A
+ * label that hits anything is hidden; the icon stays.
+ *
+ * `sizes` holds measured `{ w, h }` per slug. A label not measured yet (its
+ * first frame on screen) is left shown and occupies nothing, so it is judged
+ * properly at the next plan rather than hiding a measured neighbour.
+ *
+ *   → Set<slug> of hidden labels
+ */
+export function labelPass(placedItems, sizes, order, { box = MARKER_BOX } = {}) {
+    const bySlug = new Map(placedItems.map((p) => [p.slug, p]));
+    const half = box / 2;
+    const icons = placedItems.map((p) => ({
+        slug: p.slug,
+        left: p.x - half, right: p.x + half, top: p.y - half, bottom: p.y + half,
+    }));
+    const shown = [];
+    const hidden = new Set();
+    for (const slug of order) {
+        const p = bySlug.get(slug);
+        const size = sizes.get(slug);
+        if (!p || !size) continue;
+        const top = p.y - half + LABEL_TOP;
+        const label = { left: p.x - size.w / 2, right: p.x + size.w / 2, top, bottom: top + size.h };
+        const blocked = icons.some((i) => i.slug !== slug && intersects(label, i))
+            || shown.some((l) => intersects(label, l));
+        if (blocked) hidden.add(slug);
+        else shown.push(label);
+    }
+    return hidden;
+}
+
+/**
+ * The least integer zoom above `zoom` at which no two of `points` (projected at
+ * `zoom`) collide. Each zoom step doubles projected distances, so it follows
+ * from the closest pair by the same Chebyshev test the declutter uses:
+ *
+ *   d = min over pairs of max(|dx|, |dy|)
+ *   d = 0 → range.maxZoom          (identical coordinates never separate)
+ *   else  → zoom + ceil(log2((box + pad) / d)), at least zoom + 1
+ *
+ * clamped to `range.maxZoom`.
+ */
+export function separationZoom(points, zoom, range, box = MARKER_BOX, pad = MARKER_PAD) {
+    let d = Infinity;
+    for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+            const dx = Math.abs(points[i].x - points[j].x);
+            const dy = Math.abs(points[i].y - points[j].y);
+            d = Math.min(d, Math.max(dx, dy));
+        }
+    }
+    if (d === 0) return range.maxZoom;
+    const steps = Number.isFinite(d) ? Math.ceil(Math.log2((box + pad) / d) - 1e-9) : 1;
+    return Math.min(range.maxZoom, Math.max(zoom + 1, zoom + steps));
+}
+
+/**
+ * The floor the player can zoom out to: the configured minimum, raised to the
+ * zoom at which the bounds fill the viewport, never past the configured maximum.
+ * A non-finite `boundsZoom` (a canvas with no size yet) leaves the config floor.
+ */
+export function effectiveMinZoom(configMin, configMax, boundsZoom) {
+    const floor = Number.isFinite(boundsZoom) ? Math.max(configMin, boundsZoom) : configMin;
+    return Math.min(configMax, floor);
+}

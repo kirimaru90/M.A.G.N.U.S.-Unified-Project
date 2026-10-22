@@ -196,6 +196,9 @@ test.describe('Vedi mappa', () => {
     await setView(page, ORIGIN_LAT, ORIGIN_LNG, 14);
     await page.locator('.pb-map-marker--vault').click();
     await expect(page.locator('.pb-map-popup-open')).toBeVisible();
+    // The tap's animated pan carries the popup with it; a click while it is
+    // still moving can land on the map where the button was, closing it.
+    await settle(page);
 
     await page.locator('.pb-map-popup-open').click();
 

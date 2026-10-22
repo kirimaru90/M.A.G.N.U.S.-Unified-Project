@@ -1,4 +1,10 @@
-## ADDED Requirements
+# scripts-radio-mixdown Specification
+
+## Purpose
+
+A repeatable script tool that mixes opening, DJ and closing clips into a single old-timey radio broadcast, with per-clip normalization, a tunable radio filter chain, shared presets and an interactive playground for parameter tuning.
+
+## Requirements
 
 ### Requirement: CLI Broadcast Mixdown
 The system SHALL provide a `mix.py` CLI that accepts three input audio file paths (opening, mid, closing, in that order) and an output path, and produces a single WAV file containing the normalized, concatenated, radio-filtered broadcast.
@@ -38,7 +44,7 @@ The system SHALL concatenate the three normalized clips in opening → mid → c
 - **THEN** the transition between them is an abrupt cut, with no fade-in/fade-out or cross-blended region introduced at the boundary
 
 ### Requirement: Old-Timey Radio Filter Chain
-The system SHALL apply a filter chain to the full concatenated mix consisting of: a bandpass filter, mono downmix, dynamic-range compression, background hiss, crackle/pop, and soft-clip saturation, each independently parameterized.
+The system SHALL apply a filter chain to the full concatenated mix consisting of, in order: a bandpass filter, mono downmix, dynamic-range compression, soft-clip saturation, background hiss, and crackle/pop, each independently parameterized. Hiss and crackle SHALL be added after saturation so their level does not depend on other parameters.
 
 #### Scenario: Bandpass filter attenuates frequencies outside the configured range
 - **WHEN** the filter chain runs with `bandpass_low_hz` and `bandpass_high_hz` set to specific values
@@ -52,12 +58,24 @@ The system SHALL apply a filter chain to the full concatenated mix consisting of
 - **WHEN** `hiss_level`, `crackle_density`, and `crackle_intensity` are set to nonzero values
 - **THEN** the output contains added background noise and sparse impulse artifacts whose overall level scales with those parameters; setting a parameter to zero removes that component from the output
 
+#### Scenario: Hiss level is independent of saturation
+- **WHEN** the filter chain runs on silence with a fixed nonzero `hiss_level` and different `saturation_amount` values
+- **THEN** the resulting hiss RMS level is the same (within 1 dB) for every saturation value
+
+#### Scenario: Hiss is band-limited to the bandpass range
+- **WHEN** hiss is added with a given `bandpass_low_hz`/`bandpass_high_hz`
+- **THEN** the hiss's spectral energy outside that range is measurably reduced relative to inside it
+
+#### Scenario: Noise bed fades in
+- **WHEN** the output begins
+- **THEN** the hiss ramps up over the first 150 ms instead of starting at full level on the first sample
+
 #### Scenario: Filter chain never produces invalid audio
 - **WHEN** the filter chain runs on any valid input clip combination
 - **THEN** the output contains no NaN or infinite sample values and no samples exceed full scale
 
-### Requirement: MP3 Input Support with WAV-Only Output
-The system SHALL accept input clips in WAV or MP3 format, and SHALL always write the output mixdown as WAV regardless of input format.
+### Requirement: MP3 Input Support with WAV or MP3 Output
+The system SHALL accept input clips in WAV or MP3 format, and SHALL write the output mixdown as WAV or MP3 as chosen by the user (by output file extension in the CLI, by a format selector in the playground).
 
 #### Scenario: MP3 input is decoded successfully
 - **WHEN** one or more of the three input clips is an MP3 file and the installed audio backend supports MP3 decoding
@@ -67,9 +85,36 @@ The system SHALL accept input clips in WAV or MP3 format, and SHALL always write
 - **WHEN** an MP3 input is provided but the installed `soundfile`/`libsndfile` build cannot decode MP3
 - **THEN** the system fails with a clear, actionable error identifying the file and the missing MP3 support, rather than raising a raw traceback or producing corrupted output
 
-#### Scenario: Output is always WAV
-- **WHEN** the mixdown completes, regardless of whether inputs were WAV, MP3, or a mix of both
-- **THEN** the output file is a valid WAV file at the path the user specified
+#### Scenario: Output format follows the output extension
+- **WHEN** the CLI is run with `-o recap.wav` or `-o recap.mp3`, regardless of input formats
+- **THEN** the output is a valid WAV or MP3 file respectively, at the path the user specified
+
+#### Scenario: Unsupported output extension
+- **WHEN** the CLI is run with an output path whose extension is neither `.wav` nor `.mp3`
+- **THEN** it exits with a clear error naming the supported formats and writes no file
+
+#### Scenario: Exporting from the playground
+- **WHEN** a user renders a preview, selects WAV or MP3, and clicks Export
+- **THEN** the playground offers a downloadable file in the selected format containing exactly the previewed render (not a fresh render with different random hiss/crackle)
+
+#### Scenario: Export before rendering
+- **WHEN** a user clicks Export before any preview has been rendered
+- **THEN** the playground shows an error asking them to render first
+
+### Requirement: Mixed Sample Rate Inputs
+The system SHALL accept input clips with differing sample rates by resampling every clip to a fixed 48 kHz working rate before normalization and concatenation, and SHALL write the output at 48 kHz. Both `mix.py` and `playground.py` SHALL use the same shared loading routine so they produce the same working rate for the same inputs.
+
+#### Scenario: Clips with different sample rates are mixed
+- **WHEN** the opening and closing clips are 44.1 kHz and the mid clip is 48 kHz
+- **THEN** the mixdown completes without error, the output is 48 kHz, and its duration equals the sum of the three input durations (within one sample per clip of resampling rounding)
+
+#### Scenario: Clips already at the working rate are not resampled
+- **WHEN** all three clips are already 48 kHz
+- **THEN** the clips are used unchanged and no resampling note is emitted
+
+#### Scenario: Resampling is reported
+- **WHEN** the CLI resamples one or more clips
+- **THEN** it prints one line per resampled clip to stderr naming the file and its original and target rates, and still exits successfully
 
 ### Requirement: Shared Preset Format
 The system SHALL define a single JSON preset schema for the filter chain's parameters, readable and writable by both `mix.py` and `playground.py`, so parameters tuned in one tool are directly usable by the other with no manual transcription.

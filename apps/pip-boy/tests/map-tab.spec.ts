@@ -84,20 +84,19 @@ test('the tab renders a Leaflet container centred on the configured start view',
   expect(view.lng).toBeCloseTo(DEFAULT_MAP_CONFIG.startLng, 3);
 });
 
-test('the tile pane carries the Fallout filter and no inherited phosphor glow', async ({ page }) => {
+test('the tile pane carries the phosphor tint filter and no inherited phosphor glow', async ({ page }) => {
   // The filter's *appearance* is a judgment call no test can make; that it is
   // applied at all is not. `.pb-screen * { text-shadow: inherit }` would
-  // otherwise smear the tiles.
+  // otherwise smear the tiles. How the tint follows the theme: map-theme.spec.
   await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
 
   const pane = await page.evaluate(() => {
     const el = document.querySelector('.leaflet-tile-pane')!;
     const s = getComputedStyle(el);
-    return { filter: s.filter, textShadow: s.textShadow };
+    return { filter: s.filter, textShadow: s.textShadow, defined: !!document.getElementById('pb-phosphor-tint') };
   });
-  expect(pane.filter).toContain('sepia(1)');
-  expect(pane.filter).toContain('hue-rotate(90deg)');
-  expect(pane.filter).toContain('saturate(8)');
+  expect(pane.filter).toContain('#pb-phosphor-tint');
+  expect(pane.defined).toBe(true);
   expect(pane.textShadow).toBe('none');
 });
 

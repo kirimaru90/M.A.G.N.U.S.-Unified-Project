@@ -1549,6 +1549,7 @@ export interface components {
         MapConfigDto: {
             startLat: number;
             startLng: number;
+            /** @description Must lie in [minZoom, maxZoom], inclusive */
             startZoom: number;
             minZoom: number;
             maxZoom: number;

@@ -150,10 +150,77 @@ class TestFilterChain:
             assert np.all(np.isfinite(out))
             assert np.max(np.abs(out)) <= 1.0 + 1e-6
 
+    def _hiss_only(self, saturation: float, sr: int = 48000, duration_s: float = 2.0) -> np.ndarray:
+        preset = filters.Preset(
+            hiss_level=0.05,
+            crackle_density=0,
+            crackle_intensity=0,
+            compression_amount=0,
+            saturation_amount=saturation,
+        )
+        return filters.apply_filter_chain(silence(duration_s, sr=sr), sr, preset, rng=np.random.default_rng(0))
+
+    def test_hiss_level_independent_of_saturation(self):
+        def rms_db(a):
+            return 20 * np.log10(np.sqrt(np.mean(a**2)))
+
+        sr = 48000
+        levels = [rms_db(self._hiss_only(sat, sr)[sr // 2 : -sr // 2]) for sat in (0.0, 0.2, 0.5, 1.0)]
+        assert max(levels) - min(levels) < 1.0
+
+    def test_hiss_band_limited(self):
+        sr = 48000
+        out = self._hiss_only(0.0, sr)
+        spectrum = np.abs(np.fft.rfft(out)) ** 2
+        freqs = np.fft.rfftfreq(len(out), 1 / sr)
+        in_band = spectrum[(freqs >= 300) & (freqs <= 3000)].mean()
+        out_band = spectrum[freqs >= 8000].mean()
+        assert out_band < in_band * 0.01
+
+    def test_hiss_fades_in(self):
+        sr = 48000
+        out = self._hiss_only(0.0, sr)
+        first_10ms = np.sqrt(np.mean(out[: sr // 100] ** 2))
+        steady = np.sqrt(np.mean(out[sr // 2 : sr] ** 2))
+        assert first_10ms < steady * 0.2
+
     def test_stereo_input_downmixed_to_mono_through_chain(self):
         stereo = np.stack([sine(440, 1.0, sr=8000), sine(440, 1.0, sr=8000)], axis=1)
         out = filters.apply_filter_chain(stereo, 8000, filters.Preset(), rng=np.random.default_rng(0))
         assert out.ndim == 1
+
+
+class TestLoadClips:
+    def _write(self, path, sr, duration_s):
+        import soundfile as sf
+
+        sf.write(str(path), sine(440, duration_s, sr=sr), sr)
+        return path
+
+    def test_mixed_rates_conformed_to_working_rate(self, tmp_path):
+        paths = [
+            self._write(tmp_path / "opening.wav", 44100, 0.3),
+            self._write(tmp_path / "mid.wav", 48000, 0.6),
+            self._write(tmp_path / "closing.wav", 44100, 0.3),
+        ]
+        clips, sr, resampled = filters.load_clips(paths)
+
+        assert sr == filters.WORKING_SAMPLE_RATE == 48000
+        assert [p.name for p, _ in resampled] == ["opening.wav", "closing.wav"]
+        assert all(orig == 44100 for _, orig in resampled)
+        for clip, duration in zip(clips, (0.3, 0.6, 0.3)):
+            assert abs(len(clip) - duration * sr) <= 1
+
+        mix = filters.build_mix(clips, sr, filters.Preset(), rng=np.random.default_rng(0))
+        assert abs(len(mix) - 1.2 * sr) <= len(clips)
+
+    def test_matching_rates_not_resampled(self, tmp_path):
+        paths = [self._write(tmp_path / f"{name}.wav", 48000, 0.2) for name in ("a", "b", "c")]
+        clips, sr, resampled = filters.load_clips(paths)
+
+        assert sr == 48000
+        assert resampled == []
+        assert all(len(clip) == int(0.2 * 48000) for clip in clips)
 
 
 class TestPresetRoundTrip:

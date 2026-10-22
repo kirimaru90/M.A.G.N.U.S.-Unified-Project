@@ -2,11 +2,15 @@ import { test, expect } from '@playwright/test';
 import {
   chain,
   containZoom,
+  declutter,
   distanceMetres,
+  effectiveMinZoom,
   effectiveRadius,
   isInside,
   isOpen,
+  labelPass,
   revealZoom,
+  separationZoom,
   viewportRadius,
   visible,
 } from '../src/tabs/map-geometry.js';
@@ -300,5 +304,165 @@ test.describe('containZoom / revealZoom — the derived zooms', () => {
     const z = revealZoom(room, places, radii, viewportPx, tight);
     expect(z).toBeGreaterThanOrEqual(tight.minZoom);
     expect(z).toBeLessThanOrEqual(tight.maxZoom);
+  });
+});
+
+// --- Declutter: projected-pixel items, no geography needed -------------------
+
+type Item = { slug: string; type: string; name: string; radius: number; x: number; y: number };
+
+const item = (slug: string, type: string, x: number, y = 0, over: Partial<Item> = {}): Item => ({
+  slug,
+  type,
+  name: slug,
+  radius: 0,
+  x,
+  y,
+  ...over,
+});
+
+test.describe('declutter — priority', () => {
+  test('a settlement absorbs an overlapping poi, whatever the input order', () => {
+    for (const items of [
+      [item('poi', 'poi', 0), item('town', 'settlement', 10)],
+      [item('town', 'settlement', 10), item('poi', 'poi', 0)],
+    ]) {
+      const out = declutter(items);
+      expect([...out.placed]).toEqual(['town']);
+      expect(out.absorbedBy.get('poi')).toBe('town');
+      expect(out.groups.get('town')).toEqual(['poi']);
+    }
+  });
+
+  test('follows the full type ladder', () => {
+    const types = ['room', 'building', 'poi', 'landmark', 'vault', 'settlement', 'region'];
+    const out = declutter(types.map((t, i) => item(t, t, i)));
+    expect([...out.placed]).toEqual(['region']);
+    // Equal ranks fall through to the name: landmark < poi, settlement < vault.
+    expect(out.groups.get('region')).toEqual(['settlement', 'vault', 'landmark', 'poi', 'building', 'room']);
+  });
+
+  test('ties go to the larger effective radius', () => {
+    const out = declutter([
+      item('small', 'vault', 0, 0, { radius: 100 }),
+      item('big', 'settlement', 5, 0, { radius: 900 }),
+    ]);
+    expect([...out.placed]).toEqual(['big']);
+  });
+
+  test('equal rank and radius go to the first name, every time', () => {
+    const items = [
+      item('b', 'landmark', 0, 0, { name: 'Zeta' }),
+      item('a', 'landmark', 5, 0, { name: 'Alfa' }),
+    ];
+    for (let i = 0; i < 3; i++) expect([...declutter(items).placed]).toEqual(['a']);
+    expect([...declutter([...items].reverse()).placed]).toEqual(['a']);
+  });
+
+  test('the focused place wins over a higher-priority neighbour', () => {
+    const out = declutter([item('town', 'settlement', 0), item('poi', 'poi', 5)], { focused: 'poi' });
+    expect([...out.placed]).toEqual(['poi']);
+    expect(out.absorbedBy.get('town')).toBe('poi');
+  });
+
+  test('absorbed places take no space: in a chain A–B–C, A and C both place', () => {
+    // A–B and B–C overlap (20 < 30), A–C do not (40 ≥ 30).
+    const out = declutter([item('a', 'region', 0), item('b', 'settlement', 20), item('c', 'poi', 40)]);
+    expect([...out.placed].sort()).toEqual(['a', 'c']);
+    expect(out.absorbedBy.get('b')).toBe('a');
+  });
+
+  test('icons a box-plus-pad apart do not collide', () => {
+    const out = declutter([item('a', 'poi', 0), item('b', 'poi', 30)]);
+    expect(out.placed.size).toBe(2);
+    expect(out.groups.size).toBe(0);
+  });
+
+  test('is unchanged by a pan — a uniform translation of every point', () => {
+    const items = [item('a', 'region', 0), item('b', 'settlement', 20), item('c', 'poi', 40, 10)];
+    const shifted = items.map((i) => ({ ...i, x: i.x + 777, y: i.y - 333 }));
+    const a = declutter(items);
+    const b = declutter(shifted);
+    expect([...b.placed]).toEqual([...a.placed]);
+    expect([...b.absorbedBy]).toEqual([...a.absorbedBy]);
+  });
+});
+
+test.describe('labelPass', () => {
+  const size = (w: number, h = 12) => ({ w, h });
+
+  test('a lower-priority label yields to a higher-priority one', () => {
+    // Icons 40 px apart don't overlap; 60 px-wide labels do.
+    const items = [item('town', 'settlement', 0), item('poi', 'poi', 40)];
+    const hidden = labelPass(items, new Map([['town', size(60)], ['poi', size(60)]]), ['town', 'poi']);
+    expect([...hidden]).toEqual(['poi']);
+  });
+
+  test('a label that would cover another icon is hidden', () => {
+    // The poi's icon sits right under the town's icon, where its label goes.
+    const items = [item('town', 'settlement', 0, 0), item('poi', 'poi', 0, 36)];
+    const hidden = labelPass(items, new Map([['town', size(40)], ['poi', size(10)]]), ['town', 'poi']);
+    expect(hidden.has('town')).toBe(true);
+  });
+
+  test('distant labels all show', () => {
+    const items = [item('a', 'poi', 0), item('b', 'poi', 200)];
+    expect(labelPass(items, new Map([['a', size(60)], ['b', size(60)]]), ['a', 'b']).size).toBe(0);
+  });
+
+  test('an unmeasured label stays shown and blocks nothing', () => {
+    const items = [item('a', 'poi', 0), item('b', 'poi', 40)];
+    const hidden = labelPass(items, new Map([['b', size(60)]]), ['a', 'b']);
+    expect(hidden.size).toBe(0);
+  });
+});
+
+test.describe('separationZoom', () => {
+  const range = { minZoom: 3, maxZoom: 18 };
+
+  test('targets the least zoom at which the closest pair stops colliding', () => {
+    // 10 px apart at z10: 20 at z11, 40 at z12 ≥ 30 → z12.
+    const z = separationZoom([{ x: 0, y: 0 }, { x: 10, y: 0 }], 10, range);
+    expect(z).toBe(12);
+    const atZ = (zoom: number) => 10 * 2 ** (zoom - 10);
+    expect(atZ(z)).toBeGreaterThanOrEqual(30);
+    expect(atZ(z - 1)).toBeLessThan(30);
+  });
+
+  test('uses the Chebyshev distance of the closest pair in the group', () => {
+    const pts = [{ x: 0, y: 0 }, { x: 3, y: 15 }, { x: 100, y: 100 }];
+    // closest pair: max(3, 15) = 15 → one step to 30.
+    expect(separationZoom(pts, 8, range)).toBe(9);
+  });
+
+  test('always moves in by at least one level', () => {
+    expect(separationZoom([{ x: 0, y: 0 }, { x: 29.9, y: 0 }], 7, range)).toBe(8);
+  });
+
+  test('identical coordinates go to the maximum zoom', () => {
+    expect(separationZoom([{ x: 5, y: 5 }, { x: 5, y: 5 }], 6, range)).toBe(18);
+  });
+
+  test('clamps to the maximum zoom', () => {
+    expect(separationZoom([{ x: 0, y: 0 }, { x: 0.01, y: 0 }], 15, range)).toBe(18);
+  });
+});
+
+test.describe('effectiveMinZoom', () => {
+  test('raises the config floor to the bounds zoom', () => {
+    expect(effectiveMinZoom(3, 18, 7)).toBe(7);
+  });
+
+  test('keeps the config floor when the bounds fit further out', () => {
+    expect(effectiveMinZoom(8, 12, 5)).toBe(8);
+  });
+
+  test('never exceeds the configured maximum', () => {
+    expect(effectiveMinZoom(3, 10, 14)).toBe(10);
+  });
+
+  test('ignores a non-finite bounds zoom', () => {
+    expect(effectiveMinZoom(3, 18, Infinity)).toBe(3);
+    expect(effectiveMinZoom(3, 18, NaN)).toBe(3);
   });
 });

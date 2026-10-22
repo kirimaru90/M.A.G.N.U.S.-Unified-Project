@@ -19,28 +19,23 @@ preset that `mix.py --preset` can consume directly.
 from __future__ import annotations
 
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 import gradio as gr
 import numpy as np
-import soundfile as sf
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _filters as filters
 
 PRESETS_DIR = Path(__file__).resolve().parent / "presets"
 PRESETS_DIR.mkdir(exist_ok=True)
+EXPORT_DIR = Path(tempfile.gettempdir()) / "radio-mixdown"
 
 
 def list_presets() -> list[str]:
     return sorted(p.stem for p in PRESETS_DIR.glob("*.json"))
-
-
-def _load_clip(path: str) -> tuple[np.ndarray, int]:
-    audio, sample_rate = sf.read(path, dtype="float64", always_2d=False)
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
-    return audio, sample_rate
 
 
 def render(
@@ -54,19 +49,16 @@ def render(
     crackle_intensity: float,
     compression_amount: float,
     saturation_amount: float,
-) -> tuple[int, np.ndarray]:
+) -> tuple[tuple[int, np.ndarray], tuple[int, np.ndarray]]:
     if not (opening_path and mid_path and closing_path):
         raise gr.Error("Load all three clips (opening, mid, closing) before rendering.")
 
-    clips = []
-    sample_rate = None
-    for path in (opening_path, mid_path, closing_path):
-        audio, sr = _load_clip(path)
-        if sample_rate is None:
-            sample_rate = sr
-        elif sr != sample_rate:
-            raise gr.Error(f"Sample rate mismatch: '{path}' is {sr} Hz, expected {sample_rate} Hz.")
-        clips.append(audio)
+    try:
+        clips, sample_rate, resampled = filters.load_clips([opening_path, mid_path, closing_path])
+    except (FileNotFoundError, RuntimeError) as exc:
+        raise gr.Error(str(exc))
+    for path, original_rate in resampled:
+        gr.Info(f"Resampled {path.name}: {original_rate} -> {sample_rate} Hz")
 
     preset = filters.Preset(
         bandpass_low_hz=bandpass_low_hz,
@@ -78,7 +70,21 @@ def render(
         saturation_amount=saturation_amount,
     )
     mix = filters.build_mix(clips, sample_rate, preset)
-    return sample_rate, mix
+    # Returned twice: once for the player, once kept in state so Export writes this exact take.
+    return (sample_rate, mix), (sample_rate, mix)
+
+
+def export_action(last_render: tuple[int, np.ndarray] | None, fmt: str) -> str:
+    if last_render is None:
+        raise gr.Error("Render a preview before exporting.")
+    sample_rate, mix = last_render
+    EXPORT_DIR.mkdir(exist_ok=True)
+    path = EXPORT_DIR / f"radio-mixdown-{time.strftime('%Y%m%d-%H%M%S')}.{fmt.lower()}"
+    try:
+        filters.write_audio(path, mix, sample_rate)
+    except (ValueError, RuntimeError) as exc:
+        raise gr.Error(str(exc))
+    return str(path)
 
 
 def save_preset_action(
@@ -146,10 +152,17 @@ with gr.Blocks(title="Radio Mixdown Playground") as demo:
         with gr.Column():
             render_btn = gr.Button("Render", variant="primary")
             output_audio = gr.Audio(label="Preview", type="numpy")
+            with gr.Row():
+                export_format = gr.Radio(["WAV", "MP3"], value="WAV", label="Export format")
+                export_btn = gr.Button("Export")
+            export_file = gr.File(label="Exported file")
+
+    last_render = gr.State(None)
 
     sliders = [bandpass_low, bandpass_high, hiss, crackle_density, crackle_intensity, compression, saturation]
 
-    render_btn.click(render, inputs=[opening_in, mid_in, closing_in, *sliders], outputs=output_audio)
+    render_btn.click(render, inputs=[opening_in, mid_in, closing_in, *sliders], outputs=[output_audio, last_render])
+    export_btn.click(export_action, inputs=[last_render, export_format], outputs=export_file)
 
     with gr.Row():
         preset_name = gr.Textbox(label="Preset name")

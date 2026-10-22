@@ -4906,7 +4906,8 @@
             "type": "number"
           },
           "startZoom": {
-            "type": "number"
+            "type": "number",
+            "description": "Must lie in [minZoom, maxZoom], inclusive"
           },
           "minZoom": {
             "type": "number"

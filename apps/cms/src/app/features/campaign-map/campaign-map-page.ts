@@ -144,7 +144,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
             type="button"
             class="bo-btn primary"
             data-testid="save"
-            [disabled]="saving()"
+            [disabled]="saving() || configError() !== null"
             (click)="save()"
           >
             Salva
@@ -230,7 +230,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
                   </button>
 
                   <label>
-                    Zoom min
+                    Zoom minimo (più lontano)
                     <input
                       pInputText
                       type="number"
@@ -240,7 +240,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
                     />
                   </label>
                   <label>
-                    Zoom max
+                    Zoom massimo (più vicino)
                     <input
                       pInputText
                       type="number"
@@ -249,6 +249,9 @@ type Mode = 'idle' | 'placing' | 'bounds';
                       (ngModelChange)="patchConfig({ maxZoom: +$event })"
                     />
                   </label>
+                  @if (configError(); as err) {
+                    <small class="cm-error" data-testid="cfg-error">{{ err }}</small>
+                  }
 
                   <div class="cm-bounds">
                     <strong>Limiti</strong>
@@ -707,6 +710,10 @@ type Mode = 'idle' | 'placing' | 'bounds';
         opacity: 0.7;
         font-size: 11px;
       }
+      .cm-error {
+        color: #b71c1c;
+        font-size: 11px;
+      }
       .cm-empty,
       .cm-summary {
         font-size: 12px;
@@ -841,6 +848,19 @@ export class CampaignMapPage {
   protected readonly floors = computed(() => floorR(this.places()));
   protected readonly visibleCount = computed(() => visibleToPlayer(this.places()).size);
   protected readonly filtering = computed(() => this.nameFilter().trim().length > 0);
+
+  /**
+   * The cross-field zoom rules the API enforces, said in the author's terms.
+   * Non-null blocks Salva, so a self-contradictory config never reaches a 400.
+   */
+  protected readonly configError = computed<string | null>(() => {
+    const { minZoom, maxZoom, startZoom } = this.config();
+    if (minZoom > maxZoom)
+      return 'Lo zoom minimo non può superare lo zoom massimo.';
+    if (startZoom < minZoom || startZoom > maxZoom)
+      return `Lo zoom iniziale deve essere tra ${minZoom} e ${maxZoom}.`;
+    return null;
+  });
 
   protected readonly selectedPlace = computed(() => {
     const slug = this.selected();
@@ -1048,7 +1068,9 @@ export class CampaignMapPage {
   private load(id: string): void {
     this.api.get(id).subscribe({
       next: (dto) => {
-        this.config.set(dto.config ?? DEFAULT_CONFIG);
+        const cfg = dto.config ?? DEFAULT_CONFIG;
+        this.config.set(cfg);
+        this.applyStartView(cfg);
         this.places.set(dto.places ?? []);
         this.loadedSnapshot.set(this.snapshot());
         this.select(null);
@@ -1061,6 +1083,21 @@ export class CampaignMapPage {
       next: (entries) => this.codexEntries.set(entries),
       error: () => this.codexEntries.set([]),
     });
+  }
+
+  /**
+   * Frame the map on the loaded start view — once per load, never from an
+   * effect, so typing in the start fields does not move the view. A map built
+   * before the load resolved was seeded from DEFAULT_CONFIG; a map built after
+   * reads the loaded config in initMap, so both orderings land here.
+   */
+  private applyStartView(cfg: MapConfig): void {
+    if (!this.map) return;
+    // The zoom-range effect has not run yet, so widen to the loaded range first
+    // or Leaflet clamps the start zoom against the previous one.
+    this.map.setMinZoom(cfg.minZoom);
+    this.map.setMaxZoom(cfg.maxZoom);
+    this.map.setView([cfg.startLat, cfg.startLng], cfg.startZoom, { animate: false });
   }
 
   /** "Annulla" — discard local edits by reloading the current campaign. */

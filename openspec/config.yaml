@@ -55,6 +55,17 @@ rules:
       touched (e.g. `npx playwright test tests/<name>.spec.ts`, `npx jest <path>`,
       `npx ng test --include <path>`), never a whole suite. Full suites run exactly once,
       in the final wrap-up task, before the change is archived.
+    - For all specs - new assertions MUST extend an existing test when one already sets up
+      the same screen/state (add a `test.step` or `expect` there), and only create a new
+      test when no existing one fits. Create a new test file only for a new feature area.
+      Reason: in the Playwright suites each test pays a fresh browser context, app boot and
+      login, and in the API e2e suite each file boots Nest plus an in-memory Mongo; that
+      setup, not the assertions, is what makes suites slow, and it must stay usable on
+      less powerful machines rather than relying on more workers. Exception: tests that
+      mutate state (PATCH, add, delete) keep their own fresh test, because isolation
+      matters more there and a shared page would leak state between assertions. Never
+      share one page across tests (`describe.serial` + `beforeAll`): one failure would skip
+      the rest and the tests would depend on their order.
     - For api-* specs - the final task MUST run `npm test` from apps/api/api and, when
       endpoints or persistence change, `npm run test:e2e`, confirming all pass. Changed
       files MUST meet >= 80% line coverage via `npm run test:cov`.

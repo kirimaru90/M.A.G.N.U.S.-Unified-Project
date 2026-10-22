@@ -60,5 +60,5 @@
 
 ## 7. Wrap-up
 
-- [ ] 7.1 Manual pass on a phone-width viewport: image proportions, popup scrolling, swipe across INFO
+- [x] 7.1 Manual pass on a phone-width viewport: image proportions, popup scrolling, swipe across INFO
 - [x] 7.2 Re-run the API (unit, e2e, coverage), CMS and Pip-Boy suites; confirm all pass before archiving

@@ -291,6 +291,29 @@ describe('CampaignMapModule (e2e)', () => {
       expect(res.statusCode).toBe(400);
     });
 
+    it('rejects a startZoom outside the zoom range and leaves the stored map unchanged', async () => {
+      const before = JSON.parse((await get(adminToken)).body);
+      for (const startZoom of [7, 17]) {
+        const res = await put(adminToken, {
+          config: { ...CONFIG, minZoom: 8, maxZoom: 16, startZoom },
+          places: [place({ slug: 'out-of-range' })],
+        });
+        expect(res.statusCode).toBe(400);
+      }
+      const after = JSON.parse((await get(adminToken)).body);
+      expect(after).toEqual(before);
+    });
+
+    it('accepts a startZoom on the edge of the zoom range', async () => {
+      for (const startZoom of [8, 16]) {
+        const res = await put(adminToken, {
+          config: { ...CONFIG, minZoom: 8, maxZoom: 16, startZoom },
+          places: [],
+        });
+        expect(res.statusCode).toBe(200);
+      }
+    });
+
     it('accepts a valid nested payload', async () => {
       const res = await put(adminToken, {
         config: CONFIG,

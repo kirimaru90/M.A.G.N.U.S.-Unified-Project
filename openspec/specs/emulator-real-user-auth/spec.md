@@ -3,9 +3,7 @@
 ## Purpose
 
 Real-user bearer-token session lifecycle (login/logout/rehydrate), credential-attaching API client, Accedi/Esci auth actions, post-login campaign refresh, non-leaking errors, and authenticated public/private campaign grouping.
-
 ## Requirements
-
 ### Requirement: Anonymous campaign view is the default
 The Terminal SHALL operate without a real-user session by default. When no session is present, requests SHALL be issued anonymously (no `Authorization` header) and the campaign-selection screen SHALL show only what the server returns for an anonymous request (active public campaigns).
 
@@ -20,22 +18,26 @@ The Terminal SHALL operate without a real-user session by default. When no sessi
 - **THEN** the rendered campaign list SHALL NOT include any assignment-gated campaign
 
 ### Requirement: Bearer-token session lifecycle
-The Terminal SHALL manage a real-user session as a bearer token. `POST /auth/login` with `{ username, password }` SHALL, on success, return a token and the authenticated user; the client SHALL store the token in `sessionStorage` under a single well-known key and hold the current user in memory. Logout SHALL call `POST /auth/logout` and then clear the stored token and in-memory user. A session module SHALL be the single owner of this state, exposing the current token, the current user, and `isAuthenticated()`.
+The Terminal SHALL manage a real-user session as a bearer token. `POST /auth/login` with `{ username, password, rememberMe }` SHALL, on success, return a token and the authenticated user; the client SHALL store the token under a single well-known key in `localStorage` when the user chose "Ricordami", and in `sessionStorage` otherwise, removing the key from the other store so that at most one store holds it. The client SHALL hold the current user in memory. When reading the token, the session module SHALL read `localStorage` first and fall back to `sessionStorage`. Logout SHALL call `POST /auth/logout` and then clear the key from both stores and the in-memory user. A session module SHALL be the single owner of this state, exposing the current token, the current user, and `isAuthenticated()`.
 
-#### Scenario: Successful login stores the credential
-- **WHEN** `POST /auth/login` returns a token and user object
-- **THEN** the session module SHALL persist the token in `sessionStorage`
+#### Scenario: Successful remembered login stores the credential in localStorage
+- **WHEN** the user logs in with "Ricordami" enabled and `POST /auth/login` returns a token
+- **THEN** the session module SHALL persist the token in `localStorage` and SHALL NOT keep it in `sessionStorage`
 - **THEN** `isAuthenticated()` SHALL return true and the current user SHALL be available
+
+#### Scenario: Successful non-remembered login stores the credential in sessionStorage
+- **WHEN** the user logs in with "Ricordami" disabled and `POST /auth/login` returns a token
+- **THEN** the session module SHALL persist the token in `sessionStorage` and SHALL NOT keep it in `localStorage`
 
 #### Scenario: Logout clears the credential
 - **WHEN** the user logs out
 - **THEN** the client SHALL call `POST /auth/logout`
-- **THEN** the stored token SHALL be removed from `sessionStorage` and the in-memory user cleared
+- **THEN** the stored token SHALL be removed from both `localStorage` and `sessionStorage` and the in-memory user cleared
 - **THEN** `isAuthenticated()` SHALL return false
 
 #### Scenario: Logout clears the credential even if the server call fails
 - **WHEN** the user logs out and `POST /auth/logout` fails (network or HTTP error)
-- **THEN** the client SHALL still remove the stored token and clear the in-memory user, returning to the anonymous state
+- **THEN** the client SHALL still remove the stored token from both stores and clear the in-memory user, returning to the anonymous state
 
 ### Requirement: API client attaches the session credential
 The API client wrapper SHALL attach `Authorization: Bearer <token>` to every request when a session token is present, and SHALL omit the header entirely when no session exists. The client SHALL continue to function unchanged (anonymous) when there is no session.
@@ -49,16 +51,21 @@ The API client wrapper SHALL attach `Authorization: Bearer <token>` to every req
 - **THEN** the request SHALL NOT include an `Authorization` header
 
 ### Requirement: Session rehydration on app load
-On load, if a credential is present in `sessionStorage`, the Terminal SHALL call `GET /auth/me` to confirm the session before treating the user as authenticated. A successful response SHALL hydrate the in-memory current user and the campaign list SHALL be fetched in authenticated mode. An invalid or expired credential SHALL be cleared silently and the app SHALL fall back to the anonymous view; no error SHALL be shown for this case.
+On load, if a credential is present in `localStorage` or `sessionStorage`, the Terminal SHALL call `GET /auth/me` to confirm the session before treating the user as authenticated. A successful response SHALL hydrate the in-memory current user and the campaign list SHALL be fetched in authenticated mode. An invalid or expired credential SHALL be cleared silently from both stores and the app SHALL fall back to the anonymous view; no error SHALL be shown for this case.
 
 #### Scenario: Valid stored credential rehydrates the session
 - **WHEN** the app loads with a token in `sessionStorage` and `GET /auth/me` succeeds
 - **THEN** the current user SHALL be hydrated from the response
 - **THEN** the campaign-selection screen SHALL fetch and render campaigns in authenticated mode (public + assigned)
 
+#### Scenario: Remembered credential survives closing the app
+- **WHEN** the user logged in with "Ricordami", closed the window, and opens the app again
+- **THEN** the token SHALL be found in `localStorage` and `GET /auth/me` SHALL be issued with it
+- **THEN** on success the user SHALL be authenticated without seeing the login screen
+
 #### Scenario: Expired stored credential falls back to anonymous
-- **WHEN** the app loads with a token in `sessionStorage` and `GET /auth/me` responds `401`
-- **THEN** the client SHALL remove the stored token
+- **WHEN** the app loads with a stored token and `GET /auth/me` responds `401`
+- **THEN** the client SHALL remove the stored token from both stores
 - **THEN** the campaign-selection screen SHALL render the anonymous (public-only) view
 - **THEN** no error message SHALL be shown to the user
 
@@ -79,15 +86,19 @@ The campaign-selection screen SHALL present a single auth action that reflects s
 - **THEN** pointer hover over it SHALL play the selection sound
 
 ### Requirement: Real-user login screen in CRT aesthetic
-The Terminal SHALL provide a real-user login screen, presented inline on (or as a navigable sub-screen of) the campaign-selection screen, that collects a username and password and submits them to `POST /auth/login`. The screen SHALL adopt the existing CRT aesthetic and keyboard navigation. It SHALL be visually and functionally distinct from the in-narrative fictional login. The screen SHALL provide a way to cancel and return to the campaign list without authenticating.
+The Terminal SHALL provide a real-user login screen, presented inline on (or as a navigable sub-screen of) the campaign-selection screen, that collects a username and password and submits them to `POST /auth/login`. The screen SHALL include a "Ricordami" toggle rendered in the CRT aesthetic as a choice button showing its state (`[ ] RICORDAMI` / `[X] RICORDAMI`), reachable through the existing keyboard navigation and toggled by activation (click or Enter). The toggle SHALL be off each time the screen is shown. The screen SHALL adopt the existing CRT aesthetic and keyboard navigation. It SHALL be visually and functionally distinct from the in-narrative fictional login. The screen SHALL provide a way to cancel and return to the campaign list without authenticating.
 
 #### Scenario: Accedi opens the login screen
 - **WHEN** the user activates `[ Accedi ]`
-- **THEN** the real-user login screen SHALL be shown in the CRT aesthetic with username and password fields
+- **THEN** the real-user login screen SHALL be shown in the CRT aesthetic with username and password fields and the `[ ] RICORDAMI` toggle off
+
+#### Scenario: Toggling Ricordami
+- **WHEN** the user navigates to the "Ricordami" toggle with the keyboard and presses Enter
+- **THEN** the toggle SHALL show `[X] RICORDAMI`, and activating it again SHALL show `[ ] RICORDAMI`
 
 #### Scenario: Submitting credentials calls the login endpoint
 - **WHEN** the user enters a username and password and submits
-- **THEN** the client SHALL issue `POST /auth/login` with `{ username, password }`
+- **THEN** the client SHALL issue `POST /auth/login` with `{ username, password, rememberMe }`, where `rememberMe` reflects the toggle state
 
 #### Scenario: Cancel returns to the campaign list
 - **WHEN** the user cancels the login screen without authenticating
@@ -201,3 +212,4 @@ On the terminal-selection screen, the current-user status string SHALL additiona
 #### Scenario: Terminal selection shows user and campaign
 - **WHEN** the terminal-selection screen renders
 - **THEN** the status string SHALL include both the current-user indicator (named or anonymous) and the current campaign
+

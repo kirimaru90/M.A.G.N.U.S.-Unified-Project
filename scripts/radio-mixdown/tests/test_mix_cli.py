@@ -52,9 +52,53 @@ def test_end_to_end_mixdown_default_preset(tmp_path, clips):
 
     assert result.returncode == 0
     assert out.exists()
-    audio, _sr = sf.read(str(out))
-    total_in_frames = sum(sf.info(str(p)).frames for p in clips)
-    assert abs(len(audio) - total_in_frames) <= 1
+    audio, sr = sf.read(str(out))
+    assert sr == 48000
+    total_in_seconds = sum(sf.info(str(p)).duration for p in clips)
+    assert abs(len(audio) - total_in_seconds * sr) <= len(clips)
+    assert result.stderr.count("resampled") == len(clips)
+
+
+def test_mp3_output(tmp_path, clips):
+    out = tmp_path / "out.mp3"
+
+    result = run_cli([*map(str, clips), "-o", str(out)])
+
+    assert result.returncode == 0, result.stderr
+    info = sf.info(str(out))
+    assert info.format == "MP3"
+    assert info.samplerate == 48000
+    assert abs(info.duration - sum(sf.info(str(p)).duration for p in clips)) < 0.1
+
+
+def test_unsupported_output_extension_rejected(tmp_path, clips):
+    out = tmp_path / "out.ogg"
+
+    result = run_cli([*map(str, clips), "-o", str(out)])
+
+    assert result.returncode != 0
+    assert ".wav" in result.stderr and ".mp3" in result.stderr
+    assert not out.exists()
+
+
+def test_mixed_sample_rates_mix_to_48k(tmp_path):
+    opening = tmp_path / "opening.wav"
+    mid = tmp_path / "mid.wav"
+    closing = tmp_path / "closing.wav"
+    write_wav(opening, duration=0.3, sr=44100)
+    write_wav(mid, duration=0.6, sr=48000)
+    write_wav(closing, duration=0.3, sr=44100)
+    out = tmp_path / "out.wav"
+
+    result = run_cli([str(opening), str(mid), str(closing), "-o", str(out)])
+
+    assert result.returncode == 0, result.stderr
+    audio, sr = sf.read(str(out))
+    assert sr == 48000
+    assert abs(len(audio) - 1.2 * sr) <= 3
+    assert "opening.wav: 44100 -> 48000 Hz" in result.stderr
+    assert "closing.wav: 44100 -> 48000 Hz" in result.stderr
+    assert "mid.wav" not in result.stderr
 
 
 def test_preset_flag_changes_output(tmp_path, clips):

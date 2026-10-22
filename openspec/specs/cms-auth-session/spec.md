@@ -2,10 +2,8 @@
 
 ## Purpose
 
-Signal-based AuthService with localStorage JWT persistence, GET /auth/me session restore, Bearer interceptor, 401 clear-and-redirect, route guard, login/logout flows, and accessToken extraction.
-
+Signal-based AuthService with JWT persistence per the Ricordami choice (localStorage or sessionStorage), GET /auth/me session restore, Bearer interceptor, 401 clear-and-redirect, route guard, login/logout flows, and accessToken extraction.
 ## Requirements
-
 ### Requirement: Signal-based AuthService exposes session state
 The application SHALL provide an `AuthService` exposing the session as Signals: `isAuthenticated: Signal<boolean>`, `currentUser: Signal<User | null>`, and `token: Signal<string | null>`. The signals MUST update synchronously when login, session restore, or logout occurs so that bound templates and guards react without manual change detection.
 
@@ -38,34 +36,23 @@ The typed login response model SHALL match the real API wire shape and SHALL NOT
 - **WHEN** inspecting the login response type in the API client
 - **THEN** it declares only the fields the API actually returns (`accessToken`, and the role/expiry scalars) and does NOT declare a `user` object, so `currentUser` is never set from an undefined `response.user`
 
-### Requirement: JWT is persisted in localStorage
-The JWT bearer token SHALL be persisted in `localStorage` under a documented key when the user logs in, and SHALL be removed from `localStorage` when the user logs out or when the session is cleared due to a 401.
-
-#### Scenario: Token persists across login
-- **WHEN** the user logs in successfully
-- **THEN** `localStorage` contains the token under the documented key
-
-#### Scenario: Token is removed on logout
-- **WHEN** the user logs out
-- **THEN** the token key is absent from `localStorage`
-
-#### Scenario: Token is removed when session is cleared by a 401
-- **WHEN** any API call returns `401` and triggers session clearing
-- **THEN** the token key is absent from `localStorage`
-
 ### Requirement: Session is restored on app start via GET /auth/me
-On application bootstrap, if a token is present in `localStorage`, the application SHALL call `GET /auth/me` to validate the token and rehydrate `currentUser`. If the call succeeds, the user is treated as authenticated; if it fails with `401`, the session is cleared and the user is treated as unauthenticated.
+On application bootstrap, if a token is present in `localStorage` or `sessionStorage`, the application SHALL call `GET /auth/me` to validate the token and rehydrate `currentUser`. If the call succeeds, the user is treated as authenticated; if it fails with `401`, the session is cleared and the user is treated as unauthenticated.
 
 #### Scenario: Successful restore
 - **WHEN** the app starts with a valid token in `localStorage`
 - **THEN** `AuthService` calls `GET /auth/me`, populates `currentUser` from the response, and `isAuthenticated()` is `true` before any guarded route resolves
 
+#### Scenario: Successful restore from sessionStorage
+- **WHEN** the app reloads in the same tab with a valid token only in `sessionStorage`
+- **THEN** `AuthService` calls `GET /auth/me`, populates `currentUser`, and `isAuthenticated()` is `true`
+
 #### Scenario: Restore is rejected
-- **WHEN** the app starts with an invalid or expired token in `localStorage`
-- **THEN** `GET /auth/me` responds `401`, the session is cleared, the token is removed from `localStorage`, and `isAuthenticated()` is `false`
+- **WHEN** the app starts with an invalid or expired token in either store
+- **THEN** `GET /auth/me` responds `401`, the session is cleared, the token is removed from both stores, and `isAuthenticated()` is `false`
 
 #### Scenario: No token present
-- **WHEN** the app starts with no token in `localStorage`
+- **WHEN** the app starts with no token in either store
 - **THEN** no `GET /auth/me` call is issued and `isAuthenticated()` is `false`
 
 ### Requirement: HTTP interceptor attaches the Bearer token
@@ -84,7 +71,7 @@ The application SHALL register an Angular `HttpInterceptor` that, for every outb
 - **THEN** no `Authorization` header is attached
 
 ### Requirement: 401 responses clear auth state and redirect to /login
-The HTTP interceptor SHALL detect `401 Unauthorized` responses from API calls, clear the auth session (token, user, `localStorage`), and navigate the user to `/login`. The application SHALL NOT enter a redirect loop on the login route itself.
+The HTTP interceptor SHALL detect `401 Unauthorized` responses from API calls, clear the auth session (token, user, and the token key in both `localStorage` and `sessionStorage`), and navigate the user to `/login`. The application SHALL NOT enter a redirect loop on the login route itself.
 
 #### Scenario: 401 on a guarded API call
 - **WHEN** an API call returns `401` while the user is on a guarded route
@@ -110,11 +97,19 @@ The application SHALL provide a functional route guard (e.g., `canActivate`) tha
 - **THEN** the user lands on `/login`
 
 ### Requirement: Login screen with plain admin aesthetic
-The application SHALL provide a `/login` route rendering a `.bo-*` admin form — a `.bo-card` containing a Reactive Form using `.bo-input` controls and a `.bo-btn.primary` submit — with username and password inputs and a submit button. On successful submit, the user SHALL be navigated to `/campaigns`. On failed submit (`401` from `/auth/login`), the form SHALL display an inline error message and the user SHALL remain on `/login`. The visual style MUST be the `.bo-*` admin aesthetic — it SHALL NOT use the Fallout/CRT (`.bo-crt`) terminal styling reserved for the player-facing Terminal app.
+The application SHALL provide a `/login` route rendering a `.bo-*` admin form — a `.bo-card` containing a Reactive Form using `.bo-input` controls and a `.bo-btn.primary` submit — with username and password inputs, a "Ricordami" checkbox (unchecked by default), and a submit button. Submitting SHALL send `rememberMe` equal to the checkbox state in the `POST /auth/login` body. On successful submit, the user SHALL be navigated to `/campaigns`. On failed submit (`401` from `/auth/login`), the form SHALL display an inline error message and the user SHALL remain on `/login`. The visual style MUST be the `.bo-*` admin aesthetic — it SHALL NOT use the Fallout/CRT (`.bo-crt`) terminal styling reserved for the player-facing Terminal app.
 
 #### Scenario: Successful login navigates to /campaigns
 - **WHEN** the user submits the login form with credentials that the API accepts
 - **THEN** auth state is populated and the router navigates to `/campaigns`
+
+#### Scenario: Ricordami is sent with the login request
+- **WHEN** the user checks "Ricordami" and submits the form
+- **THEN** the `POST /auth/login` body contains `rememberMe: true`
+
+#### Scenario: Ricordami defaults to unchecked
+- **WHEN** the login screen is first rendered
+- **THEN** the "Ricordami" checkbox is unchecked and submitting without touching it sends `rememberMe: false`
 
 #### Scenario: Failed login surfaces an error
 - **WHEN** the user submits the login form with credentials the API rejects (`401`)
@@ -149,3 +144,23 @@ The client SHALL read the issued JWT bearer token from the `accessToken` field o
 #### Scenario: Login response type matches the wire shape
 - **WHEN** inspecting the login response type in the API client
 - **THEN** it declares the token field as `accessToken` (not `access_token`), so reading `response.accessToken` typechecks and is defined at runtime
+
+### Requirement: JWT is persisted according to the Ricordami choice
+On successful login the JWT bearer token SHALL be persisted under the documented key in `localStorage` when the user checked "Ricordami", and in `sessionStorage` otherwise. At most one of the two stores SHALL hold the token at any time: writing to one store SHALL remove the key from the other. When reading the token (on construction and before attaching it to requests), the service SHALL read `localStorage` first and fall back to `sessionStorage`. Logout and 401-driven clearing SHALL remove the key from both stores.
+
+#### Scenario: Remembered login uses localStorage
+- **WHEN** the user logs in successfully with "Ricordami" checked
+- **THEN** `localStorage` contains the token under the documented key and `sessionStorage` does not
+
+#### Scenario: Non-remembered login uses sessionStorage
+- **WHEN** the user logs in successfully with "Ricordami" unchecked
+- **THEN** `sessionStorage` contains the token under the documented key and `localStorage` does not
+
+#### Scenario: Token is removed on logout
+- **WHEN** the user logs out
+- **THEN** the token key is absent from both `localStorage` and `sessionStorage`
+
+#### Scenario: Token is removed when session is cleared by a 401
+- **WHEN** any API call returns `401` and triggers session clearing
+- **THEN** the token key is absent from both `localStorage` and `sessionStorage`
+

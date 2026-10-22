@@ -3,9 +3,7 @@
 ## Purpose
 
 Navigation for the `apps/pip-boy` character sheet: a two-level tab layout (five first-level tabs with conditional subtab rows for `STATS`, `INV`, and `INFO`), a single flattened prev/next traversal order over every reachable position, horizontal swipe-gesture navigation with a deadzone that yields to interactive controls and vertical scroll, and a footer that reflects the active tab (or subtab). Sheet content and editing behaviour are specified by `pipboy-character-sheet`.
-
 ## Requirements
-
 ### Requirement: Two-level tab layout
 
 The character sheet SHALL present navigation on two levels.
@@ -16,7 +14,7 @@ The **second level** SHALL be a subtab row rendered immediately beneath the firs
 
 - `STATS` SHALL define four subtabs, in order: `Salute`, `S.P.E.C.I.A.L.`, `Abilità`, `Talents`.
 - `INV` SHALL define four subtabs, in order: `Armi`, `Armature`, `Consumabili`, `Vari`.
-- `INFO` SHALL define two subtabs, in order: `Quest`, `Note`.
+- `INFO` SHALL define three subtabs, in order: `Codex`, `Quest`, `Note`.
 - `DADI` and `MAPPA` SHALL define no subtabs, and the subtab row SHALL NOT be rendered while they are active.
 
 The active subtab SHALL be styled to distinguish it from its siblings in the same visual language as the first-level active tab. The rendered content region SHALL be a function of the pair `(first-level tab, active subtab)`. For a first-level tab with no subtabs, it is a function of the first-level tab alone.
@@ -41,7 +39,7 @@ Each first-level tab with subtabs SHALL remember its own active subtab across fi
 
 #### Scenario: Subtab row appears for INFO
 - **WHEN** the user selects the `INFO` first-level tab
-- **THEN** a subtab row with `Quest` and `Note` is rendered, and `Quest` is active on first visit
+- **THEN** a subtab row with `Codex`, `Quest`, and `Note` is rendered, and `Codex` is active on first visit
 
 #### Scenario: Subtab row is absent for tabs without subtabs
 - **WHEN** the user selects `DADI` or `MAPPA`
@@ -61,7 +59,7 @@ Each first-level tab with subtabs SHALL remember its own active subtab across fi
 
 The sheet SHALL define a single flattened ordering of every reachable tab position. The ordering SHALL visit each first-level tab's subtabs before moving to the next first-level tab, in this order:
 
-`Salute → S.P.E.C.I.A.L. → Abilità → Talents → Armi → Armature → Consumabili → Vari → DADI → Quest → Note → MAPPA`
+`Salute → S.P.E.C.I.A.L. → Abilità → Talents → Armi → Armature → Consumabili → Vari → DADI → Codex → Quest → Note → MAPPA`
 
 A **next** navigation SHALL move one position forward in this order, and a **previous** navigation SHALL move one position backward. Navigation SHALL cross first-level boundaries: advancing from a section's last subtab SHALL land on the next first-level tab's first position, and retreating from a first-level tab's first position SHALL land on the previous section's last subtab. Navigation SHALL stop at the two ends of the order, with no wrap.
 
@@ -83,7 +81,7 @@ A **next** navigation SHALL move one position forward in this order, and a **pre
 #### Scenario: INFO sits between DADI and MAPPA
 - **GIVEN** the active position is `DADI`
 - **WHEN** the user navigates next
-- **THEN** the active position becomes `Quest`, then `Note` on the next navigation, then `MAPPA`
+- **THEN** the active position becomes `Codex`, then `Quest` on the next navigation, then `Note`, then `MAPPA`
 
 #### Scenario: Ends do not wrap
 - **GIVEN** the active position is `Salute` (the first position)
@@ -156,3 +154,27 @@ The sheet footer SHALL show the active tab's name on the left, `TAPPI n` (curren
 #### Scenario: Footer tracks the active subtab
 - **WHEN** the user selects the `Consumabili` subtab under `INV`
 - **THEN** the footer's left slot reflects the `Consumabili` position, its centre reads `TAPPI n`, and its right slot shows an `HH:MM` clock
+
+### Requirement: Cross-tab jumps carry a one-shot intent
+
+The sheet SHALL let a tab request a jump to another position together with an intent for the target, as it already does for `DADI` with a preselected approach. It SHALL provide:
+
+- **go to map** with a place `slug`: activates `MAPPA` and hands the slug to the map tab as its focus intent
+- **go to codex** with an entry `id`: activates `INFO` with the `Codex` subtab and hands the id to the codex subtab as its open intent
+
+Each intent SHALL be delivered to the target's next render only, and then cleared. A later ordinary visit to the same position SHALL receive no intent. A jump SHALL update the remembered subtab of the target first-level tab exactly as a tap on that subtab would.
+
+#### Scenario: Codex to map
+- **WHEN** the codex detail requests go to map with slug `vault-111`
+- **THEN** `MAPPA` becomes active and the map tab receives `vault-111` as its focus intent
+
+#### Scenario: Map to codex remembers the subtab
+- **GIVEN** `INFO` was last left on `Note`
+- **WHEN** the map popup requests go to codex with an entry id
+- **THEN** `INFO › Codex` becomes active with that entry's detail, and a later return to `INFO` lands on `Codex`
+
+#### Scenario: Intent is not replayed
+- **GIVEN** a go-to-map jump has been delivered
+- **WHEN** the user swipes away and back to `MAPPA`
+- **THEN** the map tab receives no focus intent
+

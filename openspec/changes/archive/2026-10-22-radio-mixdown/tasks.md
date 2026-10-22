@@ -54,12 +54,31 @@
 - [x] 6.4 Implement Load-preset control (dropdown of existing presets) that updates all sliders via `load_preset`
 - [x] 6.5 Guard against overwriting `default.json` from the Save-preset control without explicit confirmation
 
-## 7. Manual Verification
+## 7. Mixed Sample Rates
 
-- [ ] 7.1 Run `uv run scripts/radio-mixdown/playground.py`, load real opening/mid/closing clips, confirm render + inline playback works and sounds like an old radio broadcast
-- [ ] 7.2 Save a preset from the playground, then run `uv run scripts/radio-mixdown/mix.py <clips> --preset <saved preset>` and confirm the CLI output matches what was previewed
-- [x] 7.3 Confirm `uv run` works from a clean environment (no pre-existing venv) for both scripts with no manual setup steps
+- [x] 7.1 Add a shared loader in `_filters.py` (e.g. `load_clips(paths)`) that reads each clip, downmixes to mono, and resamples to a `WORKING_SAMPLE_RATE = 48000` constant via `scipy.signal.resample_poly`, returning the clips, the working rate, and the list of resampled files with their original rates; keep the MP3-decode error behavior from 4.4
+- [x] 7.2 Switch `mix.py` to the shared loader: remove its own rate-mismatch rejection, print `resampled <file>: <orig> -> 48000 Hz` (ASCII arrow, safe on Windows consoles) to stderr per resampled clip
+- [x] 7.3 Switch `playground.py` to the shared loader: remove `_load_clip` and the rate-mismatch `gr.Error`, optionally show resample notes via `gr.Info`
+- [x] 7.4 Test: a 44.1k / 48k / 44.1k synthetic trio mixes to 48 kHz with the expected duration (± one sample per clip)
+- [x] 7.5 Test: an all-48k trio is not resampled and emits no note; update any existing test that asserted the mismatch rejection
+- [x] 7.6 Update `README.md` to say mixed-rate inputs are accepted and output is 48 kHz WAV
 
-## 8. Final Verification
+## 7b. Noise Bed and Output Format
 
-- [x] 8.1 Run the full pytest suite (`uv run pytest scripts/radio-mixdown/tests`) and confirm all tests pass
+- [x] 7.7 Reorder `apply_filter_chain` to bandpass → mono → compress → saturate → hiss → crackle
+- [x] 7.8 Band-limit hiss with the preset's bandpass, rescale to RMS `hiss_level × target peak`, and fade the hiss bed in/out over 150 ms
+- [x] 7.9 Add `write_audio(path, audio, sample_rate)` in `_filters.py`: `.wav` → PCM_16, `.mp3` → MPEG Layer III, other extensions rejected, clear error and no partial file if MP3 encoding is unavailable
+- [x] 7.10 `mix.py`: write via `write_audio`, accept `-o *.wav|*.mp3`, update help text
+- [x] 7.11 `playground.py`: keep last render in `gr.State`; add WAV/MP3 selector + Export button returning a `gr.File` of the last render; error if nothing rendered yet
+- [x] 7.12 Tests: hiss RMS independent of saturation; hiss band-limited; hiss fade-in; MP3 and WAV CLI output; unsupported extension rejected
+- [x] 7.13 Update `README.md` for MP3 output, playground export, and the hiss/re-tune note
+
+## 8. Manual Verification
+
+- [x] 8.1 Run `uv run scripts/radio-mixdown/playground.py`, load real opening/mid/closing clips (including the 48 kHz `radio_*.mp3` mixed with 44.1 kHz clips), confirm render + inline playback works and sounds like an old radio broadcast
+- [x] 8.2 Save a preset from the playground, then run `uv run scripts/radio-mixdown/mix.py <clips> --preset <saved preset>` and confirm the CLI output matches what was previewed
+- [x] 8.3 Confirm `uv run` works from a clean environment (no pre-existing venv) for both scripts with no manual setup steps
+
+## 9. Final Verification
+
+- [x] 9.1 Run the full pytest suite (`uv run pytest scripts/radio-mixdown/tests`) and confirm all tests pass

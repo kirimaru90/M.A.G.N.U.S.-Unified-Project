@@ -60,6 +60,33 @@ function MinZoomNotAboveMaxZoom(options?: ValidationOptions) {
   };
 }
 
+/**
+ * `minZoom <= startZoom <= maxZoom`; Leaflet would otherwise clamp an
+ * out-of-range start silently, so the player opens somewhere the author never
+ * chose. Skipped when the range itself is unusable — that has its own message.
+ */
+function StartZoomWithinRange(options?: ValidationOptions) {
+  return function (target: object, propertyName: string) {
+    registerDecorator({
+      name: 'startZoomWithinRange',
+      target: target.constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const cfg = args.object as MapConfigDto;
+          if (typeof value !== 'number') return true;
+          if (typeof cfg.minZoom !== 'number') return true;
+          if (typeof cfg.maxZoom !== 'number') return true;
+          if (cfg.minZoom > cfg.maxZoom) return true;
+          return value >= cfg.minZoom && value <= cfg.maxZoom;
+        },
+        defaultMessage: () => 'startZoom must lie between minZoom and maxZoom',
+      },
+    });
+  };
+}
+
 export class MapConfigDto {
   @ApiProperty()
   @IsLatitude()
@@ -69,10 +96,11 @@ export class MapConfigDto {
   @IsLongitude()
   startLng: number;
 
-  @ApiProperty()
+  @ApiProperty({ description: 'Must lie in [minZoom, maxZoom], inclusive' })
   @IsInt()
   @Min(0)
   @Max(22)
+  @StartZoomWithinRange()
   startZoom: number;
 
   @ApiProperty()

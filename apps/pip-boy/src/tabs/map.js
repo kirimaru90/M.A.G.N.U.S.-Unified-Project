@@ -6,9 +6,13 @@ import {
     ancestors,
     chain,
     containZoom,
+    declutter,
+    effectiveMinZoom,
     effectiveRadius,
     kids,
+    labelPass,
     revealZoom,
+    separationZoom,
     viewportRadius,
     visible,
 } from './map-geometry.js';
@@ -211,6 +215,7 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
     showAttribution(canvas);
 
     const radii = effectiveRadius(places);
+    const placeBySlug = new Map(places.map((p) => [p.slug, p]));
     const markers = new Map();
 
     const vrNow = (zoom = map.getZoom(), centre = map.getCenter()) => {
@@ -223,10 +228,73 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         return { width: size.x, height: size.y };
     };
 
-    const zoomRange = { minZoom: config.minZoom, maxZoom: config.maxZoom };
+    /**
+     * The zoom range derived zooms clamp to: the live floor (raised to the
+     * bounds by applyZoomFloor), not the raw config minimum.
+     */
+    const zoomRangeNow = () => ({ minZoom: map.getMinZoom(), maxZoom: config.maxZoom });
 
-    /** The set of slugs visible at a given viewport radius. */
-    const visibleSet = (vr) => new Set(visible(places, vr, radii).map((p) => p.slug));
+    /**
+     * The whole-level zoom at which the bounds fit the canvas, or NaN before the
+     * canvas has a size. Leaflet's own getBoundsZoom clamps to the *current* min
+     * zoom, so once the floor is raised it could never come back down when the
+     * canvas shrinks; this is the same formula without that clamp, including its
+     * 1% snap tolerance.
+     */
+    function boundsZoomNow() {
+        const size = map.getSize();
+        if (!size.x || !size.y) return NaN;
+        const z = map.getZoom();
+        const span = map.project(bounds.getSouthEast(), z).subtract(map.project(bounds.getNorthWest(), z));
+        const exact = map.getScaleZoom(Math.min(size.x / span.x, size.y / span.y), z);
+        return Math.floor(Math.round(exact * 100) / 100);
+    }
+
+    /**
+     * maxBounds resists panning but not zooming out, so the floor is raised to
+     * the zoom at which the bounds fill the canvas. Leaflet raises a current zoom
+     * below the new floor itself. Re-run whenever the canvas changes size.
+     */
+    function applyZoomFloor() {
+        const floor = effectiveMinZoom(config.minZoom, config.maxZoom, boundsZoomNow());
+        if (floor !== map.getMinZoom()) map.setMinZoom(floor);
+    }
+
+    // The place a focus (tap, search, codex MAPPA) targeted, placed ahead of the
+    // declutter's priority while its popup is open. Set before setView so the
+    // transition's plan already honours it.
+    let focusedSlug = null;
+
+    // Label { w, h } per slug, measured once from the rendered label: the font
+    // is fixed, so a size never changes. Not measured until the webfont has
+    // loaded, so a fallback face can't poison the cache.
+    const labelSizes = new Map();
+    let fontsReady = false;
+
+    /**
+     * What renders at `zoom`: the level-of-detail set, decluttered in projected
+     * pixels (pan-invariant by construction), then the label pass over what was
+     * placed. `shown` iterates in priority order.
+     */
+    function renderPlan(zoom = map.getZoom(), centre = map.getCenter()) {
+        const items = visible(places, vrNow(zoom, centre), radii).map((p) => {
+            const pt = map.project([p.lat, p.lng], zoom);
+            return { slug: p.slug, type: p.type, name: p.name, radius: radii.get(p.slug) ?? 0, x: pt.x, y: pt.y };
+        });
+        const { placed, absorbedBy, groups } = declutter(items, { focused: focusedSlug });
+        const placedItems = items.filter((i) => placed.has(i.slug));
+        return {
+            shown: placed,
+            absorbedBy,
+            groups,
+            placedItems,
+            labelsHidden: labelPass(placedItems, labelSizes, placed),
+        };
+    }
+
+    // The plan the marker set currently reflects: the zoom transition reads it
+    // for where an absorbed place blooms out of.
+    let plan = null;
 
     function addMarker(place) {
         const marker = L.marker([place.lat, place.lng], {
@@ -236,7 +304,7 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
                 // margin. Adding another in CSS doubles it and puts every marker
                 // half its size up-and-left of its actual coordinate.
                 iconSize: [26, 26],
-                html: `<span class="pb-map-marker-inner">${iconFor(place)}<span class="pb-map-marker-label">${esc(place.name)}</span></span>`,
+                html: `<span class="pb-map-marker-inner">${iconFor(place)}<span class="pb-map-marker-label">${esc(place.name)}</span><span class="pb-map-marker-badge" data-map-badge hidden></span></span>`,
             }),
             keyboard: false,
         });
@@ -262,7 +330,18 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         marker.off('click');
         marker.on('click', () => focusPlace(place, { open: false }));
         marker.addTo(map);
+        // The badge is part of the icon, so it moves (and blooms) with it. Its
+        // tap must not reach the marker: it separates the group, no popup.
+        const badge = marker.getElement()?.querySelector('[data-map-badge]');
+        if (badge) {
+            L.DomEvent.on(badge, 'click', (e) => {
+                L.DomEvent.stop(e);
+                separateGroup(place.slug);
+            });
+        }
         markers.set(place.slug, marker);
+        // bindPopup above built it with no "Nelle vicinanze" line.
+        groupKeys.set(place.slug, '');
         return marker;
     }
 
@@ -271,14 +350,75 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         markers.delete(slug);
     }
 
+    // The absorbed group each marker's popup was last built for, so the popup
+    // is rebuilt only when its "Nelle vicinanze" line actually changes.
+    const groupKeys = new Map();
+
     /**
-     * A marker's popup: the place name, its type, its description, and — for a
+     * Bring every rendered marker in line with `next` in place — badge, hidden
+     * label, popup — never by rebuilding it, which would kill its animation and
+     * close its popup. Labels first seen here are measured, and the label pass
+     * re-run with them, so a static view does not wait for the next zoom.
+     */
+    function decorate(next) {
+        if (fontsReady) {
+            let measured = false;
+            for (const slug of next.shown) {
+                if (labelSizes.has(slug)) continue;
+                const label = markers.get(slug)?.getElement()?.querySelector('.pb-map-marker-label');
+                if (!label || !label.offsetWidth) continue;
+                labelSizes.set(slug, { w: label.offsetWidth, h: label.offsetHeight });
+                measured = true;
+            }
+            if (measured) next.labelsHidden = labelPass(next.placedItems, labelSizes, next.shown);
+        }
+        for (const slug of next.shown) {
+            const marker = markers.get(slug);
+            const el = marker?.getElement();
+            if (!el) continue;
+            const group = next.groups.get(slug) ?? [];
+            const badge = el.querySelector('[data-map-badge]');
+            if (badge) {
+                badge.hidden = group.length === 0;
+                badge.textContent = `+${group.length}`;
+            }
+            el.classList.toggle('is-label-hidden', next.labelsHidden.has(slug));
+            const key = group.join(' ');
+            if (groupKeys.get(slug) !== key) {
+                groupKeys.set(slug, key);
+                const place = placeBySlug.get(slug);
+                marker.setPopupContent(popupContent(place, group.map((s) => placeBySlug.get(s))));
+            }
+        }
+    }
+
+    /**
+     * The badge's action: centre on the group and zoom to the least level at
+     * which its members stop colliding (separationZoom), clamped to the live
+     * range. A new absorber may appear at that zoom — the badge then shows it,
+     * and another tap goes deeper.
+     */
+    function separateGroup(slug) {
+        const members = [slug, ...(plan?.groups.get(slug) ?? [])]
+            .map((s) => placeBySlug.get(s))
+            .filter(Boolean);
+        if (members.length < 2) return;
+        const zoom = map.getZoom();
+        const points = members.map((p) => map.project([p.lat, p.lng], zoom));
+        const target = separationZoom(points, zoom, zoomRangeNow());
+        const centre = L.latLngBounds(members.map((p) => [p.lat, p.lng])).getCenter();
+        map.setView(centre, target, { animate: true });
+    }
+
+    /**
+     * A marker's popup: the place name, its type, its description, the places
+     * the declutter folded into it ("Nelle vicinanze"), and — for a
      * place with a local map (`hasLocalMap` and at least one child) — a
      * *Vedi mappa* action that opens the interior. A place linked to a codex
      * entry the character sees also gets CODEX, which opens that entry. Built as
      * a DOM node so the listeners are wired directly; Leaflet keeps the node.
      */
-    function popupContent(place) {
+    function popupContent(place, nearby = []) {
         const canOpen = place.hasLocalMap && kids(places, place.slug).length > 0;
         const codexId = place.codexEntryId && visibleCodex.has(place.codexEntryId) ? place.codexEntryId : null;
         const el = document.createElement('div');
@@ -287,6 +427,7 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
             <div class="pb-map-popup-name">${esc(place.name)}</div>
             <div class="pb-map-popup-type">${esc(TYPE_LABEL[place.type] ?? place.type)}</div>
             ${place.desc ? `<div class="pb-map-popup-desc">${esc(place.desc)}</div>` : ''}
+            ${nearby.length ? `<div class="pb-map-popup-near" data-map-near>Nelle vicinanze: ${nearby.map((p) => esc(p.name)).join(', ')}</div>` : ''}
             ${canOpen ? `<button type="button" class="pb-map-popup-open" data-map-open>Vedi mappa</button>` : ''}
             ${codexId ? `<button type="button" class="pb-map-popup-open" data-map-codex>CODEX</button>` : ''}
         `;
@@ -331,8 +472,15 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
      */
     function focusPlace(place, { open = false } = {}) {
         const zoom = open
-            ? containZoom(place, radii, viewportPxNow(), zoomRange)
-            : revealZoom(place, places, radii, viewportPxNow(), zoomRange);
+            ? containZoom(place, radii, viewportPxNow(), zoomRangeNow())
+            : revealZoom(place, places, radii, viewportPxNow(), zoomRangeNow());
+        if (!open) {
+            // Placed first from here on. Re-plan now: when the target zoom is
+            // the current one there is no zoom transition to pick it up, and an
+            // absorbed place would never get a marker to open.
+            focusedSlug = place.slug;
+            syncMarkers();
+        }
         // Explicit animate so the centre eases in; paired with the map's raised
         // zoomAnimationThreshold it holds even for a big jump (search across the
         // map), rather than teleporting.
@@ -354,8 +502,8 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
      * zone if it survives the redraw, and a rebuilt set also closes every popup
      * on every pan.
      */
-    function syncMarkers(vr) {
-        const wanted = visibleSet(vr);
+    function syncMarkers(next = renderPlan()) {
+        const wanted = next.shown;
         for (const slug of [...markers.keys()]) {
             if (!wanted.has(slug)) removeMarker(slug);
         }
@@ -363,6 +511,8 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
             if (!wanted.has(place.slug) || markers.has(place.slug)) continue;
             addMarker(place);
         }
+        decorate(next);
+        plan = next;
     }
 
     function renderZone(vr = vrNow(), centre = map.getCenter()) {
@@ -457,12 +607,19 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         }));
     }
 
+    // True from zoomstart to zoomend. A popup closing mid-transition (its
+    // marker collapsing) must not re-plan at the zoom being left.
+    let zooming = false;
+    map.on('zoomstart', () => { zooming = true; });
+
     map.on('zoomanim', (e) => {
         // Computed against the *destination* zoom, so bloom and collapse run
         // alongside the map's own zoom rather than after it.
         const vrNext = vrNow(e.zoom, e.center);
         const before = new Set(markers.keys());
-        const after = visibleSet(vrNext);
+        const prev = plan;
+        const next = renderPlan(e.zoom, e.center);
+        const after = next.shown;
 
         for (const place of places) {
             const wasVisible = before.has(place.slug);
@@ -470,16 +627,22 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
             if (wasVisible === willBeVisible) continue;
 
             if (willBeVisible) {
-                // Blooming out: from the deepest ancestor that was on screen.
-                const source = nearestVisibleAncestor(place, before);
+                // Blooming out: from the marker that had absorbed it, else the
+                // deepest ancestor that was on screen.
+                const absorber = prev?.absorbedBy.get(place.slug);
+                const source = absorber && before.has(absorber)
+                    ? placeBySlug.get(absorber)
+                    : nearestVisibleAncestor(place, before);
                 const marker = addMarker(place);
                 positionForPendingZoom(marker, e.zoom, e.center);
                 const el = marker.getElement();
                 if (!el || !source) continue;
                 bloomIn(el, deltaAt(source, place, e.zoom));
             } else {
-                // Collapsing in: into the deepest ancestor that will be on screen.
-                const target = nearestVisibleAncestor(place, after);
+                // Collapsing in: into the marker absorbing it, else the deepest
+                // ancestor that will be on screen.
+                const absorber = next.absorbedBy.get(place.slug);
+                const target = absorber ? placeBySlug.get(absorber) : nearestVisibleAncestor(place, after);
                 const marker = markers.get(place.slug);
                 const el = marker?.getElement();
                 // Dropped from the live set now so syncMarkers cannot re-add it
@@ -494,6 +657,8 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
                 setTimeout(() => marker.remove(), BLOOM_MS);
             }
         }
+        decorate(next);
+        plan = next;
         renderZone(vrNext, e.center);
     });
 
@@ -501,7 +666,16 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
     // animates nothing.
     map.on('move', () => renderZone());
     map.on('zoomend', () => {
-        syncMarkers(vrNow());
+        zooming = false;
+        syncMarkers();
+        renderZone();
+    });
+
+    // A window resize (Leaflet's trackResize) or immersive toggle changes the
+    // canvas: the floor follows the bounds, and the level of detail follows vr.
+    map.on('resize', () => {
+        applyZoomFloor();
+        syncMarkers();
         renderZone();
     });
 
@@ -515,7 +689,15 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         const p = places.find((q) => q.slug === openSlug);
         if (p && !map.getBounds().contains([p.lat, p.lng])) marker.closePopup();
     });
-    map.on('popupclose', () => { openSlug = null; });
+    map.on('popupclose', () => {
+        openSlug = null;
+        if (!focusedSlug) return;
+        // The focused place loses its priority with its popup. Re-plan at the
+        // same zoom — a snap, not an animation — unless a zoom is in flight,
+        // whose zoomend re-plans anyway.
+        focusedSlug = null;
+        if (!zooming) syncMarkers();
+    });
 
     // --- immersive (full-screen) mode ---------------------------------------
     // The sheet shell owns the mode (design.md Decision 1); this tab only asks,
@@ -614,7 +796,8 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
             canvas.removeEventListener('transitionend', onEnd);
             clearTimeout(timer);
             map.invalidateSize();
-            syncMarkers(vrNow());
+            applyZoomFloor();
+            syncMarkers();
             renderZone();
         };
         const onEnd = (e) => {
@@ -748,13 +931,21 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
     updateImmersiveControl(immersiveOn());
     if (immersiveOn()) bindEscape();
 
-    syncMarkers(vrNow());
+    syncMarkers();
     renderZone();
+
+    // Labels are measured in the webfont they render in; until it has loaded
+    // they are all treated as shown.
+    (document.fonts?.ready ?? Promise.resolve()).then(() => {
+        fontsReady = true;
+        if (currentMap === map && !zooming) syncMarkers();
+    });
 
     // The pane has no size until the tab is laid out. A one-shot focus intent
     // (the codex's MAPPA) waits for that too: focusPlace measures the viewport.
     requestAnimationFrame(() => {
         map.invalidateSize();
+        applyZoomFloor();
         const target = focusSlug ? places.find((p) => p.slug === focusSlug) : null;
         if (target) focusPlace(target, { open: false });
     });

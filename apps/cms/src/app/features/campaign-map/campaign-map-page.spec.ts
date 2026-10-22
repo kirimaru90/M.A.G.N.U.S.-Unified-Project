@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { WritableSignal, signal } from '@angular/core';
-import { of } from 'rxjs';
+import { Observable, Subject, of } from 'rxjs';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import * as L from 'leaflet';
@@ -49,9 +49,14 @@ describe('CampaignMapPage', () => {
 
   // `initial: null` mimics a hard refresh landed straight on the map route,
   // where the campaign resolves after the component is created.
-  async function setup(places: MapPlace[] = [], initial: CampaignDto | null = CAMPAIGN) {
+  // `get$` replaces the immediate response, e.g. with a Subject held in flight.
+  async function setup(
+    places: MapPlace[] = [],
+    initial: CampaignDto | null = CAMPAIGN,
+    get$?: Observable<CampaignMapDto>,
+  ) {
     const dto: CampaignMapDto = { config: CONFIG, places };
-    getSpy = vi.fn().mockReturnValue(of(dto));
+    getSpy = vi.fn().mockReturnValue(get$ ?? of(dto));
     replaceSpy = vi.fn().mockReturnValue(of(dto));
     currentCampaign = signal<CampaignDto | null>(initial);
     setCurrentSpy = vi.fn();
@@ -603,6 +608,95 @@ describe('CampaignMapPage', () => {
       fixture.detectChanges();
 
       expect(getSpy).toHaveBeenCalledWith('c2');
+    });
+  });
+
+  describe('the start view', () => {
+    const LOADED = { ...CONFIG, startLat: 45.46, startLng: 9.19, startZoom: 10, minZoom: 8, maxZoom: 16 };
+    const leaflet = () => (component as unknown as { map: L.Map }).map;
+    const view = () => {
+      const c = leaflet().getCenter();
+      return { lat: +c.lat.toFixed(4), lng: +c.lng.toFixed(4), zoom: leaflet().getZoom() };
+    };
+
+    it('frames a map built before the load resolved on the loaded start view', async () => {
+      const inFlight = new Subject<CampaignMapDto>();
+      await setup([], CAMPAIGN, inFlight);
+      // Built from DEFAULT_CONFIG while the request is still pending.
+      expect(leaflet()).toBeTruthy();
+      expect(view().zoom).not.toBe(10);
+
+      inFlight.next({ config: LOADED, places: [] });
+      fixture.detectChanges();
+
+      expect(view()).toEqual({ lat: 45.46, lng: 9.19, zoom: 10 });
+    });
+
+    it('does not move the view when the start fields are edited', async () => {
+      const inFlight = new Subject<CampaignMapDto>();
+      await setup([], CAMPAIGN, inFlight);
+      inFlight.next({ config: LOADED, places: [] });
+      fixture.detectChanges();
+
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      patch({ startLat: 40, startLng: 14, startZoom: 12 });
+      fixture.detectChanges();
+
+      expect(view()).toEqual({ lat: 45.46, lng: 9.19, zoom: 10 });
+    });
+
+    it('re-frames on the new start view after a campaign switch', async () => {
+      await setup();
+      const inFlight = new Subject<CampaignMapDto>();
+      getSpy.mockReturnValue(inFlight);
+      currentCampaign.set(OTHER_CAMPAIGN);
+      fixture.detectChanges();
+
+      inFlight.next({ config: LOADED, places: [] });
+      fixture.detectChanges();
+
+      expect(view()).toEqual({ lat: 45.46, lng: 9.19, zoom: 10 });
+    });
+  });
+
+  describe('the zoom-range fields', () => {
+    const saveButton = () =>
+      fixture.nativeElement.querySelector('[data-testid="save"]') as HTMLButtonElement;
+
+    it('carry directional labels', async () => {
+      await setup();
+      const text = (id: string) =>
+        (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLElement).closest('label')!
+          .textContent!.trim();
+      expect(text('cfg-minzoom')).toBe('Zoom minimo (più lontano)');
+      expect(text('cfg-maxzoom')).toBe('Zoom massimo (più vicino)');
+    });
+
+    it('blocks saving a start zoom outside the range, with an Italian message', async () => {
+      await setup();
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      patch({ minZoom: 8, maxZoom: 16, startZoom: 6 });
+      fixture.detectChanges();
+
+      expect(saveButton().disabled).toBe(true);
+      const err = fixture.nativeElement.querySelector('[data-testid="cfg-error"]') as HTMLElement;
+      expect(err.textContent).toContain('zoom iniziale');
+
+      patch({ startZoom: 8 });
+      fixture.detectChanges();
+      expect(saveButton().disabled).toBe(false);
+      expect(fixture.nativeElement.querySelector('[data-testid="cfg-error"]')).toBeNull();
+    });
+
+    it('blocks saving a minimum zoom above the maximum', async () => {
+      await setup();
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      patch({ minZoom: 17, maxZoom: 16, startZoom: 16 });
+      fixture.detectChanges();
+
+      expect(saveButton().disabled).toBe(true);
+      const err = fixture.nativeElement.querySelector('[data-testid="cfg-error"]') as HTMLElement;
+      expect(err.textContent).toContain('zoom minimo');
     });
   });
 

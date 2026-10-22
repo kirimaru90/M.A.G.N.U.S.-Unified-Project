@@ -18,7 +18,6 @@ Constraints established during exploration:
 
 **Non-Goals:**
 - No integration with `apps/*`, Docker, or CI — this is a local authoring tool for the repo owner, not a deployed feature.
-- No MP3 *output* support — output is always WAV.
 - No wow-and-flutter (pitch wobble) effect in this iteration — noted as a clean future addition, not built now.
 - No batch processing / multiple-broadcast pipelines — one three-clip mix per invocation.
 
@@ -28,7 +27,7 @@ Constraints established during exploration:
 Each script declares its own dependencies (`numpy`, `scipy`, `soundfile`, and — for `playground.py` only — `gradio`) in a `# /// script` header block. `uv run` resolves and caches them transparently on first run. Alternative considered: a `requirements.txt` + documented `python -m venv` step — rejected because it reintroduces the manual setup step this tool is explicitly trying to avoid, and because these two scripts don't share a dependency set (the CLI doesn't need `gradio`).
 
 **Audio I/O: `soundfile` (libsndfile) for both WAV and MP3 read, no `ffmpeg` shell-out.**
-`libsndfile` >= 1.1.0 added native MP3 read support, and current `soundfile` wheels bundle a recent-enough build on the platforms this matters for (Windows/macOS/Linux x86_64). This avoids the `ffmpeg` system dependency entirely for the read path. Write path stays WAV-only, sidestepping `libsndfile`'s less consistent MP3-encode support (LAME availability varies by build) — acceptable because the output is a broadcast mixdown for this repo's own use, not a distributable format. Alternative considered: `pydub` — rejected because it shells out to `ffmpeg` for anything beyond WAV, which fails the zero-setup goal on this machine.
+`libsndfile` >= 1.1.0 added native MP3 read support, and current `soundfile` wheels bundle a recent-enough build on the platforms this matters for (Windows/macOS/Linux x86_64). This avoids the `ffmpeg` system dependency entirely for the read path. The write path supports WAV and MP3 (see "Output format" below); MP3 encoding depends on LAME being in the libsndfile build, so it fails with a clear error where it isn't. Alternative considered: `pydub` — rejected because it shells out to `ffmpeg` for anything beyond WAV, which fails the zero-setup goal on this machine.
 
 **DSP stack: `numpy` + `scipy.signal`, hand-rolled filter chain.**
 Bandpass via `scipy.signal.butter` + `sosfiltfilt`, compression as a simple envelope-follower gain-reduction function, hiss as generated pink/white noise mixed at a controllable level, crackle as sparse randomly-timed short impulses, soft-clip saturation as a `tanh`-based waveshaper. All are small, dependency-free (beyond numpy/scipy) building blocks, individually parameterized so they map 1:1 onto playground sliders and preset fields.
@@ -52,6 +51,20 @@ Stored under `scripts/radio-mixdown/presets/*.json`. `playground.py` writes this
 
 **Filter chain and preset logic live in one shared module, not duplicated between `mix.py` and `playground.py`.**
 E.g. `_filters.py` (or similar) holds the normalize/concatenate/filter-chain/preset-load-save functions; `mix.py` and `playground.py` are thin CLI/UI wrappers around it. This is what makes "tune in the playground, use in the CLI" actually true rather than aspirational.
+
+**Mixed input sample rates: resample every clip to a fixed 48 kHz working rate in one shared loader.**
+Clips come from different sources, and 44.1 kHz vs 48 kHz is a routine mismatch (discovered during manual playground verification: a 48 kHz MP3 alongside 44.1 kHz clips was rejected). Rather than rejecting the trio, a shared `_filters.py` loader (e.g. `load_clips(paths) -> (clips, sample_rate)`) reads each clip, downmixes to mono, and resamples any clip not already at 48 kHz using `scipy.signal.resample_poly` (rational ratio, e.g. 160/147 for 44.1k → 48k). Output is always written at 48 kHz.
+- *Why fixed, not "first clip" or "highest input":* the output rate never depends on clip order or content, and the CLI and playground can't drift — which matters because crackle timing/pop length derive from `sample_rate`, so a different working rate would make CLI output differ from the playground preview even with an identical preset.
+- *Why 48 kHz:* never downsamples a 48 kHz source; 44.1 kHz sources upsample cleanly.
+- *Why resample quality is a non-issue:* the bandpass removes everything above `bandpass_high_hz` (≤ 8 kHz by slider range, 3 kHz by default), far below either rate's Nyquist, so any resampling artifact is filtered out.
+- `mix.py` and `playground.py` both call this loader; neither keeps its own read/downmix/rate-check code. When a clip is resampled, the CLI prints a one-line note to stderr (`resampled <file>: 44100 → 48000 Hz`); the playground may surface the same note via `gr.Info`.
+- Alternative considered: keep the rejection and tell the user to convert — rejected because conversion would need an external tool, contradicting the zero-setup / no-ffmpeg goal.
+
+**Noise bed is added after saturation, band-limited, and faded in/out.**
+Chain order is bandpass → mono → compress → saturate → hiss → crackle. Manual verification found that adding hiss *before* the saturation stage made `hiss_level` meaningless: `saturate()` drives by up to 10× then restores the original peak, which lifts every low-level signal by roughly the drive factor (measured: `hiss_level=0.05` gave −26.5 dB RMS hiss at saturation 0, −16.4 dB at 0.2, −10.9 dB at 0.5). Saturation therefore only shapes the broadcast content; hiss and crackle are layered on top as the "reception" noise, so `hiss_level` sets an absolute RMS level independent of the other sliders. The hiss is run through the same bandpass as the program (noise heard *through* the radio, not full-band 0–24 kHz white noise) and rescaled after filtering so its RMS stays `hiss_level × target peak`. The hiss bed fades in and out over 150 ms so playback never starts on an instant wall of noise. Existing presets will sound noticeably less hissy and may need re-tuning by ear.
+
+**Output format: WAV or MP3, chosen by the user.**
+The pinned `soundfile` build (libsndfile 1.2.2) encodes MP3 (`MPEG_LAYER_III`), verified on this machine. A shared `write_audio(path, audio, sample_rate)` in `_filters.py` picks the format from the file extension (`.wav` → PCM_16, `.mp3` → MPEG Layer III); any other extension is rejected. If the libsndfile build can't encode MP3, it raises a clear error suggesting `.wav` and leaves no partial file. The CLI derives the format from `-o`; the playground offers a WAV/MP3 selector and an Export button that writes the **last rendered preview** (kept in `gr.State`) rather than re-rendering — hiss and crackle are random per render, so exporting the heard take is the only way "export" matches "preview". Gradio's own numpy-to-MP3 path needs ffmpeg (via pydub), so the playground writes the file itself and returns it via `gr.File`.
 
 ## Risks / Trade-offs
 
