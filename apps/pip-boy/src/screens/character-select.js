@@ -39,7 +39,7 @@ function characterCard(c, skillsCatalog, speciesCatalog) {
     `;
 }
 
-/** Logout and back-to-campaign are driven by the case nubs (`main.js`'s `setCaseNav`), not buttons rendered here. */
+/** Logout and back-to-campaign live in IMPOSTAZIONI and the back action (`main.js`'s `setNav`), not buttons rendered here. */
 export async function renderCharacterSelect(root, opts) {
     const { campaignId, campaignName, skillsCatalog = [], speciesCatalog = [], onSelect, onCreate } = opts;
 

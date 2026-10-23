@@ -2,6 +2,7 @@ import { getPrefs, setPref } from '../state/prefs.js';
 import { applyOrientation, requestWakeLock, releaseWakeLock } from './device.js';
 import { applyPhosphorTheme } from './theme.js';
 import { CARTO_LINK_HTML, OSM_LINK_HTML } from '../tabs/basemap.js';
+import { getScreenNav } from './nav.js';
 
 // The device-preferences popup. Chrome-level — it is opened from the status bar,
 // it outlives any screen, and it is not a sheet tab — so it sits beside chrome.js
@@ -248,8 +249,21 @@ async function clearTileCache(btn) {
     }, 2500);
 }
 
+// The navigation section, last in the popup: navigation, not preferences, so
+// it persists nothing. Each action is offered only when the mounted screen
+// registered it (engine/nav.js); with none, the section is absent (login).
+const NAV_ACTIONS = [
+    { key: 'changeCharacter', label: 'CAMBIA PERSONAGGIO' },
+    { key: 'changeCampaign', label: 'CAMBIA CAMPAGNA' },
+    // The popup's one destructive action, critical-red in every theme; it
+    // still goes through the logout confirmation (main.js's doLogout).
+    { key: 'logout', label: 'ESCI', critical: true },
+];
+
 export function openSettingsPopup(onClose) {
     const prefs = getPrefs();
+    const nav = getScreenNav();
+    const navActions = NAV_ACTIONS.filter((a) => nav[a.key]);
 
     const overlay = document.createElement('div');
     overlay.className = 'pb-popup-overlay';
@@ -281,6 +295,14 @@ export function openSettingsPopup(onClose) {
                     <button class="pb-btn pb-settings-action" data-update>CERCA AGGIORNAMENTI</button>
                     <button class="pb-btn pb-settings-action" data-clear-tiles>SVUOTA CACHE MAPPA</button>
                 </div>
+                ${navActions.length ? `
+                    <div class="pb-settings-nav" data-nav>
+                        ${navActions.map((a) => `
+                            <button class="pb-btn pb-settings-action${a.critical ? ' pb-settings-action--critical' : ''}"
+                                    data-nav-action="${a.key}">${a.label}</button>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -296,6 +318,16 @@ export function openSettingsPopup(onClose) {
     overlay.querySelector('[data-close]').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.querySelector('[data-credits]').addEventListener('click', openCreditsPopup);
+
+    // Close first (unlighting the knob), then navigate: the action may mount a
+    // new screen or open the logout confirmation, which must not sit under us.
+    overlay.querySelectorAll('[data-nav-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const action = nav[btn.dataset.navAction];
+            close();
+            action();
+        });
+    });
 
     // The build id is read from the shell cache name asynchronously; fill it in
     // once resolved, guarding against the popup having been closed meanwhile.

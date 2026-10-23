@@ -70,6 +70,8 @@ Authenticated-API requests SHALL always be fetched network-only (no-store) and S
 
 **Map tiles** SHALL be served cache-first and written to a **separate, non-shell** tile cache as they are fetched — cache-on-visit. Tiles SHALL NOT be pre-seeded on install: bulk-downloading a region violates the basemap provider's terms, whereas retaining tiles a user actually browsed does not. Because `pipboy-map-tab` constrains zoom and pan bounds, the reachable tile set is finite, so a map the player has visited keeps working offline. A tile request that misses both cache and network SHALL fail quietly, leaving the marker layer rendered over empty tiles rather than breaking the tab.
 
+Tiles are requested in CORS mode, because `pipboy-map-tab` reads their pixels to tint them. The tile cache SHALL store only successful (`ok`) tile responses and SHALL NOT store opaque responses: an opaque response returned for a CORS request is a network error, and would blank the tile. When the kind of tile response the cache holds changes, as it did from opaque to CORS, the tile cache's name SHALL change too, so the activate sweep purges the incompatible entries.
+
 The tile cache SHALL be bounded by a maximum entry count. When writing a newly-fetched tile would leave the cache over that cap, the service worker SHALL evict entries in oldest-first (insertion) order until the cache is back at or under a lower watermark below the cap, rather than evicting exactly down to the cap on every write. Eviction SHALL be based on insertion order only (evict-oldest), not recency of last access — a cache hit SHALL NOT rewrite or reorder its entry.
 
 Tiles carry no session data, so the tile cache SHALL survive logout — see the flush requirement below.
@@ -85,6 +87,15 @@ Tiles carry no session data, so the tile cache SHALL survive logout — see the 
 #### Scenario: Tile is cached on first visit and reused
 - **WHEN** the map tab fetches a basemap tile that is not yet cached
 - **THEN** the service worker fetches it from the network and writes it to the tile cache, and a later request for the same tile is served from that cache
+
+#### Scenario: Opaque tile responses are not cached
+- **WHEN** a tile request yields an opaque response
+- **THEN** the service worker returns it to the page but does not write it to the tile cache
+
+#### Scenario: Tiles cached before CORS requests are purged
+- **GIVEN** a tile cache from the version that stored opaque responses exists
+- **WHEN** the new service worker activates
+- **THEN** that cache is deleted, and tiles are fetched again into the current tile cache
 
 #### Scenario: Tiles are not treated as API traffic
 - **WHEN** the map tab requests a basemap tile

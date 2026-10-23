@@ -14,6 +14,7 @@ import {
 import { createMarkerLayer } from '../shared/map-core/marker-layer.js';
 import { createTintedTileLayer } from '../shared/map-core/tint-tiles.js';
 import { currentPhosphorRgb } from '../engine/theme.js';
+import { pushBackStep } from '../engine/back.js';
 import { ATTRIBUTION_COLLAPSE_MS, ATTRIBUTION_HTML, tileUrl } from './basemap.js';
 
 // The MAPPA tab. Follows the notes.js pattern: render synchronously, paint a
@@ -487,19 +488,37 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         document.removeEventListener('keydown', onImmersiveKeydown);
         escBound = false;
     }
+    // The system back action leaves immersive too (engine/back.js), ahead of
+    // the sheet's "up one level". Registered and dropped alongside Escape, with
+    // the same self-heal: an orphaned map declares its step stale (`false`) so
+    // back falls through to the next step.
+    let disposeBackStep = null;
+    function bindBackStep() {
+        if (disposeBackStep) return;
+        disposeBackStep = pushBackStep(() => {
+            disposeBackStep = null;
+            if (!canvas.isConnected || !immersiveOn()) return false;
+            applyImmersive(false);
+        });
+    }
+    function unbindBackStep() {
+        disposeBackStep?.();
+        disposeBackStep = null;
+    }
+
     // A stray listener would outlive the map otherwise — Leaflet fires `unload`
     // from map.remove() (the tab's teardown on re-render).
-    map.on('unload', unbindEscape);
+    map.on('unload', () => { unbindEscape(); unbindBackStep(); });
 
     /**
      * Enter or leave immersive: ask the shell to (un)hide its chrome, bind/unbind
-     * Escape, refresh the control, then revalidate the level of detail against
-     * the resized canvas.
+     * Escape and the back step, refresh the control, then revalidate the level
+     * of detail against the resized canvas.
      */
     function applyImmersive(on) {
         if (!setImmersive) return;
         setImmersive(on);
-        if (on) bindEscape(); else unbindEscape();
+        if (on) { bindEscape(); bindBackStep(); } else { unbindEscape(); unbindBackStep(); }
         updateImmersiveControl(on);
         revalidateAfterResize();
     }
@@ -653,7 +672,7 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
     // new but the mode persisted on the shell. A fresh sheet open resets the mode
     // (sheet.js), so a normal navigation into the tab lands here non-immersive.
     updateImmersiveControl(immersiveOn());
-    if (immersiveOn()) bindEscape();
+    if (immersiveOn()) { bindEscape(); bindBackStep(); }
 
     layer.sync();
     renderZone();

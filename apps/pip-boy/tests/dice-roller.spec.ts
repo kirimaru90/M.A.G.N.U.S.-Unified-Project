@@ -1,7 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import {
-  stubEnvironment, login, makeCharacter, seedDice, stubDeviceApis, readDevice, seedPrefs, nextDiceSettle, rollAndSettle,
-} from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice, stubDeviceApis, readDevice, seedPrefs, nextDiceSettle, rollAndSettle, navigate } from './fixtures';
 
 /**
  * `seedDice` must run before the app boots, so it is applied inside this helper
@@ -382,7 +380,7 @@ test('the register is empty after reopening the sheet, and no roll is ever persi
   await expect(page.locator('#pb-dice-register .pb-spend-row')).toHaveCount(1);
 
   // ...but dies with the sheet
-  await page.locator('#pb-nav-back').click();
+  await navigate(page, 'changeCharacter');
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
   await expect(page.locator('#pb-dice-register')).toContainText('Nessun tiro');

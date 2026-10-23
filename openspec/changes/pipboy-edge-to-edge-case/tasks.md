@@ -1,0 +1,36 @@
+## 1. Edge-to-edge shell (safe-area absorbed once, inside the case)
+
+- [x] 1.1 In `apps/pip-boy/src/styles/pipboy.css`, change `body` padding to `var(--pb-edge-margin)` on every side (no `--pb-safe-*`), and move the insets onto `.pb-case`: `padding-top: calc(16px - min(16px, var(--pb-safe-top)))`, `padding-right/left: max(14px, var(--pb-safe-right/left))`, `padding-bottom: max(12px, var(--pb-safe-bottom))` (design §1)
+- [x] 1.2 Make `.pb-statusbar` take the top band: `min-height: var(--pb-safe-top)`, `align-items: center`, padding `0 4px` (no inset in the padding); update its comment
+- [x] 1.3 Remove the bottom inset from `.pb-footer` (`padding: 6px 14px`); leave `.pb-picker`'s own safe-area padding alone (it is a full-viewport overlay outside the case)
+- [x] 1.4 In the `@media (display-mode: standalone), (display-mode: fullscreen)` block, give `.pb-case` `border-radius: 0`, no outer border, and only the two inset shadows (design §2); update the safe-area comments at `:root` and in that block
+- [x] 1.5 Tests: update `tests/mobile-swipe-fullscreen.spec.ts` ("header and footer content is inset…") so that, with `--pb-safe-top: 44px` / `--pb-safe-bottom: 34px` and `--pb-edge-margin: 0`, it asserts the case top at y=0, status bar height 44, screen top = 44 + status/screen gap (no second band), bezel controls above the bottom 34px, footer padding-bottom without the inset; add a `test.step` for the side insets (`--pb-safe-left: 40px` in a landscape viewport → the screen's left edge is ≥ 40px, the case's left edge is 0)
+- [x] 1.6 Tests: in `tests/responsive-shell.spec.ts`, assert that installed mode (emulated `display-mode` or the media query forced by `page.emulateMedia` where supported) has a case `border-radius` of `0`, and that a browser tab keeps the 12px margin and the 26px radius. Run `npx playwright test tests/mobile-swipe-fullscreen.spec.ts tests/responsive-shell.spec.ts`
+
+## 2. Case chrome: status bar without controls, bigger bezel controls
+
+- [x] 2.1 In `index.html`, remove `.pb-statusbar-nav` (with `#pb-nav-back`, `#pb-nav-exit`) and the decorative `<span class="pb-knob">`; unwrap `#pb-config-knob` from `.pb-knobs`
+- [x] 2.2 In `pipboy.css`, drop the `.pb-statusbar-nav`, `#pb-nav-exit` and `.pb-knobs` rules; switch `.pb-statusbar` from the 3-column grid to two groups (space-between), leaving the centre empty
+- [x] 2.3 Resize the bezel: `.pb-knob` 38×38 with a ~18px `⚙`, `.pb-nub` 64×38 with a ~18px `✎`; `.pb-bezel` padding `0`; screen-to-bezel gap 6px while the status-bar-to-screen gap stays 10px (design §3); update the `.pb-nub` comment (now a single control)
+- [x] 2.4 Tests: update `tests/terminal-chrome.spec.ts`. The status bar contains no `button`; the bezel contains exactly the knob, the grille and the nub (no decorative knob); the knob and nub are ≥ 36px; with no insets, case bottom − screen bottom = 56 ±1; update the rounded-elements list (no back/exit nubs); delete the back/exit nub and exit-glyph assertions that moved to the settings and app-shell tests. Run `npx playwright test tests/terminal-chrome.spec.ts`
+
+## 3. Navigation registry and the settings navigation section
+
+- [x] 3.1 In `src/engine/chrome.js` (or a new `src/engine/nav.js`), replace `setCaseNav({ back, exit })` with `setScreenNav({ up, changeCharacter, changeCampaign, logout })`, a pure store plus `getScreenNav()`; remove the nub DOM wiring
+- [x] 3.2 In `src/main.js`, call `setScreenNav` from every screen per the design §4 table; cache the accessible-campaign count from `listCampaigns()` in `showCampaignSelect`, start a background `listCampaigns()` on the resume-to-sheet path in `goPostLogin`, and omit `up`/`changeCampaign` above the dossier only when the count is known to be 1
+- [x] 3.3 In `src/engine/settings-popup.js`, render the navigation section last (`CAMBIA PERSONAGGIO`, `CAMBIA CAMPAGNA`, `ESCI`, each only when its registry entry is set), visually separated; each action closes the popup through its existing `close()` (which unlights the knob) and then runs. `ESCI` is styled critical-red (move the former `#pb-nav-exit` treatment to a class on this action)
+- [x] 3.4 Tests: extend `tests/settings.spec.ts`. The section is absent on login; `ESCI` only on campaign select; `CAMBIA CAMPAGNA` + `ESCI` on the dossier; all three on the sheet in order; `CAMBIA CAMPAGNA` hidden with a single campaign; `ESCI` is critical-red under the amber theme
+- [x] 3.5 Tests: move the navigation flows that clicked the nubs to the popup, i.e. `CAMBIA PERSONAGGIO` → dossier, `CAMBIA CAMPAGNA` → campaign select, `ESCI` → confirm → cancel keeps the session / confirm returns to login. Update `delete-confirmations`, `login-remember`, `dice-roller`, `sheet-layout` and `map-fullscreen` wherever they reference `#pb-nav-back`/`#pb-nav-exit`/`.pb-knob`. Run only those spec files
+
+## 4. System back action
+
+- [x] 4.1 Create `src/engine/back.js`: single guard entry (`history.state.pbGuard`), always kept when installed (`display-mode: standalone/fullscreen`) and only while there is a back target in a browser tab; `sync()`, `ignoreNextPop`, `popstate` handler running the ordered steps (topmost `body > .pb-popup-overlay, body > .pb-picker-overlay` → `backSteps` → `nav.up` → nothing) and re-pushing the guard; `pushBackStep(fn)` returning a disposer. Install it from `main.js` before the first screen renders (design §5)
+- [x] 4.2 Close the topmost overlay by dispatching a `click` on the overlay element itself, so each popup's existing backdrop handler (including the editors' `requestClose()`) runs; watch `document.body`'s child list with a `MutationObserver` that calls `sync()`
+- [x] 4.3 Have `setScreenNav` call `sync()`; in `src/tabs/map.js`, register a back step when immersive turns on (through the same mode function the toggle and `Escape` use) and dispose of it when it turns off or the map unloads
+- [x] 4.4 Tests: new `tests/back-action.spec.ts` (a new feature area) using `page.goBack()`. Back closes the settings popup but leaves immersive on; back closes only the catalog picker above the add-item popup; back leaves immersive and keeps the sheet; back from the sheet → dossier; back from the dossier (multi-campaign) → campaign select; installed mode (emulated display-mode): back at campaign select and at login, pressed twice, stays on that screen with `history.state.pbGuard` still on top, no confirm dialog, session intact; browser-tab mode: at campaign select no guard entry is on top, so back is not intercepted. Run `npx playwright test tests/back-action.spec.ts`
+
+## 5. Specs housekeeping and wrap-up
+
+- [x] 5.1 Check that no code, CSS or test still references `pb-nav-back`, `pb-nav-exit`, `pb-statusbar-nav`, `.pb-knobs` or `setCaseNav` (grep)
+- [x] 5.2 Run the full Pip-Boy suite once: `npx playwright test` from `apps/pip-boy`, and confirm everything passes
+- [ ] 5.3 Manual check on the installed Android PWA: the case reaches the top edge with no black strip, the status text is level with the camera, landscape keeps the screen clear of the camera, the bezel sits above the gesture area, the back gesture follows popup → immersive → up one level → stays put (the app never closes on back, including on login and after tapping once right after launch), and back never logs out (including right after the app resumes onto the sheet)

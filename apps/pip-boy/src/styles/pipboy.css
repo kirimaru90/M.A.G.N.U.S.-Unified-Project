@@ -63,11 +63,12 @@
 
     /* ── Safe-area / edge-to-edge ─────────────────────────────────
        Insets are routed through variables (defaulting to the OS-reported
-       `env(safe-area-inset-*)`) so the shell can pad the case away from a
-       notch/home indicator while reaching the display edge where no inset
-       exists. `--pb-edge-margin` is the small floating margin used in a plain
-       browser tab (where insets resolve to 0); it collapses to 0 when the app
-       runs fullscreen/standalone so the case goes truly edge-to-edge. */
+       `env(safe-area-inset-*)`) so tests can simulate a notch. The page never
+       pads by them: the case reaches every display edge and absorbs each inset
+       exactly once, inside itself (status bar = top, case padding = sides and
+       bottom; pipboy-responsive-shell). `--pb-edge-margin` is the small
+       floating margin used in a plain browser tab (where insets resolve to 0);
+       it collapses to 0 when the app runs fullscreen/standalone. */
     --pb-safe-top: env(safe-area-inset-top, 0px);
     --pb-safe-right: env(safe-area-inset-right, 0px);
     --pb-safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -76,7 +77,8 @@
 }
 
 /* Installed/fullscreen: drop the floating margin so the case reaches the
-   physical display edges; safe-area insets still keep content off the notch. */
+   physical display edges; the case's own padding keeps content off the notch
+   (see .pb-case, which also flattens its outline in this mode). */
 @media (display-mode: standalone), (display-mode: fullscreen) {
     :root { --pb-edge-margin: 0px; }
 }
@@ -103,13 +105,9 @@ body {
     align-items: center;
     justify-content: center;
     min-height: 100dvh;
-    /* Per-side max(fallback, safe-area): the case reaches the display edge when
-       no inset exists (fullscreen collapses the fallback to 0) and stays clear
-       of a notch/home indicator when the OS reports one. */
-    padding-top: max(var(--pb-edge-margin), var(--pb-safe-top));
-    padding-right: max(var(--pb-edge-margin), var(--pb-safe-right));
-    padding-bottom: max(var(--pb-edge-margin), var(--pb-safe-bottom));
-    padding-left: max(var(--pb-edge-margin), var(--pb-safe-left));
+    /* The floating margin only, never the safe-area insets: the case absorbs
+       those itself, so no strip of page background shows at a cutout. */
+    padding: var(--pb-edge-margin);
 }
 
 ::selection { background: rgba(var(--phosphor-rgb), 0.35); }
@@ -147,7 +145,15 @@ body {
     background: var(--case-gradient);
     border: 1px solid #333829;
     border-radius: 26px;
-    padding: 16px 14px 12px;
+    /* Each safe-area inset is absorbed here, once. Top: 16px with no inset,
+       0 once the inset reaches 16px, where the status bar (sized to the inset,
+       below) becomes the top band. Sides/bottom: the larger of the normal
+       padding and the inset, so a landscape cutout lies over case material
+       and the bezel sits above the gesture bar. */
+    padding-top: calc(16px - min(16px, var(--pb-safe-top)));
+    padding-right: max(14px, var(--pb-safe-right));
+    padding-bottom: max(12px, var(--pb-safe-bottom));
+    padding-left: max(14px, var(--pb-safe-left));
     box-shadow:
         inset 0 2px 3px rgba(120, 140, 90, 0.25),
         inset 0 -6px 14px rgba(0, 0, 0, 0.7),
@@ -157,22 +163,26 @@ body {
     gap: 10px;
 }
 
-/* Grid (not flex space-between) so the nav nubs sit truly centered between
-   the status id and the OS label regardless of either group's own width. */
+/* The installed-mode outline (flat corners, no outer shadow) is set after the
+   narrow-viewport override below, so it wins on phones too. */
+
+/* Labels only, no controls: the centre stays empty so a centred punch-hole
+   camera never covers anything interactive. Its height equals the top inset
+   (the case adds no padding above it), so the text sits level with the
+   camera; with no inset it shrinks to its text and the case's 16px top
+   padding gives the normal spacing. */
 .pb-statusbar {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 8px;
+    min-height: var(--pb-safe-top);
     font-size: 10px;
     letter-spacing: 1px;
     text-transform: uppercase;
     opacity: 0.7;
-    /* Top-most chrome: pad by the top inset so the status text/nav never lands
-       under the notch when the case bleeds toward the display edge. */
-    padding: var(--pb-safe-top) 4px 0;
+    padding: 0 4px;
 }
-.pb-statusbar .pb-status-os { justify-self: end; }
 
 /* The status LED is round, per the reference; see the case/screen/bezel
    exceptions to the no-border-radius rule. */
@@ -184,11 +194,6 @@ body {
     box-shadow: 0 0 6px var(--phosphor);
     margin-right: 7px;
 }
-
-/* The back/exit case nubs sit centered between the status id and the OS
-   label; .pb-nub (below, shared with the bottom bezel's editor toggle) gives
-   them their fixed size and body styling. */
-.pb-statusbar-nav { display: flex; gap: 6px; flex: none; }
 
 /* Critical state swaps the status dot and label to critical-red, in every
    phosphor theme. */
@@ -303,18 +308,21 @@ body {
 
 /* ── Bottom bezel ───────────────────────────────────────────────── */
 
+/* The band from the screen's bottom edge to the case's bottom edge stays 56px
+   (pipboy-terminal-chrome): -4px margin + the case's 10px gap = 6px, the 38px
+   controls, no bezel padding, then the case's 12px bottom padding. The case
+   gap itself stays 10px, so the status-bar-to-screen gap is unchanged. */
 .pb-bezel {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 8px 2px;
+    margin-top: -4px;
+    padding: 0;
     flex: none;
 }
 
-.pb-knobs { display: flex; gap: 8px; }
-
 .pb-knob {
-    width: 22px; height: 22px;
+    width: 38px; height: 38px;
     flex: none;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #3a4030, #14170f);
@@ -322,9 +330,8 @@ body {
     box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.6);
 }
 
-/* The left knob doubles as the settings control (pipboy-settings): same
-   class, same slot in the bezel, upgraded from <span> to <button> carrying
-   its own glyph. The right .pb-knob stays a plain, non-interactive span. */
+/* The bezel's one knob is the settings control (pipboy-settings), a <button>
+   carrying its own glyph. */
 #pb-config-knob {
     display: flex;
     align-items: center;
@@ -332,7 +339,7 @@ body {
     padding: 0;
     margin: 0;
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 18px;
     line-height: 1;
     color: var(--green-border-strong);
     cursor: pointer;
@@ -347,17 +354,12 @@ body {
     background: repeating-linear-gradient(90deg, #2a2f22 0 3px, #12140d 3px 6px);
 }
 
-/* .pb-nub is the one physical control body, repeated three times: the bottom
-   bezel's ✎ editor-mode toggle here, and the status bar's back/exit nubs
-   above. All three are permanent case furniture — present on every screen,
-   never `hidden` — but `disabled` (dim, out of the tab order, activation
-   blocked natively) whenever there's nothing to do: off-sheet or without
-   write permission for the editor toggle, per-screen for back/exit. The
-   editor toggle grows in height (bounded by the knob's own 22px, which still
-   governs the bezel's rendered height — see pipboy-terminal-chrome) to hold
-   its glyph and a workable tap target; width grows modestly alongside it. */
+/* .pb-nub is the bezel's ✎ editor-mode toggle: permanent case furniture,
+   present on every screen and never `hidden`, but `disabled` (dim, out of the
+   tab order, activation blocked natively) off-sheet or without write
+   permission. Same 38px height as the knob, so both are full tap targets. */
 .pb-nub {
-    width: 40px; height: 20px;
+    width: 64px; height: 38px;
     flex: none;
     border-radius: 6px;
     background: linear-gradient(#3a4030, #14170f);
@@ -368,7 +370,7 @@ body {
     padding: 0;
     margin: 0;
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 18px;
     line-height: 1;
     color: var(--green-border-strong);
     cursor: pointer;
@@ -377,16 +379,6 @@ body {
 .pb-nub:disabled {
     cursor: default;
     opacity: 0.5;
-}
-
-/* The exit nub's glyph is permanently critical-red whenever enabled — marking
-   logout as the case's one destructive one-shot action — independent of the
-   character's own critical state and of the lit-state mechanism above (it
-   never gains .on or a solid fill; only the idle glyph color departs from the
-   shared .pb-nub body). :disabled dimming still applies on top. */
-#pb-nav-exit:not(:disabled) {
-    color: var(--critical);
-    text-shadow: var(--critical-glow);
 }
 
 /* Lit state, shared by both bezel controls: each carries its own "on" light
@@ -623,9 +615,9 @@ h3 { font-size: 18px; text-transform: uppercase; opacity: 0.85; }
     justify-content: space-between;
     font-size: 10px;
     opacity: 0.6;
-    /* Bottom-most chrome: pad the base by the bottom inset so the footer clears
-       the home indicator when the case reaches the display edge. */
-    padding: 6px 14px calc(6px + var(--pb-safe-bottom));
+    /* No bottom inset here: the case's own bottom padding already absorbs it,
+       and applying it again would leave a second empty band. */
+    padding: 6px 14px;
     border-top: 1px solid var(--green-hairline-faint);
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1295,9 +1287,31 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
 .pb-login-remember { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; }
 .pb-login-remember input { accent-color: var(--phosphor); margin: 0; }
 
+/* Tighter case on a phone. Same inset rule as the base .pb-case, with the
+   smaller paddings as the floor. The bezel band shrinks with the bottom padding
+   exactly as it did before the larger controls (6 + 38 + 8 = 52px). */
 @media (max-width: 420px) {
-    .pb-case { border-radius: 16px; padding: 10px 8px 8px; }
+    .pb-case {
+        border-radius: 16px;
+        padding-top: calc(10px - min(10px, var(--pb-safe-top)));
+        padding-right: max(8px, var(--pb-safe-right));
+        padding-bottom: max(8px, var(--pb-safe-bottom));
+        padding-left: max(8px, var(--pb-safe-left));
+    }
     .pb-screen { border-radius: 8px; }
+}
+
+/* Installed: the display's own corners stand in for the case's. A 26px radius
+   (or the outer border and drop shadow) would leave dark wedges of page
+   background at the corners, the same artefact as a strip at the cutout. */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    .pb-case {
+        border-radius: 0;
+        border-width: 0;
+        box-shadow:
+            inset 0 2px 3px rgba(120, 140, 90, 0.25),
+            inset 0 -6px 14px rgba(0, 0, 0, 0.7);
+    }
 }
 
 /* ── INV subtab: section head with the + add trigger ────────────── */
@@ -1984,6 +1998,18 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     border-top: 1px solid var(--green-hairline);
     padding-top: 8px;
     letter-spacing: 0.08em;
+}
+/* Navigation section: last in the popup, set apart from the preferences and
+   the device actions above by a stronger rule and a gap. */
+.pb-settings-nav {
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 1px solid var(--green-border-strong);
+}
+/* ESCI: the popup's one destructive action, critical-red in every theme. */
+.pb-settings-action--critical {
+    color: var(--critical);
+    text-shadow: var(--critical-glow);
 }
 .pb-credits-block { margin-bottom: 10px; }
 .pb-credits-text {

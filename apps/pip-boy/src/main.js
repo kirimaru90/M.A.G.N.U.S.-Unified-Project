@@ -14,7 +14,9 @@ import { renderCharacterSelect } from './screens/character-select.js';
 import { renderCreate } from './screens/create.js';
 import { renderSheet, stopSheetWakeLock } from './screens/sheet.js';
 import { mount } from './engine/render.js';
-import { setCaseNav, setEditorToggle, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
+import { setEditorToggle, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
+import { setScreenNav } from './engine/nav.js';
+import { installBackAction } from './engine/back.js';
 import { getPrefs } from './state/prefs.js';
 import { applyOrientation } from './engine/device.js';
 import { applyPhosphorTheme } from './engine/theme.js';
@@ -27,12 +29,38 @@ const root = document.getElementById('app');
 // screen mounts (every such screen calls resetChrome()).
 let mountedSheet = null;
 
+// How many campaigns the user can access, once known (null until then, or if
+// listing failed). With exactly one, campaign selection would auto-select it
+// straight back, so every action leading there is withheld.
+let campaignCount = null;
+// The mounted screen's navigation actions, before that filter (see setNav).
+let navEntries = {};
+
+/**
+ * Record the mounted screen's navigation (engine/nav.js), dropping every
+ * action that leads to campaign selection when the user has a single campaign.
+ * While the count is unknown they are offered: the worst case is a harmless
+ * round trip back to the same dossier.
+ */
+function setNav(entries) {
+    navEntries = entries;
+    refreshNav();
+}
+
+function refreshNav() {
+    const single = campaignCount === 1;
+    const filtered = {};
+    for (const [key, fn] of Object.entries(navEntries)) {
+        filtered[key] = single && fn === showCampaignSelect ? null : fn;
+    }
+    setScreenNav(filtered);
+}
+
 /** The editor toggle and the critical/editor rings belong to the sheet alone. */
 function resetChrome() {
     mountedSheet = null;
     // Off-sheet, the editor toggle has nothing to do — disable it and drop its
-    // handler, mirroring what every non-sheet caller of `setCaseNav` (below)
-    // already does for the back/exit nubs.
+    // handler.
     setEditorToggle({ canEdit: false, onToggleEdit: null });
     setCriticalChrome(false);
     setEditorChrome(false);
@@ -46,7 +74,7 @@ function resetChrome() {
     stopSheetWakeLock();
 }
 
-/** Centralized logout: clears the session, then returns to login via the case exit nub. */
+/** Centralized logout (IMPOSTAZIONI › ESCI): confirms, clears the session, returns to login. */
 function doLogout() {
     openConfirm({
         message: 'Uscire dalla sessione?',
@@ -87,13 +115,17 @@ async function ensureCatalogs() {
 function showLogin() {
     resetSelection();
     resetChrome();
-    // Nothing above login, no session to exit — both nubs inert.
-    setCaseNav({ back: null, exit: null });
+    campaignCount = null;
+    // Nothing above login, no session to exit.
+    setNav({});
     renderLogin(root, { onSuccess: goPostLogin });
 }
 
 async function showCampaignSelect() {
     resetChrome();
+    // Nothing above campaign selection; set before the list loads so a back
+    // press meanwhile does not re-run the previous screen's `up`.
+    setNav({ logout: doLogout });
 
     // A lone accessible campaign auto-selects: the picker only earns its place
     // when there is a choice to make.
@@ -103,14 +135,13 @@ async function showCampaignSelect() {
     } catch (_) {
         campaigns = null;
     }
+    campaignCount = campaigns ? campaigns.length : null;
     if (campaigns && campaigns.length === 1) {
         const only = campaigns[0];
         setCampaign(only.id, only.name);
         return showCharacterSelect(only.id, only.name);
     }
 
-    // Nothing above campaign selection to go back to; exit logs out.
-    setCaseNav({ back: null, exit: { label: 'ESCI', onActivate: doLogout } });
     await renderCampaignSelect(root, {
         campaigns,
         onSelect: (id, name) => {
@@ -122,10 +153,7 @@ async function showCampaignSelect() {
 
 async function showCharacterSelect(campaignId, campaignName) {
     resetChrome();
-    setCaseNav({
-        back: { label: 'CAMPAGNA', onActivate: showCampaignSelect },
-        exit: { label: 'ESCI', onActivate: doLogout },
-    });
+    setNav({ up: showCampaignSelect, changeCampaign: showCampaignSelect, logout: doLogout });
     await renderCharacterSelect(root, {
         campaignId,
         campaignName,
@@ -145,13 +173,16 @@ async function showCharacterSelect(campaignId, campaignName) {
 
 function showCreate(campaignId, campaignName, ownerUserId) {
     resetChrome();
+    // Up one level is the wizard's own cancel: back to the dossier.
+    const toDossier = () => showCharacterSelect(campaignId, campaignName);
+    setNav({ up: toDossier, changeCampaign: showCampaignSelect, logout: doLogout });
     renderCreate(root, {
         campaignId,
         ownerUserId,
         speciesCatalog: state.speciesCatalog,
         skillsCatalog: state.skillsCatalog,
         starterEquipment: state.starterEquipment,
-        onCancel: () => showCharacterSelect(campaignId, campaignName),
+        onCancel: toDossier,
         onCreated: async (characterId, warning) => {
             try {
                 const character = await getCharacter(campaignId, characterId);
@@ -167,10 +198,8 @@ function showSheet(campaignId, campaignName, character, warning) {
     setCampaign(campaignId, campaignName);
     // Remember the mounted sheet so a resume re-verify can reload it in place.
     mountedSheet = { campaignId, campaignName, characterId: character.id };
-    setCaseNav({
-        back: { label: 'DOSSIER', onActivate: () => showCharacterSelect(campaignId, campaignName) },
-        exit: { label: 'ESCI', onActivate: doLogout },
-    });
+    const toDossier = () => showCharacterSelect(campaignId, campaignName);
+    setNav({ up: toDossier, changeCharacter: toDossier, changeCampaign: showCampaignSelect, logout: doLogout });
     renderSheet(root, {
         campaignId,
         character,
@@ -185,6 +214,15 @@ async function goPostLogin(user) {
     await ensureCatalogs();
 
     if (user?.lastCampaignId && user?.lastCharacterId) {
+        // Resuming straight onto the sheet never lists campaigns, so learn the
+        // count in the background for CAMBIA CAMPAGNA (setNav).
+        listCampaigns()
+            .then((campaigns) => {
+                if (!isAuthenticated()) return; // logged out meanwhile
+                campaignCount = Array.isArray(campaigns) ? campaigns.length : null;
+                refreshNav();
+            })
+            .catch(() => {});
         try {
             const [campaign, character] = await Promise.all([
                 getCampaign(user.lastCampaignId),
@@ -259,6 +297,10 @@ async function init() {
     // renderLogin/renderSheet call below — means the first paint already carries
     // the persisted color instead of flashing the green default first.
     applyPhosphorTheme(getPrefs().phosphorColor);
+
+    // The back-action guard entry goes in before the first screen renders, so
+    // even back on the login screen is consumed when installed.
+    installBackAction();
 
     // Before any screen mounts: the orientation lock is a global device state,
     // so it is applied from the persisted preference at boot rather than waiting

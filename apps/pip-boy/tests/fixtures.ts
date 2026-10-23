@@ -690,6 +690,40 @@ export async function seedPrefs(page: Page, prefs: unknown) {
   }, typeof prefs === 'string' ? prefs : JSON.stringify(prefs));
 }
 
+/**
+ * Emulate the installed app (fullscreen/standalone display mode). Chromium's
+ * media emulation has no `display-mode`, so this does both halves by hand:
+ * `matchMedia` answers true for any display-mode query (engine/back.js reads
+ * it at boot), and once the page has loaded every `@media` rule that names a
+ * display mode is switched to `all`, so the stylesheet's installed-mode rules
+ * apply. Must be called before `page.goto`.
+ */
+export async function emulateInstalled(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.matchMedia.bind(window);
+    window.matchMedia = (query: string) => {
+      if (!/display-mode\s*:\s*(standalone|fullscreen)/.test(query)) return real(query);
+      const noop = () => {};
+      return {
+        matches: true, media: query, onchange: null,
+        addEventListener: noop, removeEventListener: noop, addListener: noop, removeListener: noop,
+        dispatchEvent: () => false,
+      } as unknown as MediaQueryList;
+    };
+    window.addEventListener('load', () => {
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList;
+        try { rules = sheet.cssRules; } catch { continue; }
+        for (const rule of Array.from(rules)) {
+          if (rule instanceof CSSMediaRule && rule.media.mediaText.includes('display-mode')) {
+            rule.media.mediaText = 'all';
+          }
+        }
+      }
+    });
+  });
+}
+
 /** Make every `localStorage` access throw — the private-browsing/policy case. */
 export async function breakLocalStorage(page: Page) {
   await page.addInitScript(() => {
@@ -715,6 +749,15 @@ export async function openSheet(page: Page, characterName = 'Marta Voss') {
   await login(page);
   await page.locator('.pb-dossier-card', { hasText: characterName }).click();
   await page.locator('#pb-sheet-header').waitFor();
+}
+
+/**
+ * Run one of IMPOSTAZIONI's navigation actions: open the popup from the bezel
+ * knob, then activate CAMBIA PERSONAGGIO / CAMBIA CAMPAGNA / ESCI.
+ */
+export async function navigate(page: Page, action: 'changeCharacter' | 'changeCampaign' | 'logout') {
+  await page.locator('#pb-config-knob').click();
+  await page.locator(`#pb-settings-popup [data-nav-action="${action}"]`).click();
 }
 
 /**

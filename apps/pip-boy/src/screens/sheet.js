@@ -113,8 +113,9 @@ function startSheetWakeLock() {
 }
 
 export function renderSheet(root, opts) {
-    // Back/exit navigation is driven by the case nubs (`main.js`'s `setCaseNav`,
-    // called before this mounts); only the editor toggle's wiring stays here.
+    // Navigation lives in IMPOSTAZIONI and the back action (`main.js`'s
+    // `setNav`, called before this mounts); only the editor toggle's wiring
+    // stays here.
     const { campaignId, character, skillsCatalog, conditionsCatalog, speciesCatalog, warning } = opts;
 
     // Navigation: which first-level tab, plus the last-active subtab per section.

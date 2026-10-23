@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, TWO_CAMPAIGNS } from './fixtures';
+import { stubEnvironment, login, emulateInstalled, TWO_CAMPAIGNS } from './fixtures';
 
 const VIEWPORTS = {
   mobilePortrait: { width: 390, height: 844 },
@@ -78,7 +78,7 @@ test('the status bar, tab nav and footer stay visible and hit-testable in landsc
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
 
-  for (const sel of ['#pb-statusbar', '#pb-nav-back', '#pb-config-knob', '#pb-nav-exit', '.pb-footer']) {
+  for (const sel of ['#pb-statusbar', '#pb-config-knob', '#pb-editor-toggle', '.pb-footer']) {
     await expect(page.locator(sel)).toBeInViewport();
   }
 
@@ -118,4 +118,48 @@ test('on a wide desktop viewport .pb-case fills the viewport minus the small mar
     .locator('#pb-sheet-content')
     .evaluate((el) => getComputedStyle(el).overflowY);
   expect(contentOverflow).toBe('auto');
+});
+
+// ── installed vs browser-tab outline ────────────────────────────────
+
+const OUTER_SHADOW = 'rgba(0, 0, 0, 0.8) 0px 24px 60px 0px';
+
+for (const [name, viewport] of [['desktop', VIEWPORTS.desktop], ['mobilePortrait', VIEWPORTS.mobilePortrait]] as const) {
+  test(`installed (${name}): the case is flat-cornered, edge to edge, with only its inset shadows`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await emulateInstalled(page);
+    await stubEnvironment(page);
+    await page.goto('/index.html');
+
+    const kase = page.locator('.pb-case');
+    const style = await kase.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { radius: cs.borderRadius, shadow: cs.boxShadow, border: cs.borderTopWidth };
+    });
+    expect(style.radius).toBe('0px');
+    expect(style.border).toBe('0px');
+    expect(style.shadow).toContain('inset');
+    expect(style.shadow).not.toContain(OUTER_SHADOW);
+
+    const box = await kase.boundingBox();
+    expect(box).toEqual({ x: 0, y: 0, width: viewport.width, height: viewport.height });
+  });
+}
+
+test('browser tab: the case floats inside the 12px margin with its 26px radius and drop shadow', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS.desktop);
+  await stubEnvironment(page);
+  await page.goto('/index.html');
+
+  const kase = page.locator('.pb-case');
+  const style = await kase.evaluate((el) => {
+    const cs = getComputedStyle(el);
+    return { radius: cs.borderRadius, shadow: cs.boxShadow };
+  });
+  expect(style.radius).toBe('26px');
+  expect(style.shadow).toContain(OUTER_SHADOW);
+
+  const box = await kase.boundingBox();
+  expect(box!.x).toBeCloseTo(12, 0);
+  expect(box!.y).toBeCloseTo(12, 0);
 });

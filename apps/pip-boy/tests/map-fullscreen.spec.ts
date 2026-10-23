@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, nextFrames, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, nextFrames, type StubOptions, navigate } from './fixtures';
 
 // Covers pipboy-map-tab's immersive (full-screen) mode: the toggle expands the
 // map to fill the CRT screen and hides the sheet chrome, an explicit exit
@@ -198,9 +198,9 @@ test('immersive resets to off when the sheet is re-opened', async ({ page }) => 
   await enter(page);
   expect(await isImmersive(page)).toBe(true);
 
-  // The statusbar stays visible in immersive, so DOSSIER is reachable — leaving
-  // the sheet and re-opening it must land in normal mode.
-  await page.locator('#pb-nav-back').click();
+  // The bezel stays visible in immersive, so CAMBIA PERSONAGGIO is reachable —
+  // leaving the sheet and re-opening it must land in normal mode.
+  await navigate(page, 'changeCharacter');
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await page.locator('#pb-sheet-header').waitFor();
 

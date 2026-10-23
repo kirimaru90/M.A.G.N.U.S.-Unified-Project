@@ -31,16 +31,10 @@
 <body>
     <div class="pb-case">
         <div class="pb-statusbar" id="pb-statusbar">
+            <!-- Labels only: the centre is left empty for a centred camera
+                 cutout. Navigation lives in IMPOSTAZIONI and the system back
+                 action (engine/nav.js, engine/back.js). -->
             <span class="pb-status-id"><span class="dot" id="pb-status-dot"></span><span id="pb-status-label">M.A.G.N.U.S.</span></span>
-            <span class="pb-statusbar-nav">
-                <!-- Permanent case furniture, same convention as the bezel's ✎
-                     editor toggle: always rendered, fixed 40×20 size, disabled
-                     and glyph-less when the current screen has nothing to do
-                     here (driven by chrome.js's setCaseNav, called by every
-                     screen transition in main.js). -->
-                <button class="pb-nub" id="pb-nav-back" type="button" disabled></button>
-                <button class="pb-nub" id="pb-nav-exit" type="button" disabled></button>
-            </span>
             <span class="pb-status-os">PIP-BOY OS</span>
         </div>
 
@@ -59,15 +53,11 @@
         </div>
 
         <div class="pb-bezel">
-            <span class="pb-knobs">
-                <!-- The left knob doubles as the settings control (pipboy-settings):
-                     reachable on every screen, never permission-gated — a read-only
-                     viewer still controls their own device. It lights while the
-                     popup is open (chrome.js) and carries its own lit state; no
-                     separate LED. -->
-                <button class="pb-knob" id="pb-config-knob" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
-                <span class="pb-knob" aria-hidden="true"></span>
-            </span>
+            <!-- The knob is the settings control (pipboy-settings): reachable
+                 on every screen, never permission-gated — a read-only viewer
+                 still controls their own device. It lights while the popup is
+                 open (chrome.js) and carries its own lit state; no separate LED. -->
+            <button class="pb-knob" id="pb-config-knob" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
             <span class="pb-grille" aria-hidden="true"></span>
             <!-- The nub doubles as the `✎` editor-mode toggle. It is permanent
                  bezel furniture — always visible, never `hidden` — but `disabled`

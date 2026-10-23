@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, openSheet, TWO_CAMPAIGNS } from './fixtures';
+import { stubEnvironment, openSheet, TWO_CAMPAIGNS, navigate } from './fixtures';
 
 // "Ricordami" on the login form: the token goes to localStorage when checked,
 // sessionStorage otherwise, and logout clears both.
@@ -70,7 +70,7 @@ test('logout clears both stores', async ({ page }) => {
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
   await page.locator('#pb-sheet-header').waitFor();
 
-  await page.locator('#pb-nav-exit').click();
+  await navigate(page, 'logout');
   await page.locator('.pb-confirm-dialog [data-confirm]').click();
   await expect(page.locator('#pb-login-submit')).toBeVisible();
 

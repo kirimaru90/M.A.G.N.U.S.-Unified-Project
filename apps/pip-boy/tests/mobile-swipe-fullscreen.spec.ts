@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, emulateInstalled, type StubOptions } from './fixtures';
 
 // Covers the mobile-swipe-and-fullscreen-pwa change: reliable touch delivery
 // (`touch-action: pan-y`), whole-surface distance-based tap/swipe discrimination
@@ -173,22 +173,54 @@ test('the case reaches the viewport edge when no safe-area inset exists', async 
   expect(box!.width).toBeCloseTo(390, 0);
 });
 
-test('header and footer content is inset from non-zero safe-area regions', async ({ page }) => {
+test('each safe-area inset is absorbed once, inside the edge-to-edge case', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await emulateInstalled(page);
   await openSheet(page, { character: ownedCharacter() });
 
-  // Emulate a device that reports a top notch and a bottom home indicator.
-  await page.evaluate(() => {
-    document.documentElement.style.setProperty('--pb-safe-top', '44px');
-    document.documentElement.style.setProperty('--pb-safe-bottom', '34px');
+  // Installed (no floating margin, no outline) on a device with a top cutout
+  // and a bottom gesture bar.
+  const setVars = (vars: Record<string, string>) =>
+    page.evaluate((v) => {
+      for (const [k, val] of Object.entries(v)) document.documentElement.style.setProperty(k, val);
+    }, vars);
+  await setVars({ '--pb-edge-margin': '0px', '--pb-safe-top': '44px', '--pb-safe-bottom': '34px' });
+
+  const rect = (sel: string) => page.locator(sel).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height };
+  });
+  const gap = await page.locator('.pb-case').evaluate((el) => parseFloat(getComputedStyle(el).rowGap));
+
+  await test.step('top: the case starts at y=0 and the status bar is the inset band', async () => {
+    const kase = await rect('.pb-case');
+    const bar = await rect('.pb-statusbar');
+    const screen = await rect('.pb-screen');
+    expect(kase.top).toBeCloseTo(0, 0);
+    expect(bar.top).toBeCloseTo(kase.top, 0);
+    expect(bar.height).toBeCloseTo(44, 0);
+    // No second inset-sized band: screen top = inset + the status/screen gap.
+    expect(screen.top).toBeCloseTo(44 + gap, 0);
   });
 
-  const statusPadTop = await page
-    .locator('.pb-statusbar')
-    .evaluate((el) => parseFloat(getComputedStyle(el).paddingTop));
-  expect(statusPadTop).toBeGreaterThanOrEqual(44);
+  await test.step('bottom: the bezel sits above the inset, the footer does not add it again', async () => {
+    const kase = await rect('.pb-case');
+    expect(kase.bottom).toBeCloseTo(844, 0);
+    for (const sel of ['#pb-config-knob', '#pb-editor-toggle']) {
+      expect((await rect(sel)).bottom, sel).toBeLessThanOrEqual(844 - 34);
+    }
+    const footerPadBottom = await page
+      .locator('.pb-footer')
+      .evaluate((el) => parseFloat(getComputedStyle(el).paddingBottom));
+    expect(footerPadBottom).toBe(6);
+  });
 
-  const footerPadBottom = await page
-    .locator('.pb-footer')
-    .evaluate((el) => parseFloat(getComputedStyle(el).paddingBottom));
-  expect(footerPadBottom).toBeGreaterThanOrEqual(34);
+  await test.step('sides: a landscape cutout lies over case material, never the screen', async () => {
+    await page.setViewportSize({ width: 844, height: 390 });
+    await setVars({ '--pb-safe-top': '0px', '--pb-safe-bottom': '0px', '--pb-safe-left': '40px' });
+    const kase = await rect('.pb-case');
+    const screen = await rect('.pb-screen');
+    expect(kase.left).toBeCloseTo(0, 0);
+    expect(screen.left).toBeGreaterThanOrEqual(40);
+  });
 });

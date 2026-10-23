@@ -1,15 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import {
-  stubEnvironment,
-  login,
-  openSheet,
-  makeCharacter,
-  stubDeviceApis,
-  readDevice,
-  seedPrefs,
-  breakLocalStorage,
-  rollAndSettle,
-} from './fixtures';
+import { stubEnvironment, login, openSheet, makeCharacter, stubDeviceApis, readDevice, seedPrefs, breakLocalStorage, rollAndSettle, navigate } from './fixtures';
 
 const POPUP = '#pb-settings-popup';
 const row = (page: Page, key: string) => page.locator(`${POPUP} [data-row="${key}"]`);
@@ -213,7 +203,7 @@ test('a preference set on the sheet stays in effect off-sheet', async ({ page })
 
   // Prefs are edited and applied globally: navigating off the sheet, where the
   // settings control still lives in the bezel, must not drop the lock.
-  await page.locator('#pb-nav-back').click();
+  await navigate(page, 'changeCharacter');
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await expect(page.locator('#pb-config-knob')).toBeVisible();
 
@@ -366,7 +356,7 @@ test('the wake lock is held while the sheet is mounted and released on leaving i
 
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('request:screen');
 
-  await page.locator('#pb-nav-back').click();
+  await navigate(page, 'changeCharacter');
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('release');
 });
@@ -381,7 +371,7 @@ test('leaving the sheet while the request is still in flight still releases the 
 
   // The sentinel must not arrive after the release and leave the screen locked
   // awake for the rest of the session with no handle left to free it.
-  await page.locator('#pb-nav-back').click();
+  await navigate(page, 'changeCharacter');
   await expect(page.locator('#pb-char-list')).toBeVisible();
 
   await expect.poll(async () => (await readDevice(page)).wakeLock).toContain('release');
@@ -540,4 +530,126 @@ test('an explicit stored vibration choice outranks reduced-motion', async ({ pag
   await page.locator('.pb-tab', { hasText: 'DADI' }).click();
   await rollAndSettle(page);
   expect((await readDevice(page)).vibrate.length).toBeGreaterThan(0);
+});
+
+// ── navigation section ──────────────────────────────────────────────
+
+const TWO = [{ id: 'camp-1', name: 'Vault 111' }, { id: 'camp-2', name: 'Vault 88' }];
+const navLabels = (page: Page) => page.locator(`${POPUP} [data-nav-action]`).allTextContents().then((t) => t.map((s) => s.trim()));
+
+test('login shows no navigation section', async ({ page }) => {
+  await stubEnvironment(page);
+  await page.goto('/index.html');
+  await openSettings(page);
+
+  await expect(page.locator(`${POPUP} [data-nav]`)).toHaveCount(0);
+  expect(await navLabels(page)).toEqual([]);
+});
+
+test('campaign selection offers only ESCI', async ({ page }) => {
+  await stubEnvironment(page, { campaigns: TWO });
+  await login(page);
+  await expect(page.locator('#pb-camp-list')).toBeVisible();
+  await openSettings(page);
+
+  expect(await navLabels(page)).toEqual(['ESCI']);
+});
+
+test('the dossier offers CAMBIA CAMPAGNA and ESCI', async ({ page }) => {
+  await stubEnvironment(page, { campaigns: TWO });
+  await login(page);
+  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
+  await expect(page.locator('#pb-char-list')).toBeVisible();
+  await openSettings(page);
+
+  expect(await navLabels(page)).toEqual(['CAMBIA CAMPAGNA', 'ESCI']);
+});
+
+test('the sheet offers all three actions in order, below every other popup content', async ({ page }) => {
+  await stubEnvironment(page, { campaigns: TWO });
+  await login(page);
+  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
+  await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
+  await expect(page.locator('#pb-sheet-header')).toBeVisible();
+  await openSettings(page);
+
+  expect(await navLabels(page)).toEqual(['CAMBIA PERSONAGGIO', 'CAMBIA CAMPAGNA', 'ESCI']);
+  // The section is the popup body's last block.
+  const last = await page.locator(`${POPUP} .pb-popup-body > *`).last().getAttribute('data-nav');
+  expect(last).not.toBeNull();
+});
+
+test('CAMBIA CAMPAGNA is hidden when the user has a single campaign', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  expect(await navLabels(page)).toEqual(['CAMBIA PERSONAGGIO', 'ESCI']);
+});
+
+test('CAMBIA CAMPAGNA is hidden after resuming straight onto the sheet with a single campaign', async ({ page }) => {
+  await stubEnvironment(page, { lastCampaignId: 'camp-1', lastCharacterId: 'char-1', character: makeCharacter({ id: 'char-1', campaignId: 'camp-1' }) });
+  await login(page);
+  await expect(page.locator('#pb-sheet-header')).toBeVisible();
+
+  // The count arrives from a background listCampaigns(); the popup reflects it.
+  await expect.poll(async () => {
+    await openSettings(page);
+    const labels = await navLabels(page);
+    await page.locator(`${POPUP} [data-close]`).click();
+    return labels;
+  }).toEqual(['CAMBIA PERSONAGGIO', 'ESCI']);
+});
+
+test('ESCI renders critical-red under the amber theme; the other actions do not', async ({ page }) => {
+  await seedPrefs(page, { orientation: 'auto', vibration: true, wakeLock: true, phosphorColor: 'amber' });
+  await stubEnvironment(page);
+  await openSheet(page);
+  await openSettings(page);
+
+  const color = (action: string) =>
+    page.locator(`${POPUP} [data-nav-action="${action}"]`).evaluate((el) => getComputedStyle(el).color);
+  expect(await color('logout')).toBe('rgb(255, 59, 59)');
+  expect(await color('changeCharacter')).not.toBe('rgb(255, 59, 59)');
+});
+
+test('CAMBIA PERSONAGGIO closes the popup, unlights the knob and returns to the dossier', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  await navigate(page, 'changeCharacter');
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await expect(page.locator('#pb-config-knob')).not.toHaveClass(/on/);
+  await expect(page.locator('#pb-char-list')).toBeVisible();
+  // Not a logout.
+  await expect(page.locator('#pb-login-submit')).toHaveCount(0);
+});
+
+test('CAMBIA CAMPAGNA returns to campaign selection without logging out', async ({ page }) => {
+  await stubEnvironment(page, { campaigns: TWO });
+  await login(page);
+  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
+  await expect(page.locator('#pb-char-list')).toBeVisible();
+
+  await navigate(page, 'changeCampaign');
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await expect(page.locator('#pb-camp-list')).toBeVisible();
+});
+
+test('ESCI closes the popup and asks for confirmation; cancel keeps the session, confirm returns to login', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  await navigate(page, 'logout');
+  await expect(page.locator(POPUP)).toHaveCount(0);
+  await expect(page.locator('#pb-config-knob')).not.toHaveClass(/on/);
+  const dialog = page.locator('.pb-confirm-dialog');
+  await expect(dialog).toBeVisible();
+
+  await dialog.locator('[data-cancel]').click();
+  await expect(page.locator('#pb-sheet-header')).toBeVisible();
+
+  await navigate(page, 'logout');
+  await page.locator('.pb-confirm-dialog [data-confirm]').click();
+  await expect(page.locator('#pb-login-submit')).toBeVisible();
 });

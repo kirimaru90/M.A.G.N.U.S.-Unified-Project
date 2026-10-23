@@ -1,13 +1,11 @@
 // Controls the case chrome that lives *outside* `#app`: the status bar (dot,
-// label, back/exit nubs, OS label) and the critical-red ring overlay. Screens
+// label, OS label), the bezel controls and the critical-red ring overlay. Screens
 // mount into `#app` and cannot reach these, so they drive them through here.
 
 import { openSettingsPopup } from './settings-popup.js';
 
 const statusbar = () => document.getElementById('pb-statusbar');
 const screenEl = () => document.getElementById('pb-screen');
-const navBackEl = () => document.getElementById('pb-nav-back');
-const navExitEl = () => document.getElementById('pb-nav-exit');
 const ringEl = () => document.getElementById('pb-critical-ring');
 const editorRingEl = () => document.getElementById('pb-editor-ring');
 // The `✎` toggle is the bottom bezel's nub, resolved by id; it carries its own
@@ -17,8 +15,6 @@ const editorToggleEl = () => document.getElementById('pb-editor-toggle');
 // so it is wired once below rather than per sheet-mount.
 const configKnobEl = () => document.getElementById('pb-config-knob');
 
-let boundNavBack = null;
-let boundNavExit = null;
 let boundToggleEdit = null;
 // The critical-red ring takes precedence over the phosphor-colored editor
 // ring, so setEditorChrome must know the current critical state to decide
@@ -26,41 +22,9 @@ let boundToggleEdit = null;
 let criticalActive = false;
 
 /**
- * Set the two permanent status-bar case nubs — back and exit — for the
- * current screen. `back`/`exit` are each either `{ label, onActivate }` or
- * `null`; `null` means no glyph and disabled, since every screen in this app
- * that has nothing to do there has nothing to show either (design.md). Called
- * by every screen transition in `main.js`, so both nubs always change state
- * together, atomically, on every navigation.
- */
-export function setCaseNav({ back, exit }) {
-    const backBtn = navBackEl();
-    if (backBtn) {
-        if (boundNavBack) backBtn.removeEventListener('click', boundNavBack);
-        backBtn.textContent = back ? '◄' : '';
-        backBtn.title = back ? back.label : '';
-        backBtn.setAttribute('aria-label', back ? back.label : '');
-        backBtn.disabled = !back;
-        boundNavBack = back ? back.onActivate : null;
-        if (boundNavBack) backBtn.addEventListener('click', boundNavBack);
-    }
-
-    const exitBtn = navExitEl();
-    if (exitBtn) {
-        if (boundNavExit) exitBtn.removeEventListener('click', boundNavExit);
-        exitBtn.textContent = exit ? '✕' : '';
-        exitBtn.title = exit ? exit.label : '';
-        exitBtn.setAttribute('aria-label', exit ? exit.label : '');
-        exitBtn.disabled = !exit;
-        boundNavExit = exit ? exit.onActivate : null;
-        if (boundNavExit) exitBtn.addEventListener('click', boundNavExit);
-    }
-}
-
-/**
- * Wire the `✎` editor toggle's enabled state and click handler — separate
- * from `setCaseNav` because, unlike back/exit, it is only ever driven by the
- * sheet screen itself (its lit state is handled by `setEditorChrome`, below).
+ * Wire the `✎` editor toggle's enabled state and click handler. Only ever
+ * driven by the sheet screen itself (its lit state is handled by
+ * `setEditorChrome`, below).
  */
 export function setEditorToggle({ canEdit, onToggleEdit }) {
     const toggleBtn = editorToggleEl();

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, openSheet, makeCharacter, gotoTab } from './fixtures';
+import { stubEnvironment, login, openSheet, makeCharacter, gotoTab, navigate } from './fixtures';
 
 // Coverage for the destructive actions gated behind `openConfirm` (see
 // proposal/add-pipboy-delete-confirmations): character delete, skill delete,
@@ -199,7 +199,7 @@ test('ESCI asks for confirmation and does not clear the session yet; cancelling 
   await stubEnvironment(page);
   await openSheet(page);
 
-  await page.locator('#pb-nav-exit').click();
+  await navigate(page, 'logout');
   const dialog = page.locator('.pb-confirm-dialog');
   await expect(dialog).toContainText('Uscire dalla sessione?');
   expect(reqs.length).toBe(0);
@@ -215,7 +215,7 @@ test('confirming ESCI clears the session and returns to login', async ({ page })
   await stubEnvironment(page);
   await openSheet(page);
 
-  await page.locator('#pb-nav-exit').click();
+  await navigate(page, 'logout');
   await page.locator('.pb-confirm-dialog [data-confirm]').click();
 
   await expect(page.locator('#pb-login-submit')).toBeVisible();

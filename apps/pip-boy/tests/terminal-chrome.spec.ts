@@ -1,11 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs, TWO_CAMPAIGNS, rollAndSettle } from './fixtures';
+import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs, rollAndSettle } from './fixtures';
 
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
  * round in the reference design (a 9px circle in the case status bar), so it
  * joins the case, screen, and the three bezel parts as case chrome. The bezel
- * knobs and nub carry their own lit state directly — there is no separate LED
+ * knob and nub carry their own lit state directly — there is no separate LED
  * element for the editor toggle.
  */
 const ROUNDED_ALLOWLIST = [
@@ -28,22 +28,69 @@ async function openSheet(page: Page) {
 
 // ── 4.T.1 CRT layers + bezel ────────────────────────────────────────
 
-test('the bottom bezel renders two knobs, a ridged grille and a slider nub', async ({ page }) => {
+test('the bottom bezel renders exactly one knob, a ridged grille and a slider nub', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
 
   await expect(page.locator('.pb-bezel')).toBeVisible();
-  await expect(page.locator('.pb-bezel .pb-knob')).toHaveCount(2);
-  await expect(page.locator('.pb-bezel .pb-grille')).toHaveCount(1);
-  await expect(page.locator('.pb-bezel .pb-nub')).toHaveCount(1);
+  // Exactly three children, in order: the ⚙ knob, the grille, the ✎ nub.
+  const children = await page.locator('.pb-bezel > *').evaluateAll((els) => els.map((el) => el.id || el.className));
+  expect(children).toEqual(['pb-config-knob', 'pb-grille', 'pb-editor-toggle']);
+  await expect(page.locator('.pb-bezel .pb-knob')).toHaveCount(1);
 
-  const knob = await page.locator('.pb-knob').first().boundingBox();
-  expect(knob!.width).toBeCloseTo(22, 0);
-  expect(knob!.height).toBeCloseTo(22, 0);
+  const knob = await page.locator('#pb-config-knob').boundingBox();
+  expect(knob!.width).toBeCloseTo(38, 0);
+  expect(knob!.height).toBeCloseTo(38, 0);
 
-  const nub = await page.locator('.pb-bezel .pb-nub').boundingBox();
-  expect(nub!.width).toBeCloseTo(40, 0);
-  expect(nub!.height).toBeCloseTo(20, 0);
+  const nub = await page.locator('#pb-editor-toggle').boundingBox();
+  expect(nub!.width).toBeCloseTo(64, 0);
+  expect(nub!.height).toBeCloseTo(38, 0);
+});
+
+test('the bezel controls are at least 36px tap targets on every viewport', async ({ page }) => {
+  await stubEnvironment(page);
+  await page.goto('/index.html');
+
+  for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(size);
+    const knob = await page.locator('#pb-config-knob').boundingBox();
+    const nub = await page.locator('#pb-editor-toggle').boundingBox();
+    expect(knob!.width, `knob width at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
+    expect(knob!.height, `knob height at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
+    expect(nub!.height, `nub height at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
+  }
+});
+
+test('the larger bezel controls do not shrink the screen: the screen-to-case-bottom band is 56px', async ({ page }) => {
+  await stubEnvironment(page);
+  await page.goto('/index.html');
+
+  // From the screen's bottom edge to the case's inner bottom edge (its 1px
+  // outline is not part of the band).
+  const band = () =>
+    page.evaluate(() => {
+      const screen = document.querySelector('.pb-screen')!.getBoundingClientRect();
+      const kase = document.querySelector('.pb-case')!;
+      return kase.getBoundingClientRect().bottom - parseFloat(getComputedStyle(kase).borderBottomWidth) - screen.bottom;
+    });
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  expect(Math.abs((await band()) - 56)).toBeLessThanOrEqual(1);
+
+  // The phone breakpoint's tighter case keeps its own, unchanged band
+  // (8px case padding instead of 12px).
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(Math.abs((await band()) - 52)).toBeLessThanOrEqual(1);
+});
+
+test('the status bar holds only the status and OS labels, no control', async ({ page }) => {
+  await stubEnvironment(page);
+  await openSheet(page);
+
+  const bar = page.locator('.pb-statusbar');
+  await expect(bar.locator('button')).toHaveCount(0);
+  await expect(bar.locator('#pb-status-label')).toBeVisible();
+  await expect(bar.locator('.pb-status-os')).toHaveText('PIP-BOY OS');
 });
 
 test('the config knob and editor nub glyphs stay fully contained, and swap color when lit', async ({ page }) => {
@@ -80,23 +127,6 @@ test('the config knob and editor nub glyphs stay fully contained, and swap color
   const litNubColor = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).color);
   expect(litNubColor).not.toBe(idleNubColor);
   expect(litNubColor).toBe('rgb(6, 17, 10)'); // --screen-bg
-});
-
-test('the right knob stays decorative: non-interactive, aria-hidden, never lit', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
-
-  const rightKnob = page.locator('.pb-bezel .pb-knob').nth(1);
-  await expect(rightKnob).toHaveAttribute('aria-hidden', 'true');
-  expect(await rightKnob.evaluate((el) => el.tagName)).toBe('SPAN');
-
-  // Lighting the config knob or the editor nub must never touch the right knob.
-  await page.locator('#pb-config-knob').click();
-  await expect(rightKnob).not.toHaveClass(/on/);
-  await page.locator('.pb-popup-overlay').click({ position: { x: 4, y: 4 } });
-
-  await page.locator('#pb-editor-toggle').click();
-  await expect(rightKnob).not.toHaveClass(/on/);
 });
 
 test('the scanline sweep exists and carries an animation', async ({ page }) => {
@@ -203,12 +233,12 @@ test('the case, screen, grille and nub carry their specified radii', async ({ pa
   expect(await radius('.pb-knob')).toBe('50%');
 });
 
-test('buttons and inputs are square-cornered, except the bezel knob and the three nub controls', async ({ page }) => {
+test('buttons and inputs are square-cornered, except the bezel knob and the nub', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
 
   const radii = await page.$$eval(
-    'button:not(#pb-config-knob):not(#pb-editor-toggle):not(#pb-nav-back):not(#pb-nav-exit), input, select',
+    'button:not(#pb-config-knob):not(#pb-editor-toggle), input, select',
     (els) => els.map((el) => getComputedStyle(el).borderRadius),
   );
   expect(radii.length).toBeGreaterThan(0);
@@ -216,8 +246,6 @@ test('buttons and inputs are square-cornered, except the bezel knob and the thre
 
   expect(await page.locator('#pb-config-knob').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
   expect(await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('6px');
-  expect(await page.locator('#pb-nav-back').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('6px');
-  expect(await page.locator('#pb-nav-exit').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('6px');
 });
 
 // ── 4.T.3 glyphs, not emoji ─────────────────────────────────────────
@@ -299,152 +327,15 @@ for (const field of ['#pb-login-username', '#pb-login-password']) {
   });
 }
 
-// ── status bar case nav (back/exit nubs) + critical chrome ──────────
+// ── critical chrome ─────────────────────────────────────────────────
 
-test('both case nubs are present in the DOM, fixed 40×20 size, on every screen', async ({ page }) => {
-  await stubEnvironment(page, { campaigns: TWO_CAMPAIGNS });
-  await page.goto('/index.html');
-
-  const checkNubs = async () => {
-    for (const sel of ['#pb-nav-back', '#pb-nav-exit']) {
-      await expect(page.locator(sel)).toBeVisible();
-      const box = await page.locator(sel).boundingBox();
-      expect(box!.width).toBeCloseTo(40, 0);
-      expect(box!.height).toBeCloseTo(20, 0);
-    }
-  };
-
-  await checkNubs(); // login
-
-  await login(page);
-  await expect(page.locator('#pb-camp-list')).toBeVisible();
-  await checkNubs(); // campaign selection
-
-  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
-  await expect(page.locator('#pb-char-list')).toBeVisible();
-  await checkNubs(); // character selection (dossier)
-
-  await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
-  await expect(page.getByRole('heading', { name: 'Marta Voss' })).toBeVisible();
-  await checkNubs(); // sheet
-});
-
-test('login: both case nubs render with no glyph and are disabled', async ({ page }) => {
-  await stubEnvironment(page);
-  await page.goto('/index.html');
-
-  await expect(page.locator('#pb-nav-back')).toHaveText('');
-  await expect(page.locator('#pb-nav-exit')).toHaveText('');
-  await expect(page.locator('#pb-nav-back')).toBeDisabled();
-  await expect(page.locator('#pb-nav-exit')).toBeDisabled();
-});
-
-test('campaign selection: the back nub is inert, the exit nub is ESCI', async ({ page }) => {
-  await stubEnvironment(page, { campaigns: TWO_CAMPAIGNS });
-  await login(page);
-  await expect(page.locator('#pb-camp-list')).toBeVisible();
-
-  await expect(page.locator('#pb-nav-back')).toHaveText('');
-  await expect(page.locator('#pb-nav-back')).toBeDisabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
-  await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
-  await expect(page.locator('#pb-nav-exit')).toBeEnabled();
-});
-
-test('character selection (DOSSIER): the back nub is CAMPAGNA, the exit nub is ESCI', async ({ page }) => {
-  await stubEnvironment(page);
-  await login(page);
-  await expect(page.locator('#pb-char-list')).toBeVisible();
-
-  await expect(page.locator('#pb-nav-back')).toHaveText('◄');
-  await expect(page.locator('#pb-nav-back')).toHaveAttribute('title', 'CAMPAGNA');
-  await expect(page.locator('#pb-nav-back')).toBeEnabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
-  await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
-  await expect(page.locator('#pb-nav-exit')).toBeEnabled();
-});
-
-test('sheet: the back nub is DOSSIER, the exit nub is ESCI', async ({ page }) => {
+test('the sheet header no longer carries the old bracket controls', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
-  await expect(page.locator('#pb-nav-back')).toHaveText('◄');
-  await expect(page.locator('#pb-nav-back')).toHaveAttribute('title', 'DOSSIER');
-  await expect(page.locator('#pb-nav-back')).toBeEnabled();
-  await expect(page.locator('#pb-nav-exit')).toHaveText('✕');
-  await expect(page.locator('#pb-nav-exit')).toHaveAttribute('title', 'ESCI');
-  await expect(page.locator('#pb-nav-exit')).toBeEnabled();
   await expect(page.locator('.pb-statusbar')).toContainText('PIP-BOY OS');
-
-  // the sheet header no longer carries the old bracket controls
   await expect(page.locator('.pb-header')).not.toContainText('Personaggi');
   await expect(page.locator('.pb-header')).not.toContainText('Campagna');
-});
-
-test('the exit nub glyph is always critical-red when enabled, even on a non-critical character; the back nub is unaffected', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
-
-  const [exitColor, exitShadow, backColor] = await Promise.all([
-    page.locator('#pb-nav-exit').evaluate((el) => getComputedStyle(el).color),
-    page.locator('#pb-nav-exit').evaluate((el) => getComputedStyle(el).textShadow),
-    page.locator('#pb-nav-back').evaluate((el) => getComputedStyle(el).color),
-  ]);
-
-  expect(exitColor).toBe('rgb(255, 59, 59)');
-  expect(exitShadow).not.toBe('none');
-  expect(backColor).not.toBe('rgb(255, 59, 59)');
-});
-
-test('back-nub activation from character selection returns to campaign selection, without logging out', async ({ page }) => {
-  await stubEnvironment(page, { campaigns: TWO_CAMPAIGNS });
-  await login(page);
-  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
-  await expect(page.locator('#pb-char-list')).toBeVisible();
-
-  await page.locator('#pb-nav-back').click();
-  await expect(page.locator('#pb-camp-list')).toBeVisible();
-});
-
-test('back-nub activation from the sheet returns to the dossier, without logging out', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
-
-  await page.locator('#pb-nav-back').click();
-  await expect(page.locator('#pb-char-list')).toBeVisible();
-});
-
-test('exit-nub activation asks for confirmation, then logs out and returns to login', async ({ page }) => {
-  await stubEnvironment(page);
-  await openSheet(page);
-
-  await page.locator('#pb-nav-exit').click();
-  const dialog = page.locator('.pb-confirm-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(page.locator('#pb-login-submit')).toHaveCount(0);
-
-  await dialog.locator('[data-confirm]').click();
-  await expect(page.locator('#pb-login-submit')).toBeVisible();
-  // Logged out and back on login: both nubs go inert again.
-  await expect(page.locator('#pb-nav-back')).toBeDisabled();
-  await expect(page.locator('#pb-nav-exit')).toBeDisabled();
-});
-
-test('neither case nub ever carries a lit "on" class', async ({ page }) => {
-  await stubEnvironment(page, { campaigns: TWO_CAMPAIGNS });
-  await page.goto('/index.html');
-  await expect(page.locator('#pb-nav-back')).not.toHaveClass(/on/);
-  await expect(page.locator('#pb-nav-exit')).not.toHaveClass(/on/);
-
-  await login(page);
-  await expect(page.locator('#pb-camp-list')).toBeVisible();
-  await expect(page.locator('#pb-nav-exit')).not.toHaveClass(/on/);
-
-  await page.locator('.pb-select-item', { hasText: 'Vault 111' }).click();
-  await expect(page.locator('#pb-char-list')).toBeVisible();
-  await page.locator('#pb-nav-back').click();
-  await expect(page.locator('#pb-camp-list')).toBeVisible();
-  await expect(page.locator('#pb-nav-back')).not.toHaveClass(/on/);
 });
 
 test('critical state rings the screen critical-red and swaps the status dot', async ({ page }) => {
@@ -503,15 +394,11 @@ for (const theme of ['green', 'amber', 'white'] as const) {
 
 // ── editor toggle in the bezel (sheet-chrome-and-layout) ─────────────
 
-test('the owner sees the back/exit nubs in the status bar, and the ✎ toggle in the bezel (not the status bar or tab bar)', async ({ page }) => {
+test('the owner sees the ✎ toggle in the bezel (not the status bar or tab bar)', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
-  const nav = page.locator('.pb-statusbar-nav');
-  await expect(nav.locator('#pb-nav-back')).toBeVisible();
-  await expect(nav.locator('#pb-nav-exit')).toBeVisible();
-  // The ✎ toggle no longer lives among the status-bar controls.
-  await expect(nav.locator('#pb-editor-toggle')).toHaveCount(0);
+  await expect(page.locator('.pb-statusbar #pb-editor-toggle')).toHaveCount(0);
 
   // It seats in the bezel, enabled (and unlit) for the owner — no separate LED.
   await expect(page.locator('.pb-bezel #pb-editor-toggle')).toBeVisible();
@@ -531,7 +418,6 @@ test('a non-owner viewer sees the ✎ toggle, disabled and inert', async ({ page
   });
   await openSheet(page);
 
-  await expect(page.locator('#pb-nav-back')).toBeVisible();
   // Permanent bezel furniture: the glyph stays visible, just inert.
   await expect(page.locator('#pb-editor-toggle')).toBeVisible();
   await expect(page.locator('#pb-editor-toggle')).toBeDisabled();

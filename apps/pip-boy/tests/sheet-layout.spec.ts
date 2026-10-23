@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, type StubOptions, navigate } from './fixtures';
 
 const TAB_LABELS = ['STATS', 'INV', 'DADI', 'INFO', 'MAPPA'];
 
@@ -111,7 +111,7 @@ test('editor mode is off again after leaving and reopening the sheet', async ({ 
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('.pb-editor-strip')).toBeVisible();
 
-  await page.locator('#pb-nav-back').click();
+  await navigate(page, 'changeCharacter');
   await expect(page.locator('#pb-char-list')).toBeVisible();
   await page.locator('.pb-dossier-card', { hasText: 'Marta Voss' }).click();
 

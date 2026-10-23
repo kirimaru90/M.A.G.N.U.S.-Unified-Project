@@ -46,5 +46,5 @@
 
 - [x] 6.1 Search both apps and map-core for `pb-phosphor-tint`, `ensureTintFilter`, `filterMarkup` and `MAP_TINT_FILTER_ID`; none left outside archived openspec changes
 - [x] 6.2 Run the full Pip-Boy Playwright suite (`npx playwright test` in `apps/pip-boy`) and the CMS suite (`npm test` in `apps/cms`, ≥ 70% line coverage on changed files); both drift checks green; all green before archiving
-- [ ] 6.3 Manual, on an Android phone: pinch and animated zoom (tap a place, search, Vedi mappa) are smooth; side by side with the previous build the map looks the same in VERDE, AMBRA and BIANCO at the "Costa ovest", "Baia di SF" and "Los Angeles" zooms; a theme switch repaints without a flash; offline after the update, previously cached areas are refetched once and then work offline
-- [ ] 6.4 Manual, CMS: preview on matches the Pip-Boy VERDE map; preview off is plain CARTO; labels plus preview tints the labelled basemap
+- [X] 6.3 Manual, on an Android phone: pinch and animated zoom (tap a place, search, Vedi mappa) are smooth; side by side with the previous build the map looks the same in VERDE, AMBRA and BIANCO at the "Costa ovest", "Baia di SF" and "Los Angeles" zooms; a theme switch repaints without a flash; offline after the update, previously cached areas are refetched once and then work offline
+- [X] 6.4 Manual, CMS: preview on matches the Pip-Boy VERDE map; preview off is plain CARTO; labels plus preview tints the labelled basemap
