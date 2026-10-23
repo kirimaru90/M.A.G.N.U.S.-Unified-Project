@@ -3,9 +3,7 @@
 ## Purpose
 
 The `apps/pip-boy` shared visual system: design tokens (parameterized by the user's chosen phosphor theme), four persistent CRT effect layers, the critical-state ring, the case/bezel chrome, the square-cornered control vocabulary, and the Italian in-universe copy that every screen renders through.
-
 ## Requirements
-
 ### Requirement: Design tokens
 
 `apps/pip-boy` SHALL express its visual system through a single set of design tokens, declared once in `src/styles/pipboy.css`, and SHALL NOT introduce colors, gradients, or fonts outside this set. The set SHALL be parameterized by the user's chosen phosphor theme (`pipboy-settings`'s `COLORE` row: `green` / `amber` / `white`), so exactly one of three token palettes is active at a time:
@@ -118,37 +116,52 @@ This ring is an additional always-visible signal of editor mode, shown together 
 
 The page SHALL centre a fixed-aspect portrait terminal case:
 
-- **Case** (outer bezel): `border-radius: 26px`, `1px solid #333829`, padding ~`16px 14px 12px`, with `inset 0 2px 3px rgba(120,140,90,0.25), inset 0 -6px 14px rgba(0,0,0,0.7), 0 24px 60px rgba(0,0,0,0.8)`.
-- **Status bar** (inside the case, above the screen): a status dot and label on the left, two permanent nub controls centred between the left and right groups — a **back nub** and an **exit nub** — styled identically to the bottom bezel's slider nub (see below) and present on every screen per `pipboy-app-shell` — and an OS label on the right. Neither the `⚙` settings control nor the `✎` editor toggle lives in the status bar — both live in the bottom bezel, below.
+- **Case** (outer bezel): `border-radius: 26px`, `1px solid #333829`, padding ~`16px 14px 12px`, with `inset 0 2px 3px rgba(120,140,90,0.25), inset 0 -6px 14px rgba(0,0,0,0.7), 0 24px 60px rgba(0,0,0,0.8)`. When the app is installed (fullscreen/standalone), the outer `border-radius` SHALL be `0` and the outer drop shadow (`0 24px 60px …`) SHALL be dropped, while the inset shadows stay; the case's padding absorbs the safe-area insets per `pipboy-responsive-shell`.
+- **Status bar** (inside the case, above the screen): a status dot and label on the left, and an OS label on the right. The status bar SHALL contain **no controls**: its centre stays empty so a centred camera cutout never covers anything interactive. When the device reports a top safe-area inset, the status bar's height SHALL equal that inset and the case SHALL add no padding above it, so the status text sits vertically centred in the band beside the camera. With no top inset, the status bar keeps its normal top spacing (the case's `16px` top padding). Neither the `⚙` settings control nor the `✎` editor toggle lives in the status bar — both live in the bottom bezel, below.
 - **Screen**: `border-radius: 14px`, `2px solid #05170c`, `overflow: hidden`.
-- **Bottom bezel** (below the screen): two circular knobs (radial-gradient `#3a4030`→`#14170f`, border `#444a37`), a ridged speaker grille built from repeating-linear-gradient stripes 6px tall with `border-radius: 3px`, and a pill/slider nub, rounded. The **left knob** is the `⚙` settings control (per `pipboy-settings`) and the **right knob** stays purely decorative and non-interactive, unchanged. The **nub** is the `✎` editor toggle: it grows from the reference `34×12px` sizing enough to hold a fully-contained glyph and a workable tap target, but SHALL NOT exceed the knob's own height, so the bezel's overall rendered height is unaffected. The nub is present on every screen; on screens other than the sheet, or for a sheet viewer without write permission, it renders its glyph but does not respond to activation.
+- **Bottom bezel** (below the screen): exactly three elements, left to right: a circular **knob** that is the `⚙` settings control (per `pipboy-settings`); a ridged speaker grille built from repeating-linear-gradient stripes 6px tall with `border-radius: 3px`, which takes all remaining width; and a second circular **knob** that is the `✎` editor toggle. The two knobs SHALL look identical (same size, shape, radial-gradient `#3a4030`→`#14170f` body, border `#444a37`) and differ only in their glyph. There SHALL be no decorative, non-interactive knob. Each knob SHALL be at least `36px` in diameter (nominally `38px`), on every device and input type, with its glyph fully contained within it. The `✎` knob is present on every screen; on screens other than the sheet, or for a sheet viewer without write permission, it renders its glyph dimmed but does not respond to activation.
 
-The status bar's back and exit nubs SHALL share the bottom bezel nub's fixed sizing and visual body (background gradient, border, border-radius) regardless of whether either currently renders a glyph — the same physical control repeated three times across the case (back, exit, editor toggle), never resized by its own content.
+The larger controls SHALL NOT take height from the screen: the vertical band from the screen's bottom edge to the case's bottom edge SHALL stay `56px` (excluding any bottom safe-area inset the case absorbs per `pipboy-responsive-shell`), with the gap between screen and bezel and the bezel's own padding reduced to make room for the taller controls.
 
-The exit nub renders `✕`, and its glyph SHALL always render in the critical-red token (`var(--critical)`, with `var(--critical-glow)`) whenever the nub is enabled — marking logout as the case's one permanently-destructive one-shot action. This is independent of the character's own critical state: the exit nub reads critical-red on every screen where it is functional, not only while a character is critical. The back nub keeps the active phosphor theme color for its `◄` glyph, unchanged. Both nubs' body, border, and background stay the shared `.pb-nub` styling — only the exit nub's glyph color departs from it.
-
-The bottom bezel SHALL be rendered on every screen, and SHALL live **inside** the constraints of `pipboy-responsive-shell`: it must not cause page-level scroll, and `.pb-case`'s rendered bounding box must remain a function of viewport size and orientation only, never of which screen is mounted. Growing the nub to hold the `✎` glyph SHALL NOT change the bezel's rendered height, since the knob (unchanged at its current height) already governs it.
+The bottom bezel SHALL be rendered on every screen, and SHALL live **inside** the constraints of `pipboy-responsive-shell`: it must not cause page-level scroll, and `.pb-case`'s rendered bounding box must remain a function of viewport size and orientation only, never of which screen is mounted.
 
 #### Scenario: Bottom bezel is rendered
 
 - **WHEN** any screen is mounted
-- **THEN** the case renders two knobs, a ridged speaker grille, and a slider nub beneath the screen
+- **THEN** the case renders the `⚙` knob, a ridged speaker grille, and the `✎` knob beneath the screen, and no other knob
 
-#### Scenario: Config knob and editor nub are the only interactive bezel controls
-
-- **WHEN** any screen is mounted
-- **THEN** the left knob and the nub are focusable, activatable controls, the right knob remains a non-interactive decorative element, and the status bar contains neither a `⚙` nor a `✎` control
-
-#### Scenario: Status bar carries the two permanent nub controls at fixed size
+#### Scenario: Config knob and editor knob are the only bezel controls
 
 - **WHEN** any screen is mounted
-- **THEN** the status bar renders a back nub and an exit nub, each at the same fixed size as the bottom bezel's slider nub, whether or not either currently shows a glyph
+- **THEN** the two knobs are focusable, activatable controls, the bezel contains no other control or decorative knob, and the status bar contains no control at all
 
-#### Scenario: Nub growth does not change bezel height
+#### Scenario: Status bar holds only the status and OS labels
 
-- **GIVEN** the nub is sized to hold its glyph and tap target
-- **WHEN** `.pb-bezel`'s rendered height is measured
-- **THEN** it is unchanged from a bezel rendered without the nub's grown sizing, because the knob remains the tallest element
+- **WHEN** any screen is mounted
+- **THEN** the status bar contains the status dot and label and the OS label, and contains no button
+
+#### Scenario: Status bar shares the camera band
+
+- **GIVEN** the device reports a top safe-area inset of 40px
+- **WHEN** the shell renders in portrait
+- **THEN** the status bar's top edge is at the case's top edge, its height is 40px, and its labels are vertically centred within it
+
+#### Scenario: Bezel controls are large tap targets
+
+- **WHEN** any screen is mounted, on any viewport
+- **THEN** each knob's rendered width and height are at least 36px
+
+#### Scenario: Larger controls do not shrink the screen
+
+- **GIVEN** a viewport with no safe-area insets
+- **WHEN** the distance from the screen's bottom edge to the case's bottom edge is measured
+- **THEN** it is 56px (±1px)
+
+#### Scenario: Installed case drops its outer radius and shadow
+
+- **GIVEN** the app is installed
+- **WHEN** `.pb-case`'s computed style is inspected
+- **THEN** its `border-radius` is `0` and its box shadow contains only the inset shadows
 
 #### Scenario: Bezel does not break the responsive shell contract
 
@@ -162,7 +175,7 @@ Buttons and inputs SHALL be flat and wireframe: transparent background, `1px sol
 
 Native `<select>` controls and their option lists SHALL render on the phosphor theme — the option popup background SHALL use the dark screen background token and its text the active phosphor theme color, not the browser-default light popup — to the extent the platform permits styling native option lists.
 
-**No element in the design SHALL carry a non-zero `border-radius`** other than the case (`26px`), the screen (`14px`), the bezel knobs (including the interactive config knob), the grille (`3px`), the case's nub controls — the bottom bezel's editor toggle and the status bar's back and exit nubs, all sharing the same rounding (including the interactive config knob), the status-bar LED (`50%` — a round indicator, per the reference), the critical-state ring (`14px`, matching the screen it overlays), and the editor-mode ring (`14px`, matching the screen it overlays). In particular there SHALL be no rounded pill buttons and no separate round "LED" element — a control's lit state is carried by the control's own body (see `Bezel control lit state`).
+**No element in the design SHALL carry a non-zero `border-radius`** other than the case (`26px` in a browser tab; `0` when installed), the screen (`14px`), the two bezel knobs (the config knob and the editor knob, `50%`), the grille (`3px`), the status-bar LED (`50%` — a round indicator, per the reference), the critical-state ring (`14px`, matching the screen it overlays), and the editor-mode ring (`14px`, matching the screen it overlays). In particular there SHALL be no rounded pill buttons and no separate round "LED" element — a control's lit state is carried by the control's own body (see `Bezel control lit state`).
 
 Iconography SHALL be glyphs only — `◄ ✎ ⚙ ✕ ⚠ ◉ ▸ − + ⏻` — and the app SHALL contain **no emoji** and no colored icon set.
 
@@ -181,7 +194,7 @@ The following are explicit anti-patterns and SHALL NOT be introduced: rounded pi
 #### Scenario: Only the named elements are rounded
 
 - **WHEN** every element's computed `border-radius` is inspected
-- **THEN** the only non-zero values belong to the case, the screen, the bezel knobs, the grille, the case's three nub controls (editor toggle, back, exit), the status-bar LED, the critical-state ring, and the editor-mode ring — no standalone LED element exists
+- **THEN** the only non-zero values belong to the case (in a browser tab), the screen, the two bezel knobs, the grille, the status-bar LED, the critical-state ring, and the editor-mode ring — no standalone LED element exists
 
 #### Scenario: Add actions use dashed borders
 
@@ -195,17 +208,17 @@ The following are explicit anti-patterns and SHALL NOT be introduced: rounded pi
 
 ### Requirement: Bezel control lit state
 
-The bezel's two interactive **lit** controls — the config knob and the editor nub — SHALL each carry their own "lit" state directly on their own element; neither is paired with a separate indicator element. This lit-state treatment (idle dim glyph / lit solid fill with ink-swapped glyph) is exclusive to these two controls: the status bar's back and exit nubs SHALL NEVER receive a lit ("on") class or the solid-fill treatment described below, regardless of activation — see `pipboy-app-shell`'s navigation requirement for why (they are one-shot navigation actions, not persistent mode indicators).
+The bezel's two interactive controls — the config knob and the editor knob — SHALL each carry their own "lit" state directly on their own element; neither is paired with a separate indicator element.
 
 Idle (unlit), a control SHALL render its glyph (`⚙` or `✎`) dim in the active phosphor theme color on the control's normal dark body, fully contained within the control's bounds. Lit, the control's body SHALL fill solid with the active phosphor theme color (matching the intensity the former standalone LED used) with a matching glow, and its glyph SHALL switch to the dark screen-background ink color (`--screen-bg`) so it remains legible against its own bright fill — never phosphor-on-phosphor.
 
-The lit color SHALL always be the active phosphor theme color, never critical-red: critical-red remains reserved for the critical state (the critical ring and the critical status dot/label) among the config knob and editor nub's *lit* treatment specifically, so a lit bezel control is never mistakable for a critical signal, and both may be shown at once without conflict, regardless of which phosphor theme is active. This reservation does not extend to the exit nub's glyph color (above) — the exit nub has no lit state at all (per the scenario below) and its permanent critical-red glyph marks a destructive *action*, not the character's critical *state*; the two remain visually distinguishable because the critical ring/dot/label activate only during critical state while the exit nub's color is constant.
+The lit color SHALL always be the active phosphor theme color, never critical-red: critical-red remains reserved for the critical state (the critical ring and the critical status dot/label) and for destructive actions, so a lit bezel control is never mistakable for a critical signal, and both may be shown at once without conflict, regardless of which phosphor theme is active.
 
-What triggers each control's lit state is defined by the capability that owns that control: the editor nub lights per the editor-mode on/off state (mirroring the phosphor-colored editor-mode ring, above); the config knob's trigger is defined by `pipboy-settings`.
+What triggers each control's lit state is defined by the capability that owns that control: the editor knob lights per the editor-mode on/off state (mirroring the phosphor-colored editor-mode ring, above); the config knob's trigger is defined by `pipboy-settings`.
 
 #### Scenario: Idle control shows a dim glyph fully inside its bounds
 
-- **WHEN** a bezel control (config knob or editor nub) is unlit
+- **WHEN** a bezel control (config knob or editor knob) is unlit
 - **THEN** its glyph renders dim in the active phosphor theme color, entirely within the control's own rendered bounds, with no separate LED element present
 
 #### Scenario: Lit control swaps its glyph color to stay legible
@@ -220,32 +233,15 @@ What triggers each control's lit state is defined by the capability that owns th
 
 #### Scenario: A lit control is never critical-red
 
-- **GIVEN** a character in critical state with the editor nub lit
+- **GIVEN** a character in critical state with the editor knob lit
 - **WHEN** the sheet renders
-- **THEN** the editor nub is lit in the active phosphor theme color while the critical ring and status dot are critical-red — the two indicators do not share a color
+- **THEN** the editor knob is lit in the active phosphor theme color while the critical ring and status dot are critical-red — the two indicators do not share a color
 
 #### Scenario: A lit control stays on-theme even under a non-default phosphor theme
 
-- **GIVEN** the phosphor theme is set to amber, and a character in critical state with the editor nub lit
+- **GIVEN** the phosphor theme is set to amber, and a character in critical state with the editor knob lit
 - **WHEN** the sheet renders
-- **THEN** the editor nub renders the amber phosphor color, not the critical-red token, remaining visually distinct from the critical-state indicators
-
-#### Scenario: The status-bar nubs never light up
-
-- **GIVEN** either the back nub or the exit nub is enabled
-- **WHEN** it is activated, on any screen
-- **THEN** it never gains a lit/"on" class or the solid-fill treatment, unlike the config knob and editor nub
-
-#### Scenario: The exit nub's glyph is always critical-red when enabled
-
-- **GIVEN** the exit nub is enabled, and the character (if any is open) is NOT in critical state
-- **WHEN** the status bar renders
-- **THEN** the exit nub's glyph (`✕`) renders in the critical-red token, the same as it would during critical state, and the back nub's `◄` renders in the active phosphor theme color, unaffected
-
-#### Scenario: The exit nub's critical-red color is unrelated to the lit-state mechanism
-- **GIVEN** the exit nub is enabled and rendering critical-red
-- **WHEN** the nub is activated
-- **THEN** it does not gain a lit/"on" class or solid-fill treatment — its color is a constant idle-state property, not a triggered lit state
+- **THEN** the editor knob renders the amber phosphor color, not the critical-red token, remaining visually distinct from the critical-state indicators
 
 ### Requirement: Italian in-universe copy
 
@@ -270,3 +266,4 @@ The reference's footnote stating that a first login auto-registers an id locally
 #### Scenario: No local auto-registration footnote
 - **WHEN** the login screen renders
 - **THEN** no copy claims that a first login registers a new id
+

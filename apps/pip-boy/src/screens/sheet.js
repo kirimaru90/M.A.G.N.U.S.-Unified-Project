@@ -64,6 +64,15 @@ const CRITICAL_BANNER = '⚠ STATO CRITICO — NON PUOI AGIRE';
 // The three numeric resource counters shown as a fixed band above the footer
 // while the INV tab is active — a character-level fact, so it lives in the sheet
 // shell (outside the scrolling content), not re-rendered per INV subtab.
+// Every popup and editor in the app (settings, confirm, info, condition detail,
+// add-item, note/codex/quest editors) mounts a `.pb-popup-overlay` on <body>;
+// the catalog picker mounts a `.pb-picker-overlay`. Same pair as engine/back.js.
+const OVERLAY_SELECTOR = '.pb-popup-overlay, .pb-picker-overlay';
+
+// How long a resume refresh keeps re-applying the saved scroll position while an
+// async tab (codex, quests, notes) swaps its skeleton for the fetched content.
+const SCROLL_RESTORE_MS = 2000;
+
 const RESOURCES = [
     { key: 'caps', label: 'TAPPI' },
     { key: 'scraps', label: 'ROTTAMI' },
@@ -138,6 +147,10 @@ export function renderSheet(root, opts) {
     // The roller's view state (including its register) survives tab switches
     // and PA-refund re-renders, but dies with the sheet — rolls are never persisted.
     const diceState = newDiceState();
+    // The map's last centre/zoom, recorded by the map tab on every move and used
+    // to start its next mount. Same lifetime as diceState: a new sheet (any
+    // character change) starts from the campaign's configured view.
+    const mapView = { center: null, zoom: null };
 
     // The full equipment catalog backs the add-item popup's "Scegli esistente"
     // autocomplete. Fetched once; a failure leaves custom-add fully usable.
@@ -464,6 +477,7 @@ export function renderSheet(root, opts) {
             focusPlaceSlug: mapFocus,
             openEntryId: codexEntry,
             diceState,
+            mapView,
             node: leaf,
             getEquipmentCatalog: () => equipmentCatalog,
             getTagCatalog: () => tagCatalog,
@@ -542,8 +556,60 @@ export function renderSheet(root, opts) {
 
     startSheetWakeLock();
 
+    // --- refresh in place (resume) ------------------------------------------
+    // A resume re-verify hands the reloaded character here instead of
+    // remounting, so every piece of view state above survives. The data merges
+    // into the same object: codex/quest view state is keyed on its identity, and
+    // tab closures and open overlays hold the reference.
+
+    function overlayOpen() {
+        return !!document.querySelector(OVERLAY_SELECTOR);
+    }
+
+    // Async tabs paint a short skeleton first, which clamps scrollTop to 0; keep
+    // re-applying the saved position as the content grows, until it sticks or
+    // the window runs out.
+    function restoreScroll(y) {
+        if (!y) return;
+        contentEl.scrollTop = y;
+        if (contentEl.scrollTop === y) return;
+        const observer = new ResizeObserver(() => {
+            contentEl.scrollTop = y;
+            if (contentEl.scrollTop === y) stop();
+        });
+        const timer = setTimeout(() => stop(), SCROLL_RESTORE_MS);
+        function stop() {
+            observer.disconnect();
+            clearTimeout(timer);
+        }
+        const target = contentEl.firstElementChild;
+        if (target) observer.observe(target);
+        requestAnimationFrame(() => {
+            contentEl.scrollTop = y;
+            if (contentEl.scrollTop === y) stop();
+        });
+    }
+
+    function refresh(fresh) {
+        Object.assign(character, fresh);
+        renderHeader();
+        renderStrip();
+        renderFooter();
+        renderResourceBand();
+        // The active tab redraws only when that cannot discard work: the map
+        // reads no character data, edit mode may hold uncommitted inputs, and an
+        // open overlay's callbacks update the tab content that opened it.
+        // Skipped tabs show the fresh data on their next render.
+        if (activeTop === 'map' || editMode || overlayOpen()) return;
+        const y = contentEl.scrollTop;
+        renderActiveTab();
+        restoreScroll(y);
+    }
+
     renderHeader();
     renderTabs();
     renderStrip();
     renderActiveTab();
+
+    return { refresh };
 }

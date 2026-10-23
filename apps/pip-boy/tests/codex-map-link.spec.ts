@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, gotoTab, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
+import { stubEnvironment, login, makeCharacter, gotoTab, nextFrames, DEFAULT_MAP_CONFIG, type StubOptions } from './fixtures';
 
 // The two-way link between the codex and the map (pipboy-map-tab,
 // pipboy-sheet-navigation): the map popup's CODEX for a linked entry the
@@ -118,6 +118,44 @@ test('MAPPA focuses a place nested in a zone, with its popup, once', async ({ pa
   await openMap(page);
   await page.waitForTimeout(400);
   await expect(page.locator('.leaflet-popup')).toHaveCount(0);
+});
+
+test('MAPPA overrides a remembered view, and a later return resumes the focused view', async ({ page }) => {
+  // Leaflet's centre is pixel-rounded across remounts; compare to ~100 m.
+  const currentView = () =>
+    page.evaluate(() => {
+      const map = (window as any).__PB_MAP__;
+      if (!map) return null;
+      const c = map.getCenter();
+      return { lat: +c.lat.toFixed(3), lng: +c.lng.toFixed(3), zoom: map.getZoom() };
+    });
+
+  await openSheet(page);
+  await openMap(page);
+  // Leave the map somewhere far from Vault 111, so it is remembered.
+  await page.evaluate(() => (window as any).__PB_MAP__.setView([41.5, 12.0], 10, { animate: false }));
+  const remembered = await currentView();
+
+  await gotoTab(page, 'INFO', 'Codex');
+  await page.locator('[data-codex-group-toggle="luogo"]').click();
+  await page.locator('[data-codex-id="e-vault"]').click();
+  await page.locator('[data-codex-map]').click();
+  await expect(page.locator('.pb-map-popup-name')).toHaveText('Vault 111');
+
+  // The focus is an animated setView, and mid-animation Leaflet already reports
+  // its target; once it has started (a frame after setView), wait for it to end.
+  await nextFrames(page);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    const map = (window as any).__PB_MAP__;
+    if (!map._animatingZoom) return resolve();
+    map.once('moveend', () => resolve());
+  }));
+  const focused = await currentView();
+  expect(focused).not.toEqual(remembered);
+
+  await gotoTab(page, 'INFO', 'Note');
+  await openMap(page);
+  await expect.poll(currentView).toEqual(focused);
 });
 
 test('a jump to the codex remembers Codex as the INFO subtab', async ({ page }) => {

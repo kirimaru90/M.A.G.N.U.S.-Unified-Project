@@ -6,6 +6,7 @@ import {
   DEFAULT_MAP_CONFIG,
   gotoTab,
   mapTiles,
+  navigate,
   nextFrames,
   tintedTilePixel,
   type StubOptions,
@@ -93,6 +94,59 @@ test('the tab renders a Leaflet container centred on the configured start view',
   expect(view.zoom).toBe(DEFAULT_MAP_CONFIG.startZoom);
   expect(view.lat).toBeCloseTo(DEFAULT_MAP_CONFIG.startLat, 3);
   expect(view.lng).toBeCloseTo(DEFAULT_MAP_CONFIG.startLng, 3);
+});
+
+// Leaflet's centre is pixel-rounded, so a view is compared to ~100 m, like the
+// start-view test's toBeCloseTo(…, 3) — far finer than any pan the tests make.
+const currentView = (page: Page) =>
+  page.evaluate(() => {
+    const map = (window as any).__PB_MAP__;
+    if (!map) return null;
+    const c = map.getCenter();
+    return { lat: +c.lat.toFixed(3), lng: +c.lng.toFixed(3), zoom: map.getZoom() };
+  });
+
+test('the view survives leaving the tab and a header PA change', async ({ page }) => {
+  await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
+  await setView(page, ORIGIN_LAT + 0.05, ORIGIN_LNG - 0.05, 11);
+  const left = await currentView(page);
+  expect(left).not.toEqual({ lat: DEFAULT_MAP_CONFIG.startLat, lng: DEFAULT_MAP_CONFIG.startLng, zoom: DEFAULT_MAP_CONFIG.startZoom });
+
+  await gotoTab(page, 'DADI');
+  await page.locator('.pb-tab', { hasText: 'MAPPA' }).click();
+  await expect.poll(() => currentView(page)).toEqual(left);
+
+  // A PA tap redraws the active tab, which remounts the map.
+  const before = await page.evaluate(() => (window as any).__PB_MAP__);
+  await page.locator('#pb-pa-stepper button[data-dir="-1"]').click();
+  await expect.poll(() => page.evaluate((b) => (window as any).__PB_MAP__ !== b && !!(window as any).__PB_MAP__, before)).toBe(true);
+  await expect.poll(() => currentView(page)).toEqual(left);
+});
+
+test('a newly opened sheet starts the map from the configured view, on STATS › Salute', async ({ page }) => {
+  const rex = makeCharacter({ id: 'char-2', campaignId: 'camp-1', userId: 'user-player', name: 'Rex' });
+  await openMap(page, {
+    campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES },
+    characters: [makeCharacter({ id: 'char-1', campaignId: 'camp-1', userId: 'user-player' }), rex],
+  });
+  // The fixture serves the default character for every id; opening Rex fetches Rex.
+  await page.route(/\/campaigns\/[^/]+\/characters\/char-2$/, (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(rex) }));
+  await setView(page, ORIGIN_LAT + 0.05, ORIGIN_LNG - 0.05, 11);
+
+  await navigate(page, 'changeCharacter');
+  await page.locator('.pb-dossier-card', { hasText: 'Rex' }).click();
+  await expect(page.getByRole('heading', { name: 'Rex' })).toBeVisible();
+  await expect(page.locator('#pb-tabs-top .pb-tab.active')).toHaveText('STATS');
+  await expect(page.locator('#pb-tabs-sub .pb-subtab.active')).toHaveText('Salute');
+
+  await page.evaluate(() => { (window as any).__PB_MAP__ = null; });
+  await page.locator('.pb-tab', { hasText: 'MAPPA' }).click();
+  await expect.poll(() => currentView(page)).toEqual({
+    lat: DEFAULT_MAP_CONFIG.startLat,
+    lng: DEFAULT_MAP_CONFIG.startLng,
+    zoom: DEFAULT_MAP_CONFIG.startZoom,
+  });
 });
 
 test('tiles are canvases tinted in the phosphor colour, with no filter and no inherited glow', async ({ page }) => {

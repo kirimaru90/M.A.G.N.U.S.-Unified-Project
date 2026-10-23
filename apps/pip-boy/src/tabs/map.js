@@ -91,7 +91,7 @@ function publishForTests(map) {
 }
 
 export function renderMapTab(container, ctx = {}) {
-    const { campaignId, character, canEdit, setImmersive, isImmersive, goToCodex, focusPlaceSlug } = ctx;
+    const { campaignId, character, canEdit, setImmersive, isImmersive, goToCodex, focusPlaceSlug, mapView } = ctx;
 
     if (currentMap) {
         currentMap.remove();
@@ -137,20 +137,29 @@ export function renderMapTab(container, ctx = {}) {
             visibleCodex,
             goToCodex,
             focusSlug: focusPlaceSlug,
+            mapView,
         });
     });
 }
 
 function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
-    const { setImmersive, isImmersive, visibleCodex = new Set(), goToCodex, focusSlug } = hooks;
+    const { setImmersive, isImmersive, visibleCodex = new Set(), goToCodex, focusSlug, mapView } = hooks;
     const bounds = L.latLngBounds(
         [config.bounds.south, config.bounds.west],
         [config.bounds.north, config.bounds.east],
     );
 
+    // The sheet remembers the view across remounts (ctx.mapView); a focused open
+    // overrides it, and a fresh sheet's empty holder falls back to the campaign
+    // start. min/maxZoom, maxBounds and applyZoomFloor clamp a remembered view.
+    // Copied, not referenced: the first frame's invalidateSize pans (and its
+    // moveend records) before the start view is re-applied there.
+    const startView = mapView?.center && !focusSlug
+        ? { center: mapView.center, zoom: mapView.zoom }
+        : { center: [config.startLat, config.startLng], zoom: config.startZoom };
     const map = L.map(canvas, {
-        center: [config.startLat, config.startLng],
-        zoom: config.startZoom,
+        center: startView.center,
+        zoom: startView.zoom,
         minZoom: config.minZoom,
         maxZoom: config.maxZoom,
         maxBounds: bounds,
@@ -404,10 +413,19 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
         renderZone();
     });
 
+    // Every settled view is written back to the sheet's holder (ctx.mapView).
+    function recordView() {
+        if (!mapView) return;
+        const c = map.getCenter();
+        mapView.center = [c.lat, c.lng];
+        mapView.zoom = map.getZoom();
+    }
+
     // A pan leaves the marker set untouched (APERTA is zoom-only), so an open
     // popup whose place has been carried off the viewport is closed here rather
     // than by removing its marker.
     map.on('moveend', () => {
+        recordView();
         if (!openSlug) return;
         const marker = layer.markerFor(openSlug);
         if (!marker) return;
@@ -679,11 +697,16 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
 
     // The pane has no size until the tab is laid out. A one-shot focus intent
     // (the codex's MAPPA) waits for that too: focusPlace measures the viewport.
+    // invalidateSize keeps the centre only to the pixel, so the start view is
+    // re-applied once the pane has its size; otherwise every remount would drift.
+    // The view is recorded here too: a focus that needs no move fires no moveend.
     requestAnimationFrame(() => {
         map.invalidateSize();
+        map.setView(startView.center, startView.zoom, { animate: false });
         applyZoomFloor();
         const target = focusSlug ? places.find((p) => p.slug === focusSlug) : null;
         if (target) focusPlace(target, { open: false });
+        recordView();
     });
 
     return map;

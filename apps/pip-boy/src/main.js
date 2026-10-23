@@ -24,8 +24,8 @@ import { openConfirm } from './tabs/confirm-dialog.js';
 
 const root = document.getElementById('app');
 
-// The character sheet currently mounted, if any — tracked so a resume re-verify
-// can silently reload and re-render it in place. Cleared whenever a non-sheet
+// The character sheet currently mounted, if any, with its refresh handle —
+// tracked so a resume re-verify can silently reload and refresh it in place. Cleared whenever a non-sheet
 // screen mounts (every such screen calls resetChrome()).
 let mountedSheet = null;
 
@@ -197,10 +197,11 @@ function showCreate(campaignId, campaignName, ownerUserId) {
 function showSheet(campaignId, campaignName, character, warning) {
     setCampaign(campaignId, campaignName);
     // Remember the mounted sheet so a resume re-verify can reload it in place.
-    mountedSheet = { campaignId, campaignName, characterId: character.id };
+    const sheet = { campaignId, campaignName, characterId: character.id, handle: null };
+    mountedSheet = sheet;
     const toDossier = () => showCharacterSelect(campaignId, campaignName);
     setNav({ up: toDossier, changeCharacter: toDossier, changeCampaign: showCampaignSelect, logout: doLogout });
-    renderSheet(root, {
+    sheet.handle = renderSheet(root, {
         campaignId,
         character,
         warning,
@@ -244,7 +245,9 @@ async function goPostLogin(user) {
 // On return to the foreground (visibilitychange → visible) or a reopen/bfcache
 // restore (pageshow with persisted), re-verify the stored session before we keep
 // trusting the rendered screen. A 401 routes to login; a valid token silently
-// reloads the mounted character in place; a transport blip is a no-op. An
+// reloads the mounted character and refreshes the sheet in place (no remount, so
+// tabs, edit/immersive mode, open editors and the map keep their state); a
+// transport blip is a no-op. An
 // in-flight guard dedupes overlapping events, and the no-token case does nothing.
 let reverifyInFlight = false;
 
@@ -262,16 +265,15 @@ async function onResume() {
         }
         if (result.status !== 'ok') return; // transport error → stay put
 
-        // Valid token: silently reload and re-render the mounted character, if a
-        // sheet is still mounted. Guard the re-render against the sheet having
-        // been navigated away from (or swapped) while the fetch was in flight.
+        // Valid token: silently reload the mounted character and refresh the
+        // sheet in place, if one is still mounted. Guard the refresh against the
+        // sheet having been navigated away from (or swapped) while the fetch was
+        // in flight.
         const sheet = mountedSheet;
         if (!sheet) return;
         try {
             const character = await getCharacter(sheet.campaignId, sheet.characterId);
-            if (mountedSheet && mountedSheet.characterId === sheet.characterId) {
-                showSheet(sheet.campaignId, sheet.campaignName, character);
-            }
+            if (mountedSheet === sheet) sheet.handle?.refresh(character);
         } catch (_) {
             // A failed reload leaves the current screen in place.
         }

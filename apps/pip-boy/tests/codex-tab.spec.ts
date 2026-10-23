@@ -129,8 +129,8 @@ test.describe('detail', () => {
     const pane = (await page.locator('#pb-sheet-content').boundingBox())!;
     expect(box.height).toBeLessThanOrEqual(viewport.height * 0.4 + 1);
     expect(box.width).toBeLessThanOrEqual(pane.width);
-    // Proportions kept: 1:10.
-    expect(box.height / box.width).toBeCloseTo(10, 0);
+    // Proportions kept: 1:10, measured inside the frame's 1px border.
+    expect((box.height - 2) / (box.width - 2)).toBeCloseTo(10, 0);
     expect(await img.evaluate((el) => getComputedStyle(el).objectFit)).toBe('contain');
   });
 

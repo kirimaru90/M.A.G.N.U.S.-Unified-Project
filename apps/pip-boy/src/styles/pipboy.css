@@ -2154,11 +2154,13 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     display: flex;
     justify-content: center;
     margin-bottom: 10px;
-    border: 1px solid var(--green-border-soft);
-    background: var(--green-fill);
 }
+/* The frame sits on the image, so a narrow image shows no bands at its sides. */
 .pb-codex-img {
     display: block;
+    box-sizing: border-box;
+    border: 1px solid var(--green-border-soft);
+    background: var(--green-fill);
     max-width: 100%;
     max-height: 40vh;
     object-fit: contain;
