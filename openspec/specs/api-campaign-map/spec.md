@@ -64,7 +64,7 @@ The service SHALL project the response by the caller's role. An **admin** SHALL 
 
 `PUT /campaigns/:id/map` SHALL be guarded by `JwtOptionalGuard` and `AdminGuard` and SHALL replace the campaign's map document wholesale with the validated payload.
 
-The DTO SHALL reject: a `place.type` outside the enum, a `parent` that names no place in the same payload, a `parent` naming a place whose `hasLocalMap` is false, a `parent` chain containing a cycle, a duplicate `slug`, and a `radius` on a place whose `hasLocalMap` is false.
+The DTO SHALL reject: a `place.type` outside the enum, a `parent` that names no place in the same payload, a `parent` naming a place whose `hasLocalMap` is false, a `parent` chain containing a cycle, a duplicate `slug`, a `radius` on a place whose `hasLocalMap` is false, a `config.minZoom` greater than `config.maxZoom`, and a `config.startZoom` outside the inclusive range `[config.minZoom, config.maxZoom]`.
 
 #### Scenario: Admin writes the map
 - **WHEN** an admin PUTs a valid map for a campaign they can see
@@ -81,6 +81,14 @@ The DTO SHALL reject: a `place.type` outside the enum, a `parent` that names no 
 #### Scenario: A place without a local map cannot be a parent
 - **WHEN** an admin PUTs a payload in which a place's parent names a place with `hasLocalMap: false`
 - **THEN** the request is rejected with HTTP 400
+
+#### Scenario: Start zoom outside the zoom range is rejected
+- **WHEN** an admin PUTs a payload whose `config.startZoom` is below `config.minZoom` or above `config.maxZoom`
+- **THEN** the request is rejected with HTTP 400 and the stored map is unchanged
+
+#### Scenario: Start zoom on the edge of the range is accepted
+- **WHEN** an admin PUTs a payload whose `config.startZoom` equals `config.minZoom` or `config.maxZoom`
+- **THEN** the response is HTTP 200
 
 ### Requirement: Effective radius is derived, recursive, and cycle-safe
 
@@ -106,4 +114,3 @@ The recursion SHALL extend over each child's **circle** (`dist + R(child)`), not
 #### Scenario: Cyclic chain terminates
 - **WHEN** the effective radius is computed over a `parent` chain that contains a cycle
 - **THEN** the computation returns rather than recursing without bound
-

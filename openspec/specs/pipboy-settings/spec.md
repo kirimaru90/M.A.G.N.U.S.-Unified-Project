@@ -242,6 +242,10 @@ requirements specified by `pipboy-terminal-chrome`. The choice SHALL be local to
 it SHALL NOT be read from, written to, or synchronized with any other app's preferences, and SHALL
 NOT be sent to the server.
 
+Applying a theme SHALL also set the map's theme-derived tokens defined by `pipboy-map-tab` — the
+basemap tint filter and the marker colours derived from the theme — in the same step, so an open
+`MAPPA` tab is re-tinted immediately.
+
 #### Scenario: Selecting amber applies the amber theme
 - **WHEN** the user selects `AMBRA` in the `COLORE` row
 - **THEN** the app's phosphor theme switches to amber immediately, with no confirm step
@@ -249,6 +253,11 @@ NOT be sent to the server.
 #### Scenario: Selecting white applies the white theme
 - **WHEN** the user selects `BIANCO` in the `COLORE` row
 - **THEN** the app's phosphor theme switches to white immediately, with no confirm step
+
+#### Scenario: The color choice re-tints an open map
+- **GIVEN** the `MAPPA` tab is mounted under `VERDE`
+- **WHEN** the user selects `AMBRA` in the `COLORE` row
+- **THEN** the basemap is tinted amber and the map markers turn bright amber, without the map remounting
 
 #### Scenario: The color choice is not shared with other apps
 - **GIVEN** the user has set a phosphor color preference in the terminal app
@@ -327,4 +336,3 @@ Clearing the tile cache this way SHALL NOT affect the shell cache, the current s
 - **GIVEN** the user has just activated `SVUOTA CACHE MAPPA`
 - **WHEN** the map tab is opened and panned
 - **THEN** tiles are fetched from the network and re-cached as if visited for the first time
-

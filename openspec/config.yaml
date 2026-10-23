@@ -55,7 +55,8 @@ rules:
       touched (e.g. `npx playwright test tests/<name>.spec.ts`, `npx jest <path>`,
       `npx ng test --include <path>`), never a whole suite. Full suites run exactly once,
       in the final wrap-up task, before the change is archived.
-    - For all specs - new assertions MUST extend an existing test when one already sets up
+    - >-
+      For all specs - new assertions MUST extend an existing test when one already sets up
       the same screen/state (add a `test.step` or `expect` there), and only create a new
       test when no existing one fits. Create a new test file only for a new feature area.
       Reason: in the Playwright suites each test pays a fresh browser context, app boot and
