@@ -43,11 +43,8 @@ import {
 } from './place-tree';
 import { exportPlaces, mergePlaces, slugify } from './place-import';
 import { createMarkerLayer, type MarkerLayer } from '../../shared/map-core/marker-layer.js';
-import {
-  MAP_TINT_FILTER_ID,
-  PHOSPHOR_THEMES,
-  ensureTintFilter,
-} from '../../shared/map-core/style.js';
+import { PHOSPHOR_THEMES } from '../../shared/map-core/style.js';
+import { createTintedTileLayer, type TintedTileLayer } from '../../shared/map-core/tint-tiles.js';
 import { environment } from '../../../environments/environment';
 
 /** CARTO dark. `nolabels` is what the player sees; labels are an authoring aid. */
@@ -977,7 +974,7 @@ export class CampaignMapPage {
   });
 
   private map?: L.Map;
-  private tiles?: L.TileLayer;
+  private tiles?: TintedTileLayer;
   private layer?: MarkerLayer<MapPlace>;
   private radiusCircle?: L.Circle;
   private floorCircle?: L.Circle;
@@ -1062,8 +1059,12 @@ export class CampaignMapPage {
       minZoom: cfg.minZoom,
       maxZoom: cfg.maxZoom,
     });
-    this.tiles = L.tileLayer(this.labels() ? TILE_LABELS : TILE_NOLABELS, {
+    // The Pip-Boy's tinted tile layer: tinted in VERDE under the filter
+    // preview (applyPreview), drawn as served otherwise.
+    this.tiles = createTintedTileLayer(L, this.labels() ? TILE_LABELS : TILE_NOLABELS, {
       attribution: BASEMAP_ATTRIBUTION,
+      createWorker: () =>
+        new Worker(new URL('../../shared/map-core/tint-worker.js', import.meta.url), { type: 'module' }),
     }).addTo(this.map);
 
     this.map.on('click', (e: L.LeafletMouseEvent) => this.onMapClick(e));
@@ -1409,15 +1410,14 @@ export class CampaignMapPage {
   }
 
   /**
-   * "Anteprima filtro Pip-Boy": the shared SVG filter built from VERDE on the
-   * tile pane, and the Pip-Boy's marker colours on public markers. Off, the
-   * basemap is unfiltered. View-local, never saved.
+   * "Anteprima filtro Pip-Boy": the tiles tinted in VERDE by the shared layer,
+   * exactly as the Pip-Boy tints them, and the Pip-Boy's marker colours on
+   * public markers. Off, the tiles are drawn as served. View-local, never saved.
    */
   private applyPreview(): void {
     if (!this.map) return;
     const on = this.filterPreview();
-    if (on) ensureTintFilter(document, VERDE.rgb);
-    this.map.getPane('tilePane')!.style.filter = on ? `url(#${MAP_TINT_FILTER_ID})` : '';
+    this.tiles?.setTint(on ? VERDE.rgb : null);
     const el = this.map.getContainer();
     for (const [name, value] of Object.entries(PREVIEW_MARKER_VARS)) {
       if (on) el.style.setProperty(name, value);

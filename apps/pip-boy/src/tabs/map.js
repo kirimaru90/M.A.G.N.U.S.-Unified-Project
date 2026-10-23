@@ -12,6 +12,8 @@ import {
     viewportRadius,
 } from '../shared/map-core/geometry.js';
 import { createMarkerLayer } from '../shared/map-core/marker-layer.js';
+import { createTintedTileLayer } from '../shared/map-core/tint-tiles.js';
+import { currentPhosphorRgb } from '../engine/theme.js';
 import { ATTRIBUTION_COLLAPSE_MS, ATTRIBUTION_HTML, tileUrl } from './basemap.js';
 
 // The MAPPA tab. Follows the notes.js pattern: render synchronously, paint a
@@ -167,7 +169,17 @@ function mountMap(canvas, zoneEl, { config, places }, hooks = {}) {
     currentMap = map;
     publishForTests(map);
 
-    L.tileLayer(tileUrl(), { minZoom: config.minZoom, maxZoom: config.maxZoom }).addTo(map);
+    // Each tile is tinted once, when it loads, in the theme's colour: zooming
+    // then only moves finished bitmaps. A theme change repaints them in place.
+    const tiles = createTintedTileLayer(L, tileUrl(), {
+        tint: currentPhosphorRgb(),
+        createWorker: () => new Worker(new URL('../shared/map-core/tint-worker.js', import.meta.url), { type: 'module' }),
+        minZoom: config.minZoom,
+        maxZoom: config.maxZoom,
+    }).addTo(map);
+    const onPhosphorChange = (e) => tiles.setTint(e.detail.rgb);
+    document.addEventListener('pb-phosphor-change', onPhosphorChange);
+    map.on('unload', () => document.removeEventListener('pb-phosphor-change', onPhosphorChange));
 
     showAttribution(canvas);
 

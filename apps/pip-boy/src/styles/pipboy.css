@@ -1672,22 +1672,14 @@ button.pb-consumable-name:hover { text-shadow: 0 0 6px var(--phosphor); }
     touch-action: none;
 }
 
-/* 1. The Fallout filter: the basemap's luminance in the active phosphor
-      colour. The SVG filter behind the id is built by the shared map core
-      (apps/packages/map-core/style.js) from the theme triplet, injected by
-      engine/theme.js, so a theme change re-tints a mounted map. */
-.pb-map-canvas .leaflet-tile-pane {
-    filter: url(#pb-phosphor-tint);
-}
-
-/* 2. `.pb-screen * { text-shadow: inherit }` force-inherits the phosphor glow
+/* 1. `.pb-screen * { text-shadow: inherit }` force-inherits the phosphor glow
       onto every descendant. Free on labels; it smears the tiles. */
 .pb-map-canvas .leaflet-tile-pane,
 .pb-map-canvas .leaflet-tile-pane * {
     text-shadow: none;
 }
 
-/* 3. Leaflet's own chrome, restyled to the existing tokens. Note the compound
+/* 2. Leaflet's own chrome, restyled to the existing tokens. Note the compound
       selector: Leaflet puts `leaflet-container` on the element it mounts into,
       so the canvas *is* the container — a descendant selector matches nothing. */
 .pb-map-canvas.leaflet-container {

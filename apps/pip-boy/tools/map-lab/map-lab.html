@@ -1,12 +1,12 @@
 <!doctype html>
 <!--
-  Map lab: a dev-only page for tuning the MAPPA basemap filter and marker style.
+  Map lab: a dev-only page for tuning the MAPPA basemap tint and marker style.
   See README.md next to this file. Run it with `npm run map-lab` from apps/pip-boy.
 
   The source of truth is apps/packages/map-core/style.js. The page imports it
-  from the Pip-Boy's synced copy (src/shared/map-core/) and builds its filter
-  with the core's own filterMarkup from the slider values, so it cannot drift
-  from the app. The "Scelta" preset is the core's tokens: what the app ships.
+  from the Pip-Boy's synced copy (src/shared/map-core/) and tints its tiles
+  through the core's own tinted tile layer with the slider values, so it cannot
+  drift from the app. The "Scelta" preset is the core's tokens: what the app ships.
 
   `__CARTO_KEY__` is replaced in memory by serve.mjs. Never commit a real key here.
 -->
@@ -276,7 +276,8 @@ pre {
 
 <script type="module">
 import * as L from '/src/vendor/leaflet/leaflet.esm.js';
-import { MAP_TONE, MAP_TINT_SAT, PHOSPHOR_THEMES, filterMarkup as coreFilterMarkup, filterOutput, tintColour } from '/src/shared/map-core/style.js';
+import { MAP_TONE, MAP_TINT_SAT, PHOSPHOR_THEMES, filterOutput, tintColour } from '/src/shared/map-core/style.js';
+import { createTintedTileLayer } from '/src/shared/map-core/tint-tiles.js';
 import { ICONS } from '/src/shared/map-core/icons.js';
 
 const CARTO_KEY = '__CARTO_KEY__';
@@ -314,7 +315,7 @@ const luma = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 const rgbOf = (s) => PHOSPHOR_THEMES[s.theme].rgb;
 const toneOf = (s) => ({ land: s.land, water: s.water, lineLo: s.lineLo, lineHi: s.lineHi });
 
-// A basemap pixel through the current filter. The curve is the core's own
+// A basemap pixel through the current tint. The curve is the core's own
 // maths; the linear mode is the rejected first design, kept here only as the
 // "Prima" baseline.
 function surface(pixel, s) {
@@ -334,22 +335,40 @@ const lstar = (rgb) => {
 };
 const hex = (rgb) => '#' + rgb.map((v) => Math.round(clamp(v) * 255).toString(16).padStart(2, '0')).join('');
 
-// ── Basemap filter ────────────────────────────────────────
+// ── Basemap tint ──────────────────────────────────────────
+// The curve modes tint through the core's tinted tile layer, as the app does:
+// each change repaints the tiles in place. "Prima", the rejected linear
+// design, is not something the layer expresses; it stays an SVG matrix over
+// the untinted tiles, kept only as the comparison baseline.
 const f4 = (n) => (+n.toFixed(4)).toString();
 let filterSeq = 0;
+let tintKey = null;
 
-function filterMarkup(s) {
-    if (s.mode === 'curve') return coreFilterMarkup(rgbOf(s), { tone: toneOf(s), sat: s.sat });
+function linearMarkup(s) {
     const c = tintColour(rgbOf(s), s.sat);
     const rows = c.map((ch) => [0.2126, 0.7152, 0.0722].map((w) => f4(s.gain * ch * w)).join(' ') + ' 0 0');
     return `<feColorMatrix type="matrix" values="${rows.join('  ')}  0 0 0 1 0"/>`;
 }
 
-function applyFilter(s) {
-    const id = `lab-tint-${++filterSeq}`;
+function applyTint(s) {
+    const linear = s.mode === 'linear';
+    // A repaint re-decodes every tile: skip it when nothing the tint reads moved.
+    const key = linear ? 'linear' : JSON.stringify([rgbOf(s), toneOf(s), s.sat]);
+    if (key !== tintKey) {
+        tintKey = key;
+        if (linear) tiles.setTint(null);
+        else tiles.setTint(rgbOf(s), { tone: toneOf(s), sat: s.sat });
+    }
     const defs = document.getElementById('filters');
-    defs.innerHTML = `<filter id="${id}" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB" primitiveUnits="userSpaceOnUse">${filterMarkup(s)}</filter>`;
-    document.getElementById('tileFilter').textContent = `.lab-tile { filter: url(#${id}); }`;
+    const style = document.getElementById('tileFilter');
+    if (!linear) {
+        defs.innerHTML = '';
+        style.textContent = '';
+        return;
+    }
+    const id = `lab-tint-${++filterSeq}`;
+    defs.innerHTML = `<filter id="${id}" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB" primitiveUnits="userSpaceOnUse">${linearMarkup(s)}</filter>`;
+    style.textContent = `.lab-tile { filter: url(#${id}); }`;
 }
 
 // ── Map ───────────────────────────────────────────────────
@@ -378,7 +397,8 @@ const VIEWS = [
 ];
 
 const map = L.map('map', { minZoom: 4, maxZoom: 13, zoomSnap: 0.5 }).setView(VIEWS[0][1], VIEWS[0][2]);
-L.tileLayer(`https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_KEY)}`, {
+const tiles = createTintedTileLayer(L, `https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(CARTO_KEY)}`, {
+    createWorker: () => new Worker('/src/shared/map-core/tint-worker.js', { type: 'module' }),
     subdomains: 'abcd', className: 'lab-tile', maxZoom: 13,
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, © <a href="https://carto.com/attribution">CARTO</a>',
 }).addTo(map);
@@ -419,7 +439,7 @@ function render(s) {
     mapEl.style.setProperty('--glow', s.glow);
     mapEl.className = `ms-${s.marker} lb-${s.label}`;
     document.getElementById('crt').hidden = !s.crt;
-    applyFilter(s);
+    applyTint(s);
 
     const land = surface(PX_LAND, s);
     const sea = surface(PX_WATER, s);

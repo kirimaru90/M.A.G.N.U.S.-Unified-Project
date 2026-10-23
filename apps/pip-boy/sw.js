@@ -17,7 +17,12 @@ const CACHE_VERSION = 'pipboy-__BUILD_ID__';
 // v3: tiles cached before the CARTO key were the keyless "API KEY REQUIRED"
 // watermark — purge them (carto-basemap-api-key). Bump again whenever the tile
 // URL scheme changes in a way that makes cached tiles wrong.
-const TILE_CACHE = 'pipboy-tiles-v3';
+//
+// v4: the map reads tile pixels to tint them (map-tinted-tiles), so tiles are
+// CORS requests. A cached opaque response returned for a CORS request is a
+// network error, so v3's opaque entries would blank every visited area — purge
+// them. Only `ok` responses are cached from now on (tileCacheFirst).
+const TILE_CACHE = 'pipboy-tiles-v4';
 
 // Cache-on-visit with no bound would grow forever (observed: 7GB on one
 // long-running campaign). Entries are capped by count rather than by a byte
@@ -101,12 +106,15 @@ const REQUIRED_SHELL_URLS = [
   './src/state/quest-seen.js',
   './src/sheet/markdown.js',
   // The shared map core (synced from apps/packages/map-core): the MAPPA tab's
-  // geometry, icons, marker layer and their stylesheet, and theme.js's filter.
+  // geometry, icons, marker layer and their stylesheet, the theme triplets, and
+  // the tinted tile layer with its worker.
   './src/shared/map-core/style.js',
   './src/shared/map-core/geometry.js',
   './src/shared/map-core/icons.js',
   './src/shared/map-core/marker-layer.js',
   './src/shared/map-core/markers.css',
+  './src/shared/map-core/tint-tiles.js',
+  './src/shared/map-core/tint-worker.js',
   // Vendored Leaflet — without it the map tab cannot render offline. The
   // stylesheet's images/ are deliberately absent: the tab uses divIcon only and
   // mounts no layers control, so nothing requests them (see the vendor README).
@@ -255,8 +263,9 @@ async function tileCacheFirst(request) {
   if (cached) return cached;
   try {
     const response = await fetch(request);
-    // Opaque cross-origin responses are still worth keeping: they render fine.
-    if (response.ok || response.type === 'opaque') {
+    // Never an opaque response: served back for the map's CORS request, it is
+    // a network error (see TILE_CACHE). An opaque response is still returned.
+    if (response.ok) {
       await cache.put(request, response.clone());
       await trimTileCache(cache);
     }

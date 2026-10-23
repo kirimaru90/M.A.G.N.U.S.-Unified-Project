@@ -19,7 +19,6 @@ export declare const PHOSPHOR_THEMES: {
 export declare const MAP_TONE: MapTone;
 export declare const MAP_TINT_SAT: number;
 export declare const MAP_WATER_MASK_GAIN: number;
-export declare const MAP_TINT_FILTER_ID: 'pb-phosphor-tint';
 
 export interface FilterParams {
   tone?: MapTone;
@@ -34,5 +33,13 @@ export declare function filterOutput(
   rgb: string,
   params?: FilterParams,
 ): [number, number, number];
-export declare function filterMarkup(rgb: string, params?: FilterParams): string;
-export declare function ensureTintFilter(doc: Document, rgb: string): SVGFilterElement;
+
+export interface TintTables {
+  level: Float32Array;
+  mask: Float32Array;
+  tint: [number, number, number];
+  water: number;
+}
+
+export declare function tintTables(rgb: string, params?: FilterParams): TintTables;
+export declare function tintPixels<T extends Uint8ClampedArray>(data: T, tables: TintTables | null): T;

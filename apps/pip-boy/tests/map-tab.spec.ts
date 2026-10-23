@@ -1,5 +1,16 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, gotoTab, nextFrames, type StubOptions } from './fixtures';
+import {
+  stubEnvironment,
+  login,
+  makeCharacter,
+  DEFAULT_MAP_CONFIG,
+  gotoTab,
+  mapTiles,
+  nextFrames,
+  tintedTilePixel,
+  type StubOptions,
+} from './fixtures';
+import { PHOSPHOR_THEMES } from '../src/shared/map-core/style.js';
 
 // Covers pipboy-map-tab: the tab renders, level-of-detail follows viewport
 // containment, the breadcrumb tracks the centre, and the map owns horizontal
@@ -84,20 +95,43 @@ test('the tab renders a Leaflet container centred on the configured start view',
   expect(view.lng).toBeCloseTo(DEFAULT_MAP_CONFIG.startLng, 3);
 });
 
-test('the tile pane carries the phosphor tint filter and no inherited phosphor glow', async ({ page }) => {
-  // The filter's *appearance* is a judgment call no test can make; that it is
-  // applied at all is not. `.pb-screen * { text-shadow: inherit }` would
-  // otherwise smear the tiles. How the tint follows the theme: map-theme.spec.
+test('tiles are canvases tinted in the phosphor colour, with no filter and no inherited glow', async ({ page }) => {
+  // The tint's *appearance* is a judgment call no test can make; that each tile
+  // is tinted once, as pixels, rather than filtered on every frame, is not.
+  // `.pb-screen * { text-shadow: inherit }` would otherwise smear the tiles.
+  // How the tint follows the theme: map-theme.spec.
   await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
 
+  await expect.poll(async () => (await mapTiles(page)).length).toBeGreaterThan(0);
+  const green = tintedTilePixel(PHOSPHOR_THEMES.green.rgb);
+  for (const tile of await mapTiles(page)) {
+    expect(tile.tag).toBe('CANVAS');
+    expect(tile.px).toEqual(green);
+    expect(tile.filter).toBe('none');
+  }
+
   const pane = await page.evaluate(() => {
-    const el = document.querySelector('.leaflet-tile-pane')!;
-    const s = getComputedStyle(el);
-    return { filter: s.filter, textShadow: s.textShadow, defined: !!document.getElementById('pb-phosphor-tint') };
+    const s = getComputedStyle(document.querySelector('.leaflet-tile-pane')!);
+    return { filter: s.filter, textShadow: s.textShadow };
   });
-  expect(pane.filter).toContain('#pb-phosphor-tint');
-  expect(pane.defined).toBe(true);
+  expect(pane.filter).toBe('none');
   expect(pane.textShadow).toBe('none');
+});
+
+test('tile images are requested in CORS mode without credentials', async ({ page }) => {
+  // Playwright does not expose Sec-Fetch-Mode; a no-cors image request carries
+  // no Origin, a CORS one does, and an anonymous one no cookies.
+  const headers: Record<string, string>[] = [];
+  page.on('request', (req) => {
+    if (/basemaps\.cartocdn\.com/.test(req.url())) headers.push(req.headers());
+  });
+  await openMap(page, { campaignMap: { config: DEFAULT_MAP_CONFIG, places: NESTED_PLACES } });
+  await expect.poll(async () => (await mapTiles(page)).length).toBeGreaterThan(0);
+  expect(headers.length).toBeGreaterThan(0);
+  for (const h of headers) {
+    expect(h.origin).toBeTruthy();
+    expect(h.cookie).toBeUndefined();
+  }
 });
 
 test('zoom is clamped to the configured range', async ({ page }) => {

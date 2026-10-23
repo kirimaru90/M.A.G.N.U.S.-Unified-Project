@@ -1,4 +1,6 @@
 import type { Page, Route } from '@playwright/test';
+import { deflateSync } from 'node:zlib';
+import { tintPixels, tintTables } from '../src/shared/map-core/style.js';
 
 export const API = 'http://localhost:3000';
 
@@ -94,15 +96,78 @@ export const DEFAULT_MAP_CONFIG = {
 /** A campaign with no authored map — what most specs get. */
 export const DEFAULT_CAMPAIGN_MAP = { config: DEFAULT_MAP_CONFIG, places: [] };
 
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let c = n;
+  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  return c >>> 0;
+});
+
+function crc32(buf: Buffer) {
+  let c = 0xffffffff;
+  for (const byte of buf) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer) {
+  const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const len = Buffer.alloc(4);
+  len.writeUInt32BE(data.length);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(body));
+  return Buffer.concat([len, body, crc]);
+}
+
+/** An opaque `size`×`size` PNG of one colour. */
+export function solidPng([r, g, b]: readonly number[], size = 256) {
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // truecolour RGB
+  const row = Buffer.alloc(1 + size * 3);
+  for (let x = 0; x < size; x++) row.set([r, g, b], 1 + x * 3);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(Buffer.concat(Array.from({ length: size }, () => row)))),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/** CARTO dark_nolabels land, as measured; the tile stub's colour. */
+export const TILE_LAND = [14, 14, 14] as const;
+
 /**
- * A 1×1 transparent PNG. Basemap tiles are fulfilled with this so the suite
- * never reaches CARTO: hermetic, and it keeps us off a third party's servers on
- * every run.
+ * Basemap tiles are fulfilled with a flat land-coloured PNG so the suite never
+ * reaches CARTO: hermetic, and it keeps us off a third party's servers on every
+ * run. Opaque and CORS-enabled like CARTO's own, because the map reads tile
+ * pixels to tint them; a specced pixel can then be sampled on the tile canvas.
  */
-export const TRANSPARENT_PNG = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-  'base64',
-);
+export const TILE_PNG = solidPng(TILE_LAND);
+
+/** The CORS header CARTO sends, without which a tile's pixels cannot be read. */
+export const TILE_HEADERS = { 'Access-Control-Allow-Origin': '*' };
+
+/** The stub tile's colour through a theme triplet's tint (RGBA), or as served for null. */
+export function tintedTilePixel(rgb: string | null) {
+  return [...tintPixels(new Uint8ClampedArray([...TILE_LAND, 255]), rgb ? tintTables(rgb) : null)];
+}
+
+/**
+ * The map's loaded basemap tiles: tag, centre pixel (RGBA) and computed filter.
+ * `mark` tags each node, and `marked` reports a tag left by an earlier call, so
+ * a spec can tell a repainted tile from a rebuilt one.
+ */
+export function mapTiles(page: Page) {
+  return page.evaluate(() =>
+    [...document.querySelectorAll<HTMLCanvasElement>('.pb-map-canvas .leaflet-tile-loaded')].map((el) => {
+      const marked = (el as any).__pbMark === true;
+      (el as any).__pbMark = true;
+      const px = el.getContext ? [...el.getContext('2d')!.getImageData(el.width / 2, el.height / 2, 1, 1).data] : [];
+      return { tag: el.tagName, px, filter: getComputedStyle(el).filter, marked };
+    }),
+  );
+}
 
 export interface StubOptions {
   role?: 'player' | 'admin';
@@ -219,7 +284,7 @@ export async function stubEnvironment(page: Page, opts: StubOptions = {}) {
 
   // Basemap tiles never leave the test runner.
   await page.route(/basemaps\.cartocdn\.com/, (route) =>
-    route.fulfill({ status: 200, contentType: 'image/png', body: TRANSPARENT_PNG }),
+    route.fulfill({ status: 200, contentType: 'image/png', headers: TILE_HEADERS, body: TILE_PNG }),
   );
 
   await page.route(/\/campaigns\/[^/]+\/characters$/, (route) => {

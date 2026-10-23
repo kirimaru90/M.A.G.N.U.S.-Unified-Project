@@ -9,7 +9,8 @@ import * as L from 'leaflet';
 import { BASEMAP_ATTRIBUTION, CampaignMapPage, cartoTileUrl } from './campaign-map-page';
 import type { MarkerLayer } from '../../shared/map-core/marker-layer.js';
 import { ICONS } from '../../shared/map-core/icons.js';
-import { PHOSPHOR_THEMES, tintColour } from '../../shared/map-core/style.js';
+import { PHOSPHOR_THEMES } from '../../shared/map-core/style.js';
+import type { TintedTileLayer } from '../../shared/map-core/tint-tiles.js';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import { CodexApiService } from '../../core/codex/codex-api.service';
@@ -912,19 +913,34 @@ describe('CampaignMapPage', () => {
       fixture.detectChanges();
     };
 
-    it('puts the shared VERDE filter on the tile pane, and takes it off again', async () => {
+    const tiles = () => (component as unknown as { tiles: TintedTileLayer }).tiles;
+
+    it('tints the tiles in VERDE through the shared layer, and untints them again', async () => {
       await setup();
-      expect(map().getPane('tilePane')!.style.filter).toBe('');
+      const setTint = vi.spyOn(tiles(), 'setTint');
 
       toggle(true);
-      expect(map().getPane('tilePane')!.style.filter).toBe('url("#pb-phosphor-tint")');
-      const [r, g, b] = tintColour(PHOSPHOR_THEMES.green.rgb);
-      const filter = document.getElementById('pb-phosphor-tint')!;
-      expect(filter.innerHTML).toContain(
-        `values="${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0"`,
-      );
+      expect(setTint).toHaveBeenLastCalledWith(PHOSPHOR_THEMES.green.rgb);
+      expect(map().getPane('tilePane')!.style.filter).toBe('');
 
       toggle(false);
+      expect(setTint).toHaveBeenLastCalledWith(null);
+      expect(map().getPane('tilePane')!.style.filter).toBe('');
+      expect(document.querySelector('svg filter')).toBeNull();
+    });
+
+    it('keeps the VERDE tint when labels switch the tile URL', async () => {
+      await setup();
+      toggle(true);
+      const setTint = vi.spyOn(tiles(), 'setTint');
+      const setUrl = vi.spyOn(tiles(), 'setUrl');
+
+      (component as unknown as { labels: { set: (v: boolean) => void } }).labels.set(true);
+      fixture.detectChanges();
+
+      expect(setUrl).toHaveBeenLastCalledWith(expect.stringContaining('/dark_all/'));
+      expect(setTint).not.toHaveBeenCalled();
+      expect((tiles() as unknown as { _tintTables: unknown })._tintTables).not.toBeNull();
       expect(map().getPane('tilePane')!.style.filter).toBe('');
     });
 

@@ -4,7 +4,9 @@ The rules and the style that the Pip-Boy **MAPPA** tab and the CMS campaign map 
 
 | File | What it holds |
 |---|---|
-| `style.js` | `PHOSPHOR_THEMES`, the basemap tokens (`MAP_TONE`, `MAP_TINT_SAT`, `MAP_WATER_MASK_GAIN`), the SVG filter graph (`filterMarkup`, `filterOutput`, `toneTable`, `tintColour`) and `ensureTintFilter(doc, rgb)`, which writes the hidden `<filter id="pb-phosphor-tint">`. |
+| `style.js` | `PHOSPHOR_THEMES`, the basemap tokens (`MAP_TONE`, `MAP_TINT_SAT`, `MAP_WATER_MASK_GAIN`), the reference tint (`filterOutput`, `toneLevel`, `toneTable`, `tintColour`) and the lookup tables tiles are tinted with (`tintTables`, `tintPixels`). Pure. |
+| `tint-tiles.js` | `createTintedTileLayer(L, url, opts)`: an `L.TileLayer` whose tiles are canvases, tinted once when they load; `setTint(rgb \| null, { tone, sat })` repaints the loaded tiles in place. |
+| `tint-worker.js` | The module worker that tints tile bitmaps off the main thread for `tint-tiles.js`. |
 | `geometry.js` | Level of detail (`effectiveRadius`, `visible`, `isOpen`, `chain`, `containZoom`, `revealZoom`), and the declutter (`declutter`, `labelPass`, `separationZoom`, `effectiveMinZoom`). Pure: no DOM, no Leaflet. |
 | `icons.js` | `ICONS`, `TYPE_DEFAULT_ICON`, `iconFor(place)`. |
 | `marker-layer.js` | `createMarkerLayer(L, map, opts)`: the render plan, marker sync, bloom/collapse on zoom, the `+N` badge and the label pass. |
@@ -15,6 +17,8 @@ The rules and the style that the Pip-Boy **MAPPA** tab and the CMS campaign map 
 
 - Plain ES modules with no dependencies and no build step: the Pip-Boy loads them as they are.
 - Leaflet is passed in by the caller (`createMarkerLayer(L, …)`), never imported. The Pip-Boy passes its vendored ESM build, the CMS its npm `leaflet`, both 1.9.4.
+- The tinted tile layer never constructs its worker: a worker URL resolves differently with no build step and in the Angular bundler. Each app passes `createWorker: () => new Worker(new URL('<path to its copy>/tint-worker.js', import.meta.url), { type: 'module' })`. Without a factory, or if the worker fails, or with no `OffscreenCanvas`, the layer tints on the main thread with the same `tintPixels`.
+- Tiles are requested with `crossOrigin = 'anonymous'`, because their pixels are read. The tile host must send `Access-Control-Allow-Origin` (CARTO sends `*` on `dark_nolabels`, `dark_all`, `@2x` and with `?key=`). Check it with `curl -sI -H 'Origin: https://example.org' <tile url>` before switching hosts: without it every tile fails to load and the map is blank under its markers.
 - What is app-specific stays in the app: the Pip-Boy's popup, breadcrumb, search, immersive mode and zoom floor (`src/tabs/map.js`) and its CSS custom properties (`src/engine/theme.js`); the CMS's selection, dragging, radius and bounds handles.
 - `effectiveRadius` has one other implementation, the API's `campaign-map.service.ts`. Change both together.
 

@@ -1,8 +1,18 @@
 import { test, expect, type Page } from '@playwright/test';
-import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, nextFrames, type StubOptions } from './fixtures';
+import {
+  stubEnvironment,
+  login,
+  makeCharacter,
+  DEFAULT_MAP_CONFIG,
+  mapTiles,
+  nextFrames,
+  tintedTilePixel,
+  type StubOptions,
+} from './fixtures';
+import { PHOSPHOR_THEMES } from '../src/shared/map-core/style.js';
 
 // Covers the theme-derived map tokens (pipboy-map-tab, pipboy-settings): the
-// basemap is tinted by an SVG filter generated from the phosphor theme, markers
+// basemap tiles are tinted in the phosphor theme's colour, markers
 // draw in the theme's bright phosphor colour, and a COLORE change re-tints a
 // mounted map without remounting it. Whether the tint *looks* right is a judgment call;
 // that it follows the theme is not.
@@ -51,61 +61,45 @@ async function chooseColour(page: Page, value: 'green' | 'amber' | 'white') {
   await nextFrames(page);
 }
 
-/** The last feColorMatrix is the tint: its diagonal is the desaturated theme colour. */
-const tintDiagonal = (page: Page) =>
-  page.evaluate(() => {
-    const matrices = document.querySelectorAll('#pb-phosphor-tint feColorMatrix');
-    const values = matrices[matrices.length - 1]?.getAttribute('values') ?? '';
-    const v = values.trim().split(/\s+/).map(Number);
-    return [v[0], v[6], v[12]];
-  });
+/** Every loaded tile shows `rgb`'s tint, on the same nodes as the last `mapTiles` call. */
+async function expectTilesTinted(page: Page, rgb: string) {
+  const want = tintedTilePixel(rgb);
+  await expect.poll(async () => (await mapTiles(page)).map((t) => t.px)).toEqual(
+    (await mapTiles(page)).map(() => want),
+  );
+}
 
 const markerStroke = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.querySelector('.pb-map-marker svg')!).stroke);
 
-test('the tile pane references the phosphor tint filter, and the filter exists', async ({ page }) => {
-  await openMap(page);
-
-  const pane = await page.evaluate(() => {
-    const s = getComputedStyle(document.querySelector('.leaflet-tile-pane')!);
-    return { filter: s.filter, textShadow: s.textShadow };
-  });
-  expect(pane.filter).toContain('url(');
-  expect(pane.filter).toContain('#pb-phosphor-tint');
-  expect(pane.textShadow).toBe('none');
-
-  const filter = await page.evaluate(() => {
-    const el = document.getElementById('pb-phosphor-tint');
-    return el && { tag: el.tagName.toLowerCase(), space: el.getAttribute('color-interpolation-filters') };
-  });
-  expect(filter).toEqual({ tag: 'filter', space: 'sRGB' });
-
-  // The tone curve and the water mask, not a single linear gain.
-  const primitives = await page.evaluate(() =>
-    [...document.getElementById('pb-phosphor-tint')!.children].map((el) => el.tagName),
-  );
-  expect(primitives).toContain('feComponentTransfer');
-  expect(primitives).toContain('feFlood');
-  expect(primitives).toContain('feMerge');
-});
-
-test('switching VERDE → AMBRA re-tints the mounted map without remounting it', async ({ page }) => {
+test('switching COLORE re-tints the mounted tiles in place, without remounting', async ({ page }) => {
   await openMap(page);
   await page.evaluate(() => ((window as any).__PB_MAP__.__pbSameMount = true));
+  await expect.poll(async () => (await mapTiles(page)).length).toBeGreaterThan(0);
+  await expectTilesTinted(page, PHOSPHOR_THEMES.green.rgb);
+  const count = (await mapTiles(page)).length;
 
-  // Green dominates the green tint.
-  const [r0, g0, b0] = await tintDiagonal(page);
-  expect(g0).toBeGreaterThan(r0);
-  expect(g0).toBeGreaterThan(b0);
-
-  await chooseColour(page, 'amber');
-
-  // Amber: red > green > blue.
-  const [r1, g1, b1] = await tintDiagonal(page);
-  expect(r1).toBeGreaterThan(g1);
-  expect(g1).toBeGreaterThan(b1);
+  for (const colour of ['amber', 'white', 'green'] as const) {
+    await chooseColour(page, colour);
+    await expectTilesTinted(page, PHOSPHOR_THEMES[colour].rgb);
+    // The same canvases, repainted: none rebuilt, none added.
+    const tiles = await mapTiles(page);
+    expect(tiles).toHaveLength(count);
+    expect(tiles.every((t) => t.marked)).toBe(true);
+  }
 
   expect(await page.evaluate(() => (window as any).__PB_MAP__.__pbSameMount)).toBe(true);
+});
+
+test('a map mounted after a theme change starts in that theme', async ({ page }) => {
+  await openMap(page);
+  await chooseColour(page, 'amber');
+  await page.locator('.pb-popup-overlay').click({ position: { x: 4, y: 4 } });
+  await page.locator('.pb-tab').first().click();
+  await page.locator('.pb-tab', { hasText: 'MAPPA' }).click();
+  await expect(page.locator('.pb-map-marker')).toHaveCount(1);
+  await expect.poll(async () => (await mapTiles(page)).length).toBeGreaterThan(0);
+  for (const tile of await mapTiles(page)) expect(tile.px).toEqual(tintedTilePixel(PHOSPHOR_THEMES.amber.rgb));
 });
 
 test('markers draw in the theme bright phosphor colour, recoloured in place', async ({ page }) => {

@@ -1,10 +1,11 @@
 // The map's basemap style, shared by the Pip-Boy MAPPA tab and the CMS filter
-// preview: the phosphor theme triplets, the basemap tone tokens, and the SVG
-// filter graph built from them. Pure, apart from `ensureTintFilter`, which
-// writes the one hidden <filter> node into the document it is given.
+// preview: the phosphor theme triplets, the basemap tone tokens, and the tint
+// built from them, as a reference function (`filterOutput`) and as the lookup
+// tables the tinted tile layer runs on each tile's pixels (`tintTables`,
+// `tintPixels`). Pure: no DOM.
 //
-// The tokens were chosen in apps/pip-boy/tools/map-lab, which builds its filter
-// with `filterMarkup` from this file, so the lab and both apps cannot disagree.
+// The tokens were chosen in apps/pip-boy/tools/map-lab, which tints its tiles
+// through the same layer, so the lab and both apps cannot disagree.
 
 export const PHOSPHOR_THEMES = {
     green: { rgb: '51, 255, 102', brightRgb: '170, 255, 192' },
@@ -30,9 +31,6 @@ export const MAP_TINT_SAT = 0.8;
 /** Water's blue cast `B − R` (16/255) times this is the mask alpha: ≈1 on water, 0 on land. */
 export const MAP_WATER_MASK_GAIN = 18;
 
-/** The id both apps reference as `filter: url(#…)` on the tile pane. */
-export const MAP_TINT_FILTER_ID = 'pb-phosphor-tint';
-
 // Rec. 709 luminance — the weights CSS grayscale() uses.
 const LUMA = [0.2126, 0.7152, 0.0722];
 const LAND_L = 0.055;
@@ -54,9 +52,9 @@ export function toneLevel(L, tone = MAP_TONE) {
     return tone.lineHi;
 }
 
-/** The curve sampled at 256 evenly spaced luminances, for feComponentTransfer's `tableValues`. */
+/** The curve sampled at 256 evenly spaced luminances, one per 8-bit level. */
 export function toneTable(tone = MAP_TONE) {
-    return Array.from({ length: 256 }, (_, i) => f4(toneLevel(i / 255, tone)));
+    return Array.from({ length: 256 }, (_, i) => toneLevel(i / 255, tone));
 }
 
 /** The theme colour (0–1 channels) desaturated toward its own luminance. */
@@ -67,8 +65,13 @@ export function tintColour(rgb, sat = MAP_TINT_SAT) {
 }
 
 /**
- * The filter's output colour (0–1 channels) for a basemap pixel — the same
- * maths the SVG graph runs, for tests and for reasoning about contrast.
+ * The tint's output colour (0–1 channels) for a basemap pixel: the reference
+ * maths, unrounded. `tintPixels` is tested against it, and the map lab's
+ * contrast figures use it.
+ *   luminance — through the land/road curve
+ *   mask      — MAP_WATER_MASK_GAIN · (B − R), ≈1 on water, 0 on land
+ *   level     — the curve's level, with the water level where the mask is
+ *   then tinted by the desaturated theme colour.
  */
 export function filterOutput(pixel, rgb, { tone = MAP_TONE, sat = MAP_TINT_SAT } = {}) {
     const [r, g, b] = pixel.map((n) => n / 255);
@@ -79,56 +82,43 @@ export function filterOutput(pixel, rgb, { tone = MAP_TONE, sat = MAP_TINT_SAT }
 }
 
 /**
- * The filter's primitives:
- *   lum   — every channel set to the pixel's luminance
- *   base  — lum through the land/road curve
- *   wm    — alpha = MAP_WATER_MASK_GAIN · (B − R): the water mask
- *   water — a flood at the water level, kept where the mask is
- *   then base and water merged, and tinted by the desaturated theme colour.
+ * The lookup tables `tintPixels` runs on, built once per tint:
+ *   level — the land/road curve at each 8-bit luminance
+ *   mask  — the water mask at each `B − R`, indexed by `B − R + 255`
+ *   tint  — the desaturated theme colour, 0–1 channels
+ *   water — the water level
+ * Plain data, so it can be posted to a worker.
  */
-export function filterMarkup(rgb, { tone = MAP_TONE, sat = MAP_TINT_SAT } = {}) {
-    const lumRow = `${LUMA.join(' ')} 0 0`;
-    const table = toneTable(tone).join(' ');
-    const k = MAP_WATER_MASK_GAIN;
-    const w = Math.round(tone.water * 255);
-    const [cr, cg, cb] = tintColour(rgb, sat);
-    return [
-        `<feColorMatrix in="SourceGraphic" type="matrix" values="${lumRow}  ${lumRow}  ${lumRow}  0 0 0 0 1" result="lum"/>`,
-        `<feComponentTransfer in="lum" result="base">`,
-        `<feFuncR type="table" tableValues="${table}"/>`,
-        `<feFuncG type="table" tableValues="${table}"/>`,
-        `<feFuncB type="table" tableValues="${table}"/>`,
-        `</feComponentTransfer>`,
-        `<feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${-k} 0 ${k} 0 0" result="wm"/>`,
-        `<feFlood flood-color="rgb(${w},${w},${w})" result="wf"/>`,
-        `<feComposite in="wf" in2="wm" operator="in" result="water"/>`,
-        `<feMerge result="merged"><feMergeNode in="base"/><feMergeNode in="water"/></feMerge>`,
-        `<feColorMatrix in="merged" type="matrix" values="${cr} 0 0 0 0  0 ${cg} 0 0 0  0 0 ${cb} 0 0  0 0 0 1 0"/>`,
-    ].join('');
+export function tintTables(rgb, { tone = MAP_TONE, sat = MAP_TINT_SAT } = {}) {
+    const mask = new Float32Array(511);
+    for (let d = -255; d <= 255; d++) mask[d + 255] = Math.min(1, Math.max(0, (MAP_WATER_MASK_GAIN * d) / 255));
+    return {
+        level: Float32Array.from(toneTable(tone)),
+        mask,
+        tint: tintColour(rgb, sat),
+        water: tone.water,
+    };
 }
 
 /**
- * The single hidden <svg> holding the tint filter in `doc`, created on first
- * use, its graph rebuilt from `rgb`. Replacing the children keeps the <filter>
- * element, and so every CSS reference to it, in place: a mounted map re-tints
- * without a remount.
+ * Tints RGBA bytes in place: `filterOutput` with the luminance rounded to
+ * 8 bits, within 2/255 of it. Alpha passes through; `tables = null` leaves
+ * the pixels untouched.
  */
-export function ensureTintFilter(doc, rgb) {
-    let filter = doc.getElementById(MAP_TINT_FILTER_ID);
-    if (!filter) {
-        const NS = 'http://www.w3.org/2000/svg';
-        const svg = doc.createElementNS(NS, 'svg');
-        svg.setAttribute('aria-hidden', 'true');
-        svg.setAttribute('width', '0');
-        svg.setAttribute('height', '0');
-        svg.style.position = 'absolute';
-        filter = doc.createElementNS(NS, 'filter');
-        filter.id = MAP_TINT_FILTER_ID;
-        // The default linearRGB washes the dark basemap out.
-        filter.setAttribute('color-interpolation-filters', 'sRGB');
-        svg.appendChild(filter);
-        (doc.body ?? doc.documentElement).appendChild(svg);
+export function tintPixels(data, tables) {
+    if (!tables) return data;
+    const { level, mask, water } = tables;
+    const [tr, tg, tb] = tables.tint.map((ch) => ch * 255);
+    for (let p = 0; p < data.length; p += 4) {
+        const r = data[p];
+        const g = data[p + 1];
+        const b = data[p + 2];
+        const m = mask[b - r + 255];
+        const v = level[Math.round(r * LUMA[0] + g * LUMA[1] + b * LUMA[2])] * (1 - m) + water * m;
+        // Uint8ClampedArray rounds and clamps at 255.
+        data[p] = tr * v;
+        data[p + 1] = tg * v;
+        data[p + 2] = tb * v;
     }
-    filter.innerHTML = filterMarkup(rgb);
-    return filter;
+    return data;
 }

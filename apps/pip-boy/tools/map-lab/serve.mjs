@@ -17,7 +17,7 @@ const PORT = Number(process.env.MAP_LAB_PORT) || 5180;
 const HOST = '127.0.0.1';
 
 // Only what the page needs from the app: the vendored Leaflet and the synced
-// map core (tokens, filter graph, icons). Nothing else under apps/pip-boy is
+// map core (tokens, tinted tile layer and its worker, icons). Nothing else under apps/pip-boy is
 // reachable.
 const SERVED_PREFIXES = ['/src/vendor/leaflet/', '/src/shared/map-core/'];
 

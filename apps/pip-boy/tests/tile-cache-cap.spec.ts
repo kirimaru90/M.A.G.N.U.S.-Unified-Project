@@ -13,7 +13,7 @@ import { stubEnvironment } from './fixtures';
 // requires updating the other.
 const TILE_CACHE_MAX_ENTRIES = 4000;
 const TILE_CACHE_WATERMARK = Math.floor(TILE_CACHE_MAX_ENTRIES * 0.9);
-const TILE_CACHE_NAME = 'pipboy-tiles-v3';
+const TILE_CACHE_NAME = 'pipboy-tiles-v4';
 
 const tileUrl = (n: number) => `https://a.basemaps.cartocdn.com/dark_nolabels/10/0/${n}.png`;
 const TINY_PNG = Buffer.from('89504e470d0a1a0a', 'hex');
@@ -190,6 +190,59 @@ test.describe(() => {
     });
 
     expect(keys).not.toContain('pipboy-tiles-v2');
+
+    await unregisterAndClearCaches(page);
+  });
+
+  // v3 held opaque tile responses. The map now requests tiles in CORS mode to
+  // tint their pixels, and an opaque response served back for a CORS request is
+  // a network error: every visited area would go blank.
+  test('the opaque tile cache (v3) is purged on activation', async ({ page }) => {
+    await page.addInitScript(() => {
+      caches.open('pipboy-tiles-v3').then((c) =>
+        c.put('https://a.basemaps.cartocdn.com/dark_nolabels/10/0/0.png', new Response('opaque')),
+      );
+    });
+
+    await stubEnvironment(page, { allowServiceWorker: true });
+    await page.goto('/index.html');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    const keys = await page.evaluate(async () => {
+      const deadline = Date.now() + 5000;
+      let names = await caches.keys();
+      while (names.includes('pipboy-tiles-v3') && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 100));
+        names = await caches.keys();
+      }
+      return names;
+    });
+
+    expect(keys).not.toContain('pipboy-tiles-v3');
+
+    await unregisterAndClearCaches(page);
+  });
+
+  test('an opaque tile response is returned but not cached', async ({ page, context }) => {
+    await context.route(/basemaps\.cartocdn\.com/, (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: TINY_PNG }),
+    );
+
+    await stubEnvironment(page, { allowServiceWorker: true });
+    await page.goto('/index.html');
+    await page.evaluate(() => navigator.serviceWorker.ready);
+
+    const url = tileUrl(2);
+    const result = await page.evaluate(
+      async ({ cacheName, url }) => {
+        const response = await fetch(url, { mode: 'no-cors' });
+        return { type: response.type, cached: !!(await (await caches.open(cacheName)).match(url)) };
+      },
+      { cacheName: TILE_CACHE_NAME, url },
+    );
+
+    expect(result.type).toBe('opaque');
+    expect(result.cached).toBe(false);
 
     await unregisterAndClearCaches(page);
   });

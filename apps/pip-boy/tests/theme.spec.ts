@@ -2,16 +2,17 @@ import { test, expect } from '@playwright/test';
 import {
   MAP_TONE,
   PHOSPHOR_THEMES,
-  filterMarkup,
   filterOutput,
   toneLevel,
   toneTable,
 } from '../src/shared/map-core/style.js';
 
-// Pure unit tests for the basemap filter's maths (pipboy-map-tab, design D8/D9):
+// Pure unit tests for the basemap tint's maths (pipboy-map-tab, design D8/D9):
 // no page, no DOM. The pixel colours are the ones measured on CARTO's
 // dark_nolabels tiles; if CARTO restyles, these are the numbers to re-measure
-// (apps/pip-boy/tools/map-lab shows the tiles through the same graph).
+// (apps/pip-boy/tools/map-lab shows the tiles through the same tint). The
+// lookup tables the tiles are tinted with are checked against this reference
+// in map-tint.spec.ts.
 
 const LAND = [14, 14, 14];
 const WATER = [44, 53, 60];
@@ -64,12 +65,4 @@ test('the water mask takes water and leaves land', () => {
   const greenTint = filterOutput([255, 255, 255], rgb).map((ch) => ch / MAP_TONE.lineHi);
   expect(water[1]).toBeCloseTo(greenTint[1] * MAP_TONE.water, 3);
   expect(land[1]).toBeCloseTo(greenTint[1] * MAP_TONE.land, 2);
-});
-
-test('the filter markup carries the curve, the mask and the tint', () => {
-  const markup = filterMarkup(PHOSPHOR_THEMES.amber.rgb);
-  expect(markup).toContain('feComponentTransfer');
-  expect(markup).toContain('type="table"');
-  expect(markup).toMatch(/values="0 0 0 0 0 {2}0 0 0 0 0 {2}0 0 0 0 0 {2}-18 0 18 0 0"/);
-  expect(markup).toContain('<feMerge');
 });

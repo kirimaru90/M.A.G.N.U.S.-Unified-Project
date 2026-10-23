@@ -1,8 +1,8 @@
 # Map lab
 
-A dev-only page for tuning how the Pip-Boy **MAPPA** tab looks: the phosphor filter over the CARTO basemap, and the marker style on top of it.
+A dev-only page for tuning how the Pip-Boy **MAPPA** tab looks: the phosphor tint of the CARTO basemap, and the marker style on top of it.
 
-It shows real `dark_nolabels` tiles through the app's own SVG filter graph (built by `filterMarkup` from the shared map core), with the app's icons and sample places on the US West Coast. Every parameter is a slider, and the contrast figures update as you move them. That lets you judge a change by eye and by numbers before touching the app.
+It shows real `dark_nolabels` tiles tinted by the app's own tinted tile layer (`createTintedTileLayer` from the shared map core), with the app's icons and sample places on the US West Coast. Every parameter is a slider, and the contrast figures update as you move them. That lets you judge a change by eye and by numbers before touching the app.
 
 The lab is not part of the app. `tools` is listed in `apps/pip-boy/.dockerignore`, so it never reaches the nginx image.
 
@@ -69,7 +69,7 @@ All levels are fractions of the phosphor colour, before the tint: 1.00 is full p
 
 ## The measured basemap
 
-The filter is tuned to these colours of CARTO's `dark_nolabels`. If CARTO restyles the basemap, re-measure them, because the water mask depends on water's blue cast.
+The tint is tuned to these colours of CARTO's `dark_nolabels`. If CARTO restyles the basemap, re-measure them, because the water mask depends on water's blue cast.
 
 | Surface | Colour | Luminance |
 |---|---|---|
@@ -90,8 +90,8 @@ The same values are in `tests/theme.spec.ts`.
    A different marker style or label tier is a change to `apps/packages/map-core/markers.css`, and to the `--mk-*` values in `src/styles/pipboy.css`.
 4. From the repo root, run `node scripts/sync-map-core.mjs`. That copies the package into the Pip-Boy (`src/shared/map-core/`, which the lab reads) and the CMS.
 5. Reload the lab. "Scelta" now shows the new tokens, so you can check it against the app.
-6. Run `npx playwright test tests/theme.spec.ts tests/map-theme.spec.ts`. The unit test checks the luminance order (water < land < roads) and the 4.5:1 marker contrast for every theme.
+6. Run `npx playwright test tests/theme.spec.ts tests/map-tint.spec.ts tests/map-theme.spec.ts`. The unit tests check the luminance order (water < land < roads), the 4.5:1 marker contrast for every theme, and that the tiles' lookup tables match the reference maths.
 
-The lab builds its filter by calling the core's `filterMarkup(rgb, { tone, sat })` with the slider values, so it never mirrors the graph by hand: a change to the graph in `style.js` reaches the lab on the next sync. The only graph of its own is the linear "Prima" matrix, the rejected first design, kept as the comparison baseline.
+The lab tints its tiles by calling the layer's `setTint(rgb, { tone, sat })` with the slider values, so it never mirrors the maths by hand: a change to the tint in `style.js` reaches the lab on the next sync. Each change re-decodes the tiles on screen from the browser cache and repaints them in place, so a slider drag repaints a beat behind the thumb. The contrast figures use the core's reference `filterOutput`, which the tiles match within 2/255. The only tint of its own is the linear "Prima" matrix, the rejected first design, kept as the comparison baseline: an SVG filter over the untinted tiles.
 
 The marker styles are still the lab's own CSS (`.ms-*`, `.lb-*` in `map-lab.html`), so they can be compared side by side. The one the apps ship is in `apps/packages/map-core/markers.css`.
