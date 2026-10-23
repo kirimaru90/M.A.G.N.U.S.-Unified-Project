@@ -3,6 +3,7 @@ import { applyOrientation, requestWakeLock, releaseWakeLock } from './device.js'
 import { applyPhosphorTheme } from './theme.js';
 import { CARTO_LINK_HTML, OSM_LINK_HTML } from '../tabs/basemap.js';
 import { getScreenNav } from './nav.js';
+import { enterFullscreenSpike } from './fs-spike.js'; // TEMPORARY
 
 // The device-preferences popup. Chrome-level — it is opened from the status bar,
 // it outlives any screen, and it is not a sheet tab — so it sits beside chrome.js
@@ -294,6 +295,8 @@ export function openSettingsPopup(onClose) {
                     </div>
                     <button class="pb-btn pb-settings-action" data-update>CERCA AGGIORNAMENTI</button>
                     <button class="pb-btn pb-settings-action" data-clear-tiles>SVUOTA CACHE MAPPA</button>
+                    <!-- TEMPORARY fullscreen spike (engine/fs-spike.js) -->
+                    <button class="pb-btn pb-settings-action" data-fs-spike>FULLSCREEN (TEST)</button>
                 </div>
                 ${navActions.length ? `
                     <div class="pb-settings-nav" data-nav>
@@ -340,6 +343,11 @@ export function openSettingsPopup(onClose) {
     });
     overlay.querySelector('[data-clear-tiles]').addEventListener('click', (e) => {
         void clearTileCache(e.currentTarget);
+    });
+    // TEMPORARY fullscreen spike: request inside the click (user activation).
+    overlay.querySelector('[data-fs-spike]').addEventListener('click', () => {
+        void enterFullscreenSpike();
+        close();
     });
 
     for (const row of ROWS) {
