@@ -1,10 +1,14 @@
+// GENERATED from apps/packages/map-core/geometry.js by scripts/sync-map-core.mjs. Do not edit:
+// edit apps/packages/map-core/geometry.js, then run `node scripts/sync-map-core.mjs`.
+
 // The map's level-of-detail rules, as pure functions: no DOM, no Leaflet, so
 // they are unit-testable without a browser.
 //
-// `effectiveRadius` here MUST agree with the API's `campaign-map.service.ts` and
-// the CMS's `place-tree.ts`. Three implementations, one rule: the API's specs
-// pin it, the CMS draws the circle, this decides what the circle opens. If you
-// change it here, change it in all three or the author sees a lie.
+// `effectiveRadius` here MUST agree with the API's `campaign-map.service.ts`.
+// Two implementations, one rule: the API's specs pin it, and this one serves
+// both the Pip-Boy (what the circle opens) and the CMS (`place-tree.ts`
+// re-exports it to draw the circle). If you change it here, change it in the
+// API too or the author sees a lie.
 
 const EARTH_RADIUS_M = 6_371_008.8;
 

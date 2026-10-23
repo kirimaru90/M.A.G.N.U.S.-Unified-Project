@@ -42,6 +42,12 @@ import {
   visibleToPlayer,
 } from './place-tree';
 import { exportPlaces, mergePlaces, slugify } from './place-import';
+import { createMarkerLayer, type MarkerLayer } from '../../shared/map-core/marker-layer.js';
+import {
+  MAP_TINT_FILTER_ID,
+  PHOSPHOR_THEMES,
+  ensureTintFilter,
+} from '../../shared/map-core/style.js';
 import { environment } from '../../../environments/environment';
 
 /** CARTO dark. `nolabels` is what the player sees; labels are an authoring aid. */
@@ -67,6 +73,19 @@ const TILE_LABELS = cartoTileUrl('dark_all', environment.cartoBasemapKey);
 export const BASEMAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>, ' +
   '© <a href="https://carto.com/attribution" target="_blank" rel="noopener noreferrer">CARTO</a>';
+
+/**
+ * Under the filter preview, public markers take the Pip-Boy's VERDE marker
+ * colours: --phosphor-bright for the icon, --phosphor for the label, its
+ * --screen-bg halo and phosphor glow (pipboy.css). Non-public markers stay red.
+ */
+const VERDE = PHOSPHOR_THEMES.green;
+const PREVIEW_MARKER_VARS: Record<string, string> = {
+  '--mk-icon': `rgb(${VERDE.brightRgb})`,
+  '--mk-label': `rgb(${VERDE.rgb})`,
+  '--mk-halo': '#06110a',
+  '--mk-glow': `drop-shadow(0 0 4px rgba(${VERDE.rgb}, 0.5))`,
+};
 
 const DEFAULT_CONFIG: MapConfig = {
   startLat: 41.9028,
@@ -163,7 +182,6 @@ type Mode = 'idle' | 'placing' | 'bounds';
               #mapEl
               class="cm-map"
               data-testid="map"
-              [class.cm-filtered]="filterPreview()"
               [class.cm-placing]="mode() === 'placing'"
             ></div>
           </div>
@@ -185,8 +203,9 @@ type Mode = 'idle' | 'placing' | 'bounds';
               @if (configCollapsed()) {
                 <div class="cm-summary" data-testid="config-summary">
                   z{{ config().startZoom }} · {{ config().startLat | number: '1.3-3' }},
-                  {{ config().startLng | number: '1.3-3' }} · zoom
-                  {{ config().minZoom }}–{{ config().maxZoom }}
+                  {{ config().startLng | number: '1.3-3' }} · zoom {{ config().minZoom }}–{{
+                    config().maxZoom
+                  }}
                 </div>
               } @else {
                 <div class="cm-fields">
@@ -494,9 +513,7 @@ type Mode = 'idle' | 'placing' | 'bounds';
                   </button>
                 </div>
               } @else {
-                <div class="cm-empty" data-testid="selection-empty">
-                  Nessun luogo selezionato.
-                </div>
+                <div class="cm-empty" data-testid="selection-empty">Nessun luogo selezionato.</div>
               }
             </div>
           </div>
@@ -627,12 +644,15 @@ type Mode = 'idle' | 'placing' | 'bounds';
         min-height: 420px;
         border-radius: 4px;
       }
-      /* The exact token from pipboy-map-tab — a design token, not a tuning knob. */
-      /* ::ng-deep because Leaflet builds the tile pane at runtime, without the
-         component's scoping attribute — a scoped selector never matches it. */
-      :host ::ng-deep .cm-filtered .leaflet-tile-pane {
-        filter: grayscale(1) invert(0) sepia(1) hue-rotate(90deg) saturate(8) brightness(2)
-          contrast(1);
+      /* Marker colours for the shared markers.css: public green, and red for a
+         place the player cannot see (hidden or inherited). The 400 shades of
+         the pills' hues reach 8.2:1 and 5.5:1 on CARTO's land; on lighter
+         water and roads the dark halo does the separating. The filter preview
+         overrides the public colours inline (PREVIEW_MARKER_VARS). */
+      .cm-map {
+        --mk-icon: #66bb6a;
+        --mk-label: #66bb6a;
+        --mk-halo: #0e0e0e;
       }
       .cm-placing {
         cursor: crosshair;
@@ -756,24 +776,12 @@ type Mode = 'idle' | 'placing' | 'bounds';
     // L.divIcon already anchors at iconSize/2 via a negative margin of its own.
     // Adding one here doubles it and sits every marker half its size up-and-left
     // of its actual coordinate — invisible until you need exact pixel targets.
+    // ::ng-deep because Leaflet builds markers at runtime, without the
+    // component's scoping attribute — a scoped selector never matches them.
     `
-      :host ::ng-deep .cm-marker {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        border: 2px solid #fff;
-        box-sizing: border-box;
-      }
-      :host ::ng-deep .cm-marker-public {
-        background: #2e7d32;
-      }
-      :host ::ng-deep .cm-marker-hidden {
-        background: #b71c1c;
-        border-style: dashed;
-      }
-      :host ::ng-deep .cm-marker-inherited {
-        background: #ef6c00;
-        border-style: dotted;
+      :host ::ng-deep .pb-map-marker.is-hidden {
+        --mk-icon: #ef5350;
+        --mk-label: #ef5350;
       }
       :host ::ng-deep .cm-handle {
         width: 12px;
@@ -816,7 +824,9 @@ export class CampaignMapPage {
   protected readonly nameFilter = signal('');
   protected readonly collapsedBranches = signal<ReadonlySet<string>>(new Set());
 
-  protected readonly campaignId = computed(() => this.currentCampaign.currentCampaign()?.id ?? null);
+  protected readonly campaignId = computed(
+    () => this.currentCampaign.currentCampaign()?.id ?? null,
+  );
 
   /** The campaign codex for the place card's link; `null` until loaded. */
   protected readonly codexEntries = signal<CodexEntry[] | null>(null);
@@ -846,7 +856,9 @@ export class CampaignMapPage {
 
   protected readonly effR = computed(() => effectiveRadius(this.places()));
   protected readonly floors = computed(() => floorR(this.places()));
-  protected readonly visibleCount = computed(() => visibleToPlayer(this.places()).size);
+  /** The slugs the player receives; every other marker draws red. */
+  protected readonly playerVisible = computed(() => visibleToPlayer(this.places()));
+  protected readonly visibleCount = computed(() => this.playerVisible().size);
   protected readonly filtering = computed(() => this.nameFilter().trim().length > 0);
 
   /**
@@ -855,8 +867,7 @@ export class CampaignMapPage {
    */
   protected readonly configError = computed<string | null>(() => {
     const { minZoom, maxZoom, startZoom } = this.config();
-    if (minZoom > maxZoom)
-      return 'Lo zoom minimo non può superare lo zoom massimo.';
+    if (minZoom > maxZoom) return 'Lo zoom minimo non può superare lo zoom massimo.';
     if (startZoom < minZoom || startZoom > maxZoom)
       return `Lo zoom iniziale deve essere tra ${minZoom} e ${maxZoom}.`;
     return null;
@@ -952,7 +963,8 @@ export class CampaignMapPage {
     const seen = new Set<string>();
     const walk = (parent: string | null, depth: number) => {
       for (const place of places) {
-        const belongs = parent === null ? isRoot(place) || !reachable.has(place.slug) : place.parent === parent;
+        const belongs =
+          parent === null ? isRoot(place) || !reachable.has(place.slug) : place.parent === parent;
         if (!belongs || seen.has(place.slug)) continue;
         seen.add(place.slug);
         out.push(rowFor(place, depth));
@@ -966,7 +978,7 @@ export class CampaignMapPage {
 
   private map?: L.Map;
   private tiles?: L.TileLayer;
-  private readonly markers = new Map<string, L.Marker>();
+  private layer?: MarkerLayer<MapPlace>;
   private radiusCircle?: L.Circle;
   private floorCircle?: L.Circle;
   private radiusHandle?: L.Marker;
@@ -984,8 +996,13 @@ export class CampaignMapPage {
     effect(() => {
       this.places();
       this.selected();
-      this.syncMarkers();
+      this.nameFilter();
+      this.layer?.sync();
       this.syncRadius();
+    });
+    effect(() => {
+      this.filterPreview();
+      this.applyPreview();
     });
     effect(() => {
       this.mode();
@@ -1027,7 +1044,8 @@ export class CampaignMapPage {
         this.map?.remove();
         this.map = undefined;
         this.tiles = undefined;
-        this.markers.clear();
+        this.layer?.destroy();
+        this.layer = undefined;
         this.clearRadius();
         this.clearBounds();
       });
@@ -1050,9 +1068,32 @@ export class CampaignMapPage {
 
     this.map.on('click', (e: L.LeafletMouseEvent) => this.onMapClick(e));
 
-    this.syncMarkers();
+    // The Pip-Boy's marker layer, with the editor's own hooks: the selected
+    // place is always drawn and wins collisions, the name filter narrows what
+    // level of detail shows, and a marker click selects rather than opens a
+    // popup. No bounds-derived zoom floor: the author zooms out past the bounds
+    // to edit them.
+    this.layer = createMarkerLayer(L, this.map, {
+      places: () => this.places(),
+      radii: () => this.effR(),
+      focused: () => this.selected(),
+      include: (p) => this.matchesFilter(p),
+      markerClass: (p) => (this.playerVisible().has(p.slug) ? '' : 'is-hidden'),
+      markerOptions: () => ({ draggable: true }),
+      onClick: (p) => this.select(p.slug),
+      onDragEnd: (p, ll) => {
+        const moved = { ...p, lat: this.round6(ll.lat), lng: this.round6(ll.lng) };
+        this.places.set(this.places().map((q) => (q.slug === p.slug ? moved : q)));
+        if (this.selected() === p.slug) this.draft.set(moved);
+      },
+    });
+    // The level of detail depends on how much world is on screen.
+    this.map.on('resize', () => this.layer?.sync());
+
+    this.layer.sync();
     this.syncRadius();
     this.syncBounds();
+    this.applyPreview();
 
     // A genuine container/window resize is the only thing that should trigger
     // invalidateSize — the map's height is a fixed clamp, so this cannot feed
@@ -1094,10 +1135,16 @@ export class CampaignMapPage {
   private applyStartView(cfg: MapConfig): void {
     if (!this.map) return;
     // The zoom-range effect has not run yet, so widen to the loaded range first
-    // or Leaflet clamps the start zoom against the previous one.
-    this.map.setMinZoom(cfg.minZoom);
-    this.map.setMaxZoom(cfg.maxZoom);
+    // or Leaflet clamps the start zoom against the previous one. Assign the
+    // options directly: setMinZoom/setMaxZoom call setZoom when the current zoom
+    // is out of range, which starts an animated zoom toward the old centre, and
+    // when that animation ends Leaflet moves the map back to its target —
+    // undoing the setView below. Nothing in the load path may animate a zoom.
+    this.map.options.minZoom = cfg.minZoom;
+    this.map.options.maxZoom = cfg.maxZoom;
     this.map.setView([cfg.startLat, cfg.startLng], cfg.startZoom, { animate: false });
+    // What setMin/MaxZoom would have fired: keeps the zoom control's disabled state right.
+    this.map.fire('zoomlevelschange');
   }
 
   /** "Annulla" — discard local edits by reloading the current campaign. */
@@ -1351,52 +1398,30 @@ export class CampaignMapPage {
     return place;
   }
 
-  private markerClass(place: MapPlace): string {
-    if (!place.isPublic) return 'cm-marker cm-marker-hidden';
-    if (cascaded(this.places(), place.slug)) return 'cm-marker cm-marker-inherited';
-    return 'cm-marker cm-marker-public';
+  /**
+   * The name filter, applied after level of detail: it hides non-matching
+   * markers without changing which places are open. Collapsing a branch does
+   * not hide markers — collapse is a reading convenience for the table.
+   */
+  private matchesFilter(place: MapPlace): boolean {
+    const filter = this.nameFilter().trim().toLowerCase();
+    return !filter || place.name.toLowerCase().includes(filter);
   }
 
   /**
-   * Diffed, never rebuilt: a rebuilt marker set drops the drag you are in the
-   * middle of. Filtering hides markers; collapsing a branch does not — collapse
-   * is a reading convenience for the table, the filter is what hides things.
+   * "Anteprima filtro Pip-Boy": the shared SVG filter built from VERDE on the
+   * tile pane, and the Pip-Boy's marker colours on public markers. Off, the
+   * basemap is unfiltered. View-local, never saved.
    */
-  private syncMarkers(): void {
+  private applyPreview(): void {
     if (!this.map) return;
-    const filter = this.nameFilter().trim().toLowerCase();
-    const wanted = new Map(
-      this.places()
-        .filter((p) => !filter || p.name.toLowerCase().includes(filter))
-        .map((p) => [p.slug, p]),
-    );
-
-    for (const [slug, marker] of this.markers) {
-      if (wanted.has(slug)) continue;
-      marker.remove();
-      this.markers.delete(slug);
-    }
-
-    for (const [slug, place] of wanted) {
-      const icon = L.divIcon({ className: this.markerClass(place), iconSize: [22, 22] });
-      const existing = this.markers.get(slug);
-      if (existing) {
-        existing.setLatLng([place.lat, place.lng]);
-        existing.setIcon(icon);
-        continue;
-      }
-      const marker = L.marker([place.lat, place.lng], { draggable: true, icon })
-        .addTo(this.map)
-        .on('click', () => this.select(slug))
-        .on('dragend', () => {
-          const ll = marker.getLatLng();
-          const target = this.places().find((p) => p.slug === slug);
-          if (!target) return;
-          const moved = { ...target, lat: this.round6(ll.lat), lng: this.round6(ll.lng) };
-          this.places.set(this.places().map((p) => (p.slug === slug ? moved : p)));
-          if (this.selected() === slug) this.draft.set(moved);
-        });
-      this.markers.set(slug, marker);
+    const on = this.filterPreview();
+    if (on) ensureTintFilter(document, VERDE.rgb);
+    this.map.getPane('tilePane')!.style.filter = on ? `url(#${MAP_TINT_FILTER_ID})` : '';
+    const el = this.map.getContainer();
+    for (const [name, value] of Object.entries(PREVIEW_MARKER_VARS)) {
+      if (on) el.style.setProperty(name, value);
+      else el.style.removeProperty(name);
     }
   }
 
@@ -1513,10 +1538,22 @@ export class CampaignMapPage {
     });
 
     const corners: [L.LatLngExpression, (ll: L.LatLng) => void][] = [
-      [[b.south, b.west], (ll) => this.patchBounds({ south: this.round6(ll.lat), west: this.round6(ll.lng) })],
-      [[b.south, b.east], (ll) => this.patchBounds({ south: this.round6(ll.lat), east: this.round6(ll.lng) })],
-      [[b.north, b.west], (ll) => this.patchBounds({ north: this.round6(ll.lat), west: this.round6(ll.lng) })],
-      [[b.north, b.east], (ll) => this.patchBounds({ north: this.round6(ll.lat), east: this.round6(ll.lng) })],
+      [
+        [b.south, b.west],
+        (ll) => this.patchBounds({ south: this.round6(ll.lat), west: this.round6(ll.lng) }),
+      ],
+      [
+        [b.south, b.east],
+        (ll) => this.patchBounds({ south: this.round6(ll.lat), east: this.round6(ll.lng) }),
+      ],
+      [
+        [b.north, b.west],
+        (ll) => this.patchBounds({ north: this.round6(ll.lat), west: this.round6(ll.lng) }),
+      ],
+      [
+        [b.north, b.east],
+        (ll) => this.patchBounds({ north: this.round6(ll.lat), east: this.round6(ll.lng) }),
+      ],
     ];
 
     for (const [pos, apply] of corners) {

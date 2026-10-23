@@ -7,6 +7,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import * as L from 'leaflet';
 import { BASEMAP_ATTRIBUTION, CampaignMapPage, cartoTileUrl } from './campaign-map-page';
+import type { MarkerLayer } from '../../shared/map-core/marker-layer.js';
+import { ICONS } from '../../shared/map-core/icons.js';
+import { PHOSPHOR_THEMES, tintColour } from '../../shared/map-core/style.js';
 import { CampaignMapApiService } from '../../core/campaign-map/campaign-map-api.service';
 import { CurrentCampaignService } from '../../core/campaign/current-campaign.service';
 import { CodexApiService } from '../../core/codex/codex-api.service';
@@ -92,7 +95,9 @@ describe('CampaignMapPage', () => {
     fixture.detectChanges();
   }
 
-  const state = <T,>(key: string): T => (component as unknown as Record<string, () => T>)[key]();
+  const state = <T>(key: string): T => (component as unknown as Record<string, () => T>)[key]();
+  const layer = () => (component as unknown as { layer: MarkerLayer<MapPlace> }).layer;
+  const shown = () => [...(layer().plan()?.shown ?? [])].sort();
 
   beforeEach(() => vi.restoreAllMocks());
 
@@ -215,8 +220,8 @@ describe('CampaignMapPage', () => {
       // Collapse is a reading convenience for a long table; the filter bar is
       // what hides things from the map. Two controls, two meanings.
       await setup([place({ slug: 'region' }), place({ slug: 'vault', parent: 'region' })]);
-      const markers = (component as unknown as { markers: Map<string, unknown> }).markers;
-      const before = markers.size;
+      const before = shown();
+      expect(before.length).toBeGreaterThan(0);
 
       (component as unknown as { toggleBranch: (s: string, e: Event) => void }).toggleBranch(
         'region',
@@ -224,7 +229,7 @@ describe('CampaignMapPage', () => {
       );
       fixture.detectChanges();
 
-      expect(markers.size).toBe(before);
+      expect(shown()).toEqual(before);
     });
 
     it('badges a closed branch with the count it hides', async () => {
@@ -292,7 +297,9 @@ describe('CampaignMapPage', () => {
         place({ slug: 'region', name: 'Regione' }),
         place({ slug: 'vault', name: 'Vault', parent: 'region' }),
       ]);
-      (component as unknown as { nameFilter: { set: (v: string) => void } }).nameFilter.set('vault');
+      (component as unknown as { nameFilter: { set: (v: string) => void } }).nameFilter.set(
+        'vault',
+      );
       fixture.detectChanges();
 
       const rows = state<{ place: MapPlace; depth: number }[]>('rows');
@@ -384,8 +391,7 @@ describe('CampaignMapPage', () => {
 
     it('rounds a dragged marker to 6 decimals on store, so the field carries no float noise', async () => {
       await setup([place({ slug: 'roma' })]);
-      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
-      const marker = markers.get('roma')!;
+      const marker = layer().markerFor('roma')!;
       // The full-precision value Leaflet would hand back from a real drag.
       marker.setLatLng([41.902800000000014, 12.496400000000031]);
       marker.fire('dragend');
@@ -422,8 +428,7 @@ describe('CampaignMapPage', () => {
       await fixture.whenStable();
 
       expect(state<MapPlace[]>('places')[0].lat).toBe(42.5);
-      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
-      expect(markers.get('roma')!.getLatLng().lat).toBe(42.5);
+      expect(layer().markerFor('roma')!.getLatLng().lat).toBe(42.5);
     });
 
     it('rounds a typed coordinate with more than 6 decimal places to 6 on commit', async () => {
@@ -443,8 +448,7 @@ describe('CampaignMapPage', () => {
       fixture.detectChanges();
 
       // Drag-to-reposition, unaffected by the new inputs.
-      const markers = (component as unknown as { markers: Map<string, L.Marker> }).markers;
-      const marker = markers.get('roma')!;
+      const marker = layer().markerFor('roma')!;
       marker.setLatLng([43.1, 13.2]);
       marker.fire('dragend');
       fixture.detectChanges();
@@ -541,7 +545,9 @@ describe('CampaignMapPage', () => {
       expect(cartoTileUrl('dark_nolabels', 'abc')).toBe(
         'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=abc',
       );
-      expect(cartoTileUrl('dark_all', 'abc')).toBe('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=abc');
+      expect(cartoTileUrl('dark_all', 'abc')).toBe(
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=abc',
+      );
     });
 
     it('cartoTileUrl omits the key when empty or still the build placeholder', () => {
@@ -554,7 +560,9 @@ describe('CampaignMapPage', () => {
 
     it('shows the linked CARTO-worded credit in the attribution control', async () => {
       await setup();
-      const control = (fixture.nativeElement as HTMLElement).querySelector('.leaflet-control-attribution')!;
+      const control = (fixture.nativeElement as HTMLElement).querySelector(
+        '.leaflet-control-attribution',
+      )!;
       expect(control.textContent).toContain('OpenStreetMap contributors');
       expect(control.textContent).toContain('CARTO');
 
@@ -565,13 +573,18 @@ describe('CampaignMapPage', () => {
 
     it('toggling labels swaps the style but keeps the credit', async () => {
       await setup();
-      const c = component as unknown as { labels: { set: (v: boolean) => void }; tiles: L.TileLayer };
+      const c = component as unknown as {
+        labels: { set: (v: boolean) => void };
+        tiles: L.TileLayer;
+      };
       c.labels.set(true);
       fixture.detectChanges();
 
       expect((c.tiles as unknown as { _url: string })._url).toContain('/dark_all/');
       expect(c.tiles.options.attribution).toBe(BASEMAP_ATTRIBUTION);
-      const control = (fixture.nativeElement as HTMLElement).querySelector('.leaflet-control-attribution')!;
+      const control = (fixture.nativeElement as HTMLElement).querySelector(
+        '.leaflet-control-attribution',
+      )!;
       expect(control.textContent).toContain('OpenStreetMap contributors');
 
       c.labels.set(false);
@@ -612,7 +625,14 @@ describe('CampaignMapPage', () => {
   });
 
   describe('the start view', () => {
-    const LOADED = { ...CONFIG, startLat: 45.46, startLng: 9.19, startZoom: 10, minZoom: 8, maxZoom: 16 };
+    const LOADED = {
+      ...CONFIG,
+      startLat: 45.46,
+      startLng: 9.19,
+      startZoom: 10,
+      minZoom: 8,
+      maxZoom: 16,
+    };
     const leaflet = () => (component as unknown as { map: L.Map }).map;
     const view = () => {
       const c = leaflet().getCenter();
@@ -638,7 +658,9 @@ describe('CampaignMapPage', () => {
       inFlight.next({ config: LOADED, places: [] });
       fixture.detectChanges();
 
-      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(
+        component,
+      );
       patch({ startLat: 40, startLng: 14, startZoom: 12 });
       fixture.detectChanges();
 
@@ -657,6 +679,28 @@ describe('CampaignMapPage', () => {
 
       expect(view()).toEqual({ lat: 45.46, lng: 9.19, zoom: 10 });
     });
+
+    it('frames without any call that could start an animated zoom', async () => {
+      // jsdom has no 3D transforms, so Leaflet never animates here and the real
+      // race (an in-flight zoom pulling the map back) cannot show. Pin the
+      // mechanism instead: none of these may run on the way to the start view.
+      const inFlight = new Subject<CampaignMapDto>();
+      await setup([], CAMPAIGN, inFlight);
+      const map = leaflet();
+      expect(map.getZoom()).toBe(6);
+      const spies = (['setZoom', 'setMinZoom', 'setMaxZoom', 'flyTo'] as const).map((name) =>
+        vi.spyOn(map, name),
+      );
+
+      (component as unknown as { applyStartView: (c: typeof LOADED) => void }).applyStartView(
+        LOADED,
+      );
+
+      for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+      expect(view()).toEqual({ lat: 45.46, lng: 9.19, zoom: 10 });
+      expect(map.getMinZoom()).toBe(8);
+      expect(map.getMaxZoom()).toBe(16);
+    });
   });
 
   describe('the zoom-range fields', () => {
@@ -666,7 +710,8 @@ describe('CampaignMapPage', () => {
     it('carry directional labels', async () => {
       await setup();
       const text = (id: string) =>
-        (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLElement).closest('label')!
+        (fixture.nativeElement.querySelector(`[data-testid="${id}"]`) as HTMLElement)
+          .closest('label')!
           .textContent!.trim();
       expect(text('cfg-minzoom')).toBe('Zoom minimo (più lontano)');
       expect(text('cfg-maxzoom')).toBe('Zoom massimo (più vicino)');
@@ -674,7 +719,9 @@ describe('CampaignMapPage', () => {
 
     it('blocks saving a start zoom outside the range, with an Italian message', async () => {
       await setup();
-      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(
+        component,
+      );
       patch({ minZoom: 8, maxZoom: 16, startZoom: 6 });
       fixture.detectChanges();
 
@@ -690,13 +737,213 @@ describe('CampaignMapPage', () => {
 
     it('blocks saving a minimum zoom above the maximum', async () => {
       await setup();
-      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(component);
+      const patch = (component as unknown as { patchConfig: (p: object) => void }).patchConfig.bind(
+        component,
+      );
       patch({ minZoom: 17, maxZoom: 16, startZoom: 16 });
       fixture.detectChanges();
 
       expect(saveButton().disabled).toBe(true);
       const err = fixture.nativeElement.querySelector('[data-testid="cfg-error"]') as HTMLElement;
       expect(err.textContent).toContain('zoom minimo');
+    });
+  });
+
+  describe('the markers', () => {
+    // jsdom lays nothing out, so the map has no size and every place with
+    // children would read as open. Give it a phone-ish canvas to plan against.
+    function sized(): L.Map {
+      const map = (component as unknown as { map: L.Map }).map;
+      vi.spyOn(map, 'getSize').mockReturnValue(L.point(800, 600));
+      layer().sync();
+      return map;
+    }
+    const el = (slug: string) => layer().markerFor(slug)?.getElement() ?? null;
+
+    // A settlement with a building 100 m north of it: at the start zoom (6) the
+    // settlement is closed, so only it renders; at 17 it is open.
+    const TOWN = [
+      place({ slug: 'town', name: 'Diamond City', type: 'settlement', radius: 300 }),
+      place({
+        slug: 'bank',
+        name: 'Banca',
+        type: 'building',
+        parent: 'town',
+        lat: 41.9009,
+        hasLocalMap: false,
+      }),
+    ];
+
+    it('bear the Pip-Boy icon for their type', async () => {
+      await setup([
+        place({ slug: 'town', type: 'settlement' }),
+        place({ slug: 'v', type: 'vault', lng: 14 }),
+      ]);
+      sized();
+      // Parsed, so `<path/>` reads back as the DOM serialises it.
+      const parsed = (html: string) =>
+        Object.assign(document.createElement('div'), { innerHTML: html }).innerHTML;
+      expect(el('town')!.innerHTML).toContain(parsed(ICONS['settlement']));
+      expect(el('v')!.innerHTML).toContain(parsed(ICONS['vault']));
+      expect(el('town')!.querySelector('.pb-map-marker-label')!.textContent).toBe('town');
+    });
+
+    it('show a child only once its parent is open', async () => {
+      await setup(TOWN);
+      const map = sized();
+      expect(shown()).toEqual(['town']);
+
+      map.setView([41.9, 12.5], 17, { animate: false });
+      expect(shown()).toEqual(['bank']);
+    });
+
+    it('always render the selected place, draggable, whatever its level of detail', async () => {
+      await setup(TOWN);
+      sized();
+      (component as unknown as { select: (s: string) => void }).select('bank');
+      fixture.detectChanges();
+
+      expect(shown()).toContain('bank');
+      expect(layer().markerFor('bank')!.dragging!.enabled()).toBe(true);
+    });
+
+    it('collapse public and non-public places into one +N', async () => {
+      await setup([
+        place({ slug: 'town', type: 'settlement', hasLocalMap: false }),
+        place({ slug: 'secret', type: 'poi', isPublic: false, hasLocalMap: false }),
+      ]);
+      sized();
+
+      expect(shown()).toEqual(['town']);
+      const badge = el('town')!.querySelector('[data-map-badge]') as HTMLElement;
+      expect(badge.hidden).toBe(false);
+      expect(badge.textContent).toBe('+1');
+    });
+
+    it('separate a group when its badge is tapped', async () => {
+      await setup([
+        place({ slug: 'a', hasLocalMap: false }),
+        place({ slug: 'b', hasLocalMap: false, lng: 12.51 }),
+      ]);
+      const map = sized();
+      expect(shown()).toEqual(['a']);
+
+      (el('a')!.querySelector('[data-map-badge]') as HTMLElement).click();
+
+      expect(map.getZoom()).toBeGreaterThan(6);
+      expect(shown()).toEqual(['a', 'b']);
+    });
+
+    it('hide a colliding label and keep both icons', async () => {
+      // Icons 40 px apart at zoom 6 clear the 30 px collision box; 100 px
+      // labels under them do not.
+      const width = vi
+        .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          return this.classList.contains('pb-map-marker-label') ? 100 : 0;
+        });
+      const height = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(13);
+      try {
+        await setup([
+          place({ slug: 'a', hasLocalMap: false }),
+          place({ slug: 'b', hasLocalMap: false, lng: 13.38 }),
+        ]);
+        await Promise.resolve();
+        sized();
+
+        expect(shown()).toEqual(['a', 'b']);
+        expect(el('a')!.classList.contains('is-label-hidden')).toBe(false);
+        expect(el('b')!.classList.contains('is-label-hidden')).toBe(true);
+      } finally {
+        width.mockRestore();
+        height.mockRestore();
+      }
+    });
+
+    it('narrow to the name filter without changing which places are open', async () => {
+      await setup([
+        ...TOWN,
+        place({
+          slug: 'vault',
+          name: 'Banco dei pegni',
+          type: 'building',
+          parent: 'town',
+          lat: 41.8991,
+          hasLocalMap: false,
+        }),
+      ]);
+      const map = sized();
+      map.setView([41.9, 12.5], 17, { animate: false });
+      expect(shown()).toEqual(['bank', 'vault']);
+
+      (component as unknown as { nameFilter: { set: (v: string) => void } }).nameFilter.set(
+        'banca',
+      );
+      fixture.detectChanges();
+
+      // The town is still open, so it stays off the map even though it is the
+      // filter's parent, and the non-matching sibling is hidden.
+      expect(shown()).toEqual(['bank']);
+    });
+
+    it('draw non-public and inherited places red, public ones not', async () => {
+      await setup([
+        place({ slug: 'open', hasLocalMap: false }),
+        place({ slug: 'bunker', isPublic: false, lng: 14, radius: 100 }),
+        place({ slug: 'room', parent: 'bunker', lng: 14.0005, hasLocalMap: false }),
+      ]);
+      sized();
+      const red = (slug: string) => el(slug)!.classList.contains('is-hidden');
+
+      expect(red('open')).toBe(false);
+      expect(red('bunker')).toBe(true);
+      (component as unknown as { select: (s: string) => void }).select('room');
+      fixture.detectChanges();
+      expect(red('room')).toBe(true);
+    });
+  });
+
+  describe('the filter preview', () => {
+    const map = () => (component as unknown as { map: L.Map }).map;
+    const toggle = (on: boolean) => {
+      (component as unknown as { filterPreview: { set: (v: boolean) => void } }).filterPreview.set(
+        on,
+      );
+      fixture.detectChanges();
+    };
+
+    it('puts the shared VERDE filter on the tile pane, and takes it off again', async () => {
+      await setup();
+      expect(map().getPane('tilePane')!.style.filter).toBe('');
+
+      toggle(true);
+      expect(map().getPane('tilePane')!.style.filter).toBe('url("#pb-phosphor-tint")');
+      const [r, g, b] = tintColour(PHOSPHOR_THEMES.green.rgb);
+      const filter = document.getElementById('pb-phosphor-tint')!;
+      expect(filter.innerHTML).toContain(
+        `values="${r} 0 0 0 0  0 ${g} 0 0 0  0 0 ${b} 0 0  0 0 0 1 0"`,
+      );
+
+      toggle(false);
+      expect(map().getPane('tilePane')!.style.filter).toBe('');
+    });
+
+    it('gives public markers the Pip-Boy colours and keeps non-public ones red', async () => {
+      await setup([
+        place({ slug: 'open', hasLocalMap: false }),
+        place({ slug: 'secret', isPublic: false, hasLocalMap: false, lng: 14 }),
+      ]);
+      const red = (slug: string) =>
+        layer().markerFor(slug)!.getElement()!.classList.contains('is-hidden');
+      const icon = () => map().getContainer().style.getPropertyValue('--mk-icon');
+
+      expect(icon()).toBe('');
+      expect(red('secret')).toBe(true);
+
+      toggle(true);
+      expect(icon()).toBe(`rgb(${PHOSPHOR_THEMES.green.brightRgb})`);
+      expect(red('secret')).toBe(true);
+      expect(red('open')).toBe(false);
     });
   });
 

@@ -3,12 +3,16 @@ import { stubEnvironment, login, makeCharacter, DEFAULT_MAP_CONFIG, nextFrames, 
 
 // Covers the theme-derived map tokens (pipboy-map-tab, pipboy-settings): the
 // basemap is tinted by an SVG filter generated from the phosphor theme, markers
-// take the contrasting colour, and a COLORE change re-tints a mounted map
-// without remounting it. Whether the tint *looks* right is a judgment call;
+// draw in the theme's bright phosphor colour, and a COLORE change re-tints a
+// mounted map without remounting it. Whether the tint *looks* right is a judgment call;
 // that it follows the theme is not.
 
 const GREEN = 'rgb(51, 255, 102)';
-const AMBER = 'rgb(255, 176, 46)';
+const BRIGHT = {
+  green: 'rgb(170, 255, 192)',
+  amber: 'rgb(255, 210, 122)',
+  white: 'rgb(255, 255, 255)',
+};
 
 const PLACES = [
   {
@@ -47,14 +51,14 @@ async function chooseColour(page: Page, value: 'green' | 'amber' | 'white') {
   await nextFrames(page);
 }
 
-const tintValues = (page: Page) =>
-  page.evaluate(() => document.querySelector('#pb-phosphor-tint feColorMatrix')?.getAttribute('values') ?? null);
-
-/** The matrix's red-, green- and blue-row sums: the theme colour × gain / 255. */
-const tintRowSums = async (page: Page) => {
-  const values = (await tintValues(page))!.trim().split(/\s+/).map(Number);
-  return [0, 1, 2].map((row) => values.slice(row * 5, row * 5 + 3).reduce((a, b) => a + b, 0));
-};
+/** The last feColorMatrix is the tint: its diagonal is the desaturated theme colour. */
+const tintDiagonal = (page: Page) =>
+  page.evaluate(() => {
+    const matrices = document.querySelectorAll('#pb-phosphor-tint feColorMatrix');
+    const values = matrices[matrices.length - 1]?.getAttribute('values') ?? '';
+    const v = values.trim().split(/\s+/).map(Number);
+    return [v[0], v[6], v[12]];
+  });
 
 const markerStroke = (page: Page) =>
   page.evaluate(() => getComputedStyle(document.querySelector('.pb-map-marker svg')!).stroke);
@@ -75,6 +79,14 @@ test('the tile pane references the phosphor tint filter, and the filter exists',
     return el && { tag: el.tagName.toLowerCase(), space: el.getAttribute('color-interpolation-filters') };
   });
   expect(filter).toEqual({ tag: 'filter', space: 'sRGB' });
+
+  // The tone curve and the water mask, not a single linear gain.
+  const primitives = await page.evaluate(() =>
+    [...document.getElementById('pb-phosphor-tint')!.children].map((el) => el.tagName),
+  );
+  expect(primitives).toContain('feComponentTransfer');
+  expect(primitives).toContain('feFlood');
+  expect(primitives).toContain('feMerge');
 });
 
 test('switching VERDE → AMBRA re-tints the mounted map without remounting it', async ({ page }) => {
@@ -82,38 +94,52 @@ test('switching VERDE → AMBRA re-tints the mounted map without remounting it',
   await page.evaluate(() => ((window as any).__PB_MAP__.__pbSameMount = true));
 
   // Green dominates the green tint.
-  const [r0, g0, b0] = await tintRowSums(page);
+  const [r0, g0, b0] = await tintDiagonal(page);
   expect(g0).toBeGreaterThan(r0);
   expect(g0).toBeGreaterThan(b0);
-  const before = await tintValues(page);
 
   await chooseColour(page, 'amber');
 
-  expect(await tintValues(page)).not.toBe(before);
-  // Amber: red ≥ green > blue, in the theme triplet's proportions.
-  const [r1, g1, b1] = await tintRowSums(page);
+  // Amber: red > green > blue.
+  const [r1, g1, b1] = await tintDiagonal(page);
   expect(r1).toBeGreaterThan(g1);
   expect(g1).toBeGreaterThan(b1);
-  expect(g1 / r1).toBeCloseTo(176 / 255, 2);
 
   expect(await page.evaluate(() => (window as any).__PB_MAP__.__pbSameMount)).toBe(true);
 });
 
-test('markers are amber on VERDE and green on AMBRA and BIANCO', async ({ page }) => {
+test('markers draw in the theme bright phosphor colour, recoloured in place', async ({ page }) => {
   await openMap(page);
-  expect(await markerStroke(page)).toBe(AMBER);
+  const marker = await page.locator('.pb-map-marker').elementHandle();
+  expect(await markerStroke(page)).toBe(BRIGHT.green);
 
   await chooseColour(page, 'amber');
-  expect(await markerStroke(page)).toBe(GREEN);
+  expect(await markerStroke(page)).toBe(BRIGHT.amber);
 
   await chooseColour(page, 'white');
-  expect(await markerStroke(page)).toBe(GREEN);
+  expect(await markerStroke(page)).toBe(BRIGHT.white);
 
   await chooseColour(page, 'green');
-  expect(await markerStroke(page)).toBe(AMBER);
+  expect(await markerStroke(page)).toBe(BRIGHT.green);
+
+  // The same element throughout: recoloured, never rebuilt.
+  expect(await marker!.evaluate((el) => el.isConnected)).toBe(true);
 });
 
-test('the popup keeps the phosphor colour, not the marker colour', async ({ page }) => {
+test('labels are a quieter tier than icons', async ({ page }) => {
+  await openMap(page);
+  const label = await page.evaluate(() => {
+    const s = getComputedStyle(document.querySelector('.pb-map-marker-label')!);
+    return { color: s.color, opacity: Number(s.opacity), textShadow: s.textShadow };
+  });
+  expect(label.color).toBe(GREEN);
+  expect(label.opacity).toBeLessThan(1);
+  // The screen-bg halo, not the glow `.pb-screen *` would force-inherit.
+  expect(label.textShadow).toContain('rgb(6, 17, 10)');
+  expect(label.textShadow).not.toContain('51, 255, 102');
+});
+
+test('the popup keeps the phosphor colour', async ({ page }) => {
   await openMap(page);
   await page.locator('.pb-map-marker').click();
   await expect(page.locator('.pb-map-popup-name')).toBeVisible();

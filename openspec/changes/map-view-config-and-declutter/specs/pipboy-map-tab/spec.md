@@ -6,7 +6,9 @@ The tile layer SHALL use CARTO's label-free dark basemap. Its attribution is spe
 
 Every tile request SHALL carry the CARTO basemap key as a `key` query parameter. The key SHALL be stamped into the shipped source at image-build time from the `CARTO_BASEMAP_KEY` build argument and SHALL NOT be committed to the repository. When the source is unstamped (the build-time placeholder is still present) or the stamped value is empty, tile URLs SHALL omit the `key` parameter entirely rather than send the placeholder, so the map degrades to the provider's keyless tiles instead of failing.
 
-The tile pane SHALL be tinted in the **active phosphor theme's colour** by an SVG filter referenced from CSS (`filter: url(#<id>)`), not by a fixed CSS filter chain. The filter SHALL be a `feColorMatrix` that maps each pixel's luminance onto the theme's RGB colour, scaled by a single fixed gain, so the dark basemap reads as glowing phosphor of that colour. The matrix SHALL be generated from the same RGB triplet that drives `--phosphor-rgb`, in the same choke point that applies the theme, so a theme added later tints the map without a separate tuning step. The gain is a design token of this capability, chosen so the green theme matches the look of the previous fixed chain.
+The tile pane SHALL be tinted in the **active phosphor theme's colour** by an SVG filter referenced from CSS (`filter: url(#<id>)`), not by a fixed CSS filter chain. The filter SHALL map each pixel's luminance through a **tone curve per surface** rather than a single linear gain, and SHALL then tint the result with the theme's RGB colour, desaturated toward its own luminance by a fixed saturation token. The filter SHALL be generated from the same RGB triplet that drives `--phosphor-rgb`, in the same choke point that applies the theme, so a theme added later tints the map without a separate tuning step.
+
+Water SHALL be separated from land by its colour cast, so its level is set independently of the land's. The basemap SHALL keep this luminance order in every theme: **water below land, land below coastlines and roads, roads below markers**. Water SHALL NOT be the brightest large surface on the map. The levels and the saturation are design tokens of this capability.
 
 The filter definition SHALL be present in the document whenever the map tab is mounted, and a theme change SHALL re-tint an already-mounted map without remounting it.
 
@@ -19,7 +21,12 @@ Because `pipboy.css:209` (`.pb-screen * { text-shadow: inherit }`) force-inherit
 #### Scenario: Map tint follows the theme
 - **GIVEN** the map tab is mounted under the `VERDE` theme
 - **WHEN** the user switches the theme to `AMBRA`
-- **THEN** the SVG filter's colour matrix changes to the amber triplet and the map is not remounted
+- **THEN** the SVG filter's tint changes to the amber triplet and the map is not remounted
+
+#### Scenario: Water sits below land
+- **GIVEN** any phosphor theme
+- **WHEN** the filter's output for the measured water colour and the measured land colour is compared
+- **THEN** the water's output luminance is lower than the land's, and both are lower than the output for a road
 
 #### Scenario: Tile requests carry the stamped key
 - **GIVEN** the app was built with a non-empty `CARTO_BASEMAP_KEY`
@@ -158,29 +165,33 @@ The label pass SHALL be recomputed whenever the marker declutter is. A hidden la
 - **WHEN** the map renders
 - **THEN** that label is hidden
 
-### Requirement: Markers contrast with the map's phosphor colour
+### Requirement: Markers stand out from the map by luminance
 
-Map markers — their icons, labels and `+N` badges — SHALL be drawn in a **marker colour** that contrasts with the theme-tinted basemap. The marker colour SHALL be a per-theme token, exposed as `--map-marker-rgb` and set at the same choke point as `--phosphor-rgb`:
+Map markers SHALL stay within the active phosphor theme's own colours. No colour from another theme SHALL be introduced. Markers SHALL stand out from the basemap by **luminance**, not by hue:
 
-| Theme  | Basemap | Markers |
-|--------|---------|---------|
-| VERDE  | green   | amber   |
-| AMBRA  | amber   | green   |
-| BIANCO | white   | green   |
+- **Icons** SHALL be drawn in the theme's bright phosphor colour (`--phosphor-bright`). They SHALL be cut out of the map by a dark halo in the screen background colour, then given a glow in the phosphor colour.
+- **`+N` badges** SHALL be drawn in the bright phosphor colour on the screen background.
+- **Labels** SHALL be a quieter tier: the phosphor colour, dimmed with element opacity, over a dark halo.
 
-The marker glow SHALL use the marker colour. Popup, breadcrumb, search and the immersive toggle SHALL remain in the theme's phosphor colour. A theme change SHALL recolour already-rendered markers without remounting the map.
+In every theme, the marker icon SHALL reach a WCAG contrast of at least 4.5:1 against the filtered output of land, water and roads.
 
-#### Scenario: Green theme draws amber markers
-- **GIVEN** the `VERDE` theme
+Popup, breadcrumb, search and the immersive toggle SHALL remain in the theme's phosphor colour. A theme change SHALL recolour already-rendered markers without remounting the map.
+
+#### Scenario: Markers use the theme's bright phosphor colour
+- **GIVEN** any of the `VERDE`, `AMBRA` or `BIANCO` themes
 - **WHEN** a marker's computed icon stroke colour is inspected
-- **THEN** it is the amber triplet
+- **THEN** it is that theme's bright phosphor triplet
 
-#### Scenario: Amber and white themes draw green markers
-- **GIVEN** the `AMBRA` or the `BIANCO` theme
-- **WHEN** a marker's computed icon stroke colour is inspected
-- **THEN** it is the green triplet
+#### Scenario: A theme change recolours markers in place
+- **GIVEN** the map tab is mounted under `VERDE` with markers rendered
+- **WHEN** the user switches the theme to `AMBRA`
+- **THEN** the same marker elements are stroked in the amber bright phosphor colour, without remounting
+
+#### Scenario: Labels are dimmer than icons
+- **WHEN** a marker's label is inspected
+- **THEN** its colour is the phosphor colour and its opacity is below 1, while the icon is drawn in the bright phosphor colour
 
 #### Scenario: Popup keeps the theme colour
 - **GIVEN** the `VERDE` theme
 - **WHEN** a marker's popup is open
-- **THEN** the popup text is in the green phosphor colour, not the marker colour
+- **THEN** the popup text is in the green phosphor colour

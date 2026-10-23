@@ -86,7 +86,6 @@ const REQUIRED_SHELL_URLS = [
   './src/tabs/gear.js',
   './src/tabs/dice.js',
   './src/tabs/map.js',
-  './src/tabs/map-geometry.js',
   './src/tabs/basemap.js',
   './src/tabs/notes.js',
   './src/tabs/note-editor.js',
@@ -101,6 +100,13 @@ const REQUIRED_SHELL_URLS = [
   './src/api/codex.js',
   './src/state/quest-seen.js',
   './src/sheet/markdown.js',
+  // The shared map core (synced from apps/packages/map-core): the MAPPA tab's
+  // geometry, icons, marker layer and their stylesheet, and theme.js's filter.
+  './src/shared/map-core/style.js',
+  './src/shared/map-core/geometry.js',
+  './src/shared/map-core/icons.js',
+  './src/shared/map-core/marker-layer.js',
+  './src/shared/map-core/markers.css',
   // Vendored Leaflet — without it the map tab cannot render offline. The
   // stylesheet's images/ are deliberately absent: the tab uses divIcon only and
   // mounts no layers control, so nothing requests them (see the vendor README).

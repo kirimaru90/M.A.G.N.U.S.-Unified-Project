@@ -1,0 +1,79 @@
+/* The marker structure both maps share: icon box, label offset, badge, hidden
+   label. Colours come only from these custom properties, which each app sets
+   on its map container (or a marker class) without touching the geometry:
+     --mk-icon   icon stroke, badge border and text
+     --mk-label  label text
+     --mk-halo   the dark knockout around icon and label, the badge fill
+     --mk-glow   optional trailing drop-shadow() on the icon
+
+   The sizes are the declutter's: MARKER_BOX (26) and the label top (27) in
+   geometry.js. Change one, change both. */
+
+/* divIcon already anchors at iconSize/2 with its own negative margin. A margin
+   here would double it and sit every marker half its size up-and-left of its
+   real coordinate. Do not add one. */
+.pb-map-marker {
+    color: var(--mk-icon);
+    background: none;
+    border: none;
+}
+.pb-map-marker-inner {
+    display: block;
+    width: 26px;
+    height: 26px;
+    will-change: transform, opacity;
+}
+/* Cut out of the map by the halo first, then the optional glow. */
+.pb-map-marker svg {
+    width: 26px;
+    height: 26px;
+    fill: none;
+    stroke: var(--mk-icon);
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 1px var(--mk-halo)) drop-shadow(0 0 1.5px var(--mk-halo))
+            var(--mk-glow, drop-shadow(0 0 0 transparent));
+}
+/* A quieter tier than the icon: dimmed by element opacity, on the halo.
+   Two classes deep, here and on the badge, so an app's own catch-all
+   `text-shadow` rule (the Pip-Boy's `.pb-screen *`), loaded after this file,
+   cannot replace the halo. */
+.pb-map-marker .pb-map-marker-label {
+    position: absolute;
+    top: 27px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--mk-label);
+    opacity: 0.8;
+    text-shadow: 0 0 2px var(--mk-halo), 0 0 2px var(--mk-halo), 0 0 3px var(--mk-halo);
+    pointer-events: none;
+}
+/* The label pass hides a label that would cover another marker or label. The
+   icon stays, and stays tappable. */
+.pb-map-marker.is-label-hidden .pb-map-marker-label {
+    visibility: hidden;
+}
+/* +N: how many places the declutter folded into this marker. Inside the icon's
+   inner box, so it moves and blooms with it; tapping it separates the group. */
+.pb-map-marker .pb-map-marker-badge {
+    position: absolute;
+    top: -7px;
+    left: 19px;
+    min-width: 14px;
+    padding: 0 3px;
+    background: var(--mk-halo);
+    border: 1px solid var(--mk-icon);
+    color: var(--mk-icon);
+    text-shadow: none;
+    font-size: 10px;
+    line-height: 12px;
+    text-align: center;
+    cursor: pointer;
+}
+.pb-map-marker-badge[hidden] {
+    display: none;
+}

@@ -13,7 +13,7 @@ import {
   separationZoom,
   viewportRadius,
   visible,
-} from '../src/tabs/map-geometry.js';
+} from '../src/shared/map-core/geometry.js';
 
 // Pure unit tests: no page, no DOM, no Leaflet. These carry the same assertions
 // as the API's effective-radius specs, so both apps provably agree on the

@@ -7,7 +7,8 @@ const prettier = require('eslint-config-prettier');
 
 module.exports = defineConfig([
   {
-    ignores: ['src/api/generated/**', 'dist/**', '.angular/**', 'node_modules/**'],
+    // shared/map-core is synced from apps/packages/map-core: edited there, never here.
+    ignores: ['src/api/generated/**', 'src/app/shared/map-core/**', 'dist/**', '.angular/**', 'node_modules/**'],
   },
   {
     files: ['**/*.ts'],
