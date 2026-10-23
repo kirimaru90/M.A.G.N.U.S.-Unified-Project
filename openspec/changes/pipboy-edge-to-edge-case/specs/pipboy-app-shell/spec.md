@@ -74,9 +74,11 @@ The app SHALL handle the platform's back action (the Android back gesture or but
 1. **A popup or dialog is open** (any `.pb-popup-overlay`, the catalog picker, or the confirmation dialog): close the topmost one through its own dismissal path (the same path as its `✕`/cancel/backdrop), so any guard it already applies on dismissal still applies. Only that one overlay closes.
 2. **The map tab is in immersive mode**: leave immersive mode, exactly as its toggle or `Escape` would (`pipboy-map-tab`).
 3. **The current screen has a level above it** (per the navigation requirement, above): go up one level.
-4. **Otherwise** (login, campaign selection, or a single-campaign dossier, with nothing open): when the app is **installed** (fullscreen/standalone display mode), the back action SHALL be consumed and do nothing — the app SHALL NOT close or go to the background because of it, and SHALL stay on the current screen. The app leaves only through the platform's own home/recents gestures. In a normal **browser tab**, the app SHALL NOT intercept the action, so the browser's default applies (the tab leaves the page), because trapping a browser tab's back button is hostile.
+4. **Otherwise** (login, campaign selection, or a single-campaign dossier, with nothing open): when the app is **installed** (fullscreen/standalone display mode), the back action SHALL be consumed and do nothing — the app SHALL NOT close or go to the background because of it, and SHALL stay on the current screen, **provided the user has interacted with the page (a tap, click or key press) since the previous back action or since launch**. The app is otherwise left through the platform's own home/recents gestures. In a normal **browser tab**, the app SHALL NOT intercept the action, so the browser's default applies (the tab leaves the page), because trapping a browser tab's back button is hostile.
 
-To make step 4 hold, the installed app SHALL always keep a history entry of its own on top of the launch entry, re-adding it after every handled back action, so no back action reaches the platform.
+To make step 4 hold, the installed app SHALL always keep a history entry of its own on top of the launch entry, re-adding it after every handled back action.
+
+**Platform limit.** Browsers deliberately skip history entries a page added without user activation, and a back action is not user activation. So a back action made with no interaction since the previous one (or since launch) MAY reach the platform and close the installed app, and the app cannot prevent it. This is the only case in which back may close the installed app; one interaction between back actions restores the guarantee.
 
 The system back action SHALL never log the user out, never open the logout confirmation, and never discard a character's unsaved edits beyond what that popup's own dismissal path already does.
 
@@ -114,13 +116,19 @@ Forward navigation through history SHALL NOT re-open popups or re-enter screens;
 
 #### Scenario: Back at the top does not close the installed app
 
-- **GIVEN** the app is installed and campaign selection is mounted with no popup open
-- **WHEN** the user performs the back action, repeatedly
+- **GIVEN** the app is installed, campaign selection is mounted with no popup open, and the user has interacted with the page
+- **WHEN** the user performs the back action, interacting with the page again before each further back action
 - **THEN** the app stays open on campaign selection each time, opens no dialog, and does not clear the session
+
+#### Scenario: Repeated back without interaction may close the installed app
+
+- **GIVEN** the app is installed and a back action has just been handled
+- **WHEN** the user performs another back action without interacting with the page in between
+- **THEN** the platform may close the app (platform limit); if it does, the session is not cleared and no logout confirmation opens
 
 #### Scenario: Back on the login screen does not close the installed app
 
-- **GIVEN** the app is installed and the login screen is mounted
+- **GIVEN** the app is installed, the login screen is mounted, and the user has interacted with the page
 - **WHEN** the user performs the back action
 - **THEN** the app stays open on the login screen
 

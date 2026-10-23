@@ -33,4 +33,10 @@
 
 - [x] 5.1 Check that no code, CSS or test still references `pb-nav-back`, `pb-nav-exit`, `pb-statusbar-nav`, `.pb-knobs` or `setCaseNav` (grep)
 - [x] 5.2 Run the full Pip-Boy suite once: `npx playwright test` from `apps/pip-boy`, and confirm everything passes
-- [ ] 5.3 Manual check on the installed Android PWA: the case reaches the top edge with no black strip, the status text is level with the camera, landscape keeps the screen clear of the camera, the bezel sits above the gesture area, the back gesture follows popup → immersive → up one level → stays put (the app never closes on back, including on login and after tapping once right after launch), and back never logs out (including right after the app resumes onto the sheet)
+## 6. Editor toggle as a knob (added after the first device check)
+
+- [x] 6.1 In `index.html`, give `#pb-editor-toggle` the `pb-knob` class instead of `pb-nub` (keep its id, glyph, title and `disabled`); update its comment
+- [x] 6.2 In `pipboy.css`, move the button styling (flex centring, font, glyph colour, cursor, hover) from `#pb-config-knob` to `.pb-knob`, add `.pb-knob:disabled` (dimmed, default cursor, no hover change), and remove the `.pb-nub` rules (design §7)
+- [x] 6.3 Tests: update `tests/terminal-chrome.spec.ts`. The bezel holds two `.pb-knob`s around the grille; both are 38×38 and `50%`-rounded; the allowlist drops `.pb-nub`; the square-corner test expects `50%` on both knobs. Run `npx playwright test tests/terminal-chrome.spec.ts`, then the full suite
+
+- [ ] 5.3 Manual check on the installed Android PWA: the case reaches the top edge with no black strip, the status text is level with the camera, landscape keeps the screen clear of the camera, the bezel sits above the gesture area, the back gesture follows popup → immersive → up one level → stays put (with a tap between presses the app does not close on back, including on login; two presses without a tap may close it, a platform limit in design Risks), back never logs out (including right after the app resumes onto the sheet), and the bezel shows two identical knobs (⚙, ✎). Revealing the system bars briefly shrinking the page is a known platform limit, not a failure

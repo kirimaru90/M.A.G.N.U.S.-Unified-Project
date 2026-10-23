@@ -59,12 +59,13 @@
                  open (chrome.js) and carries its own lit state; no separate LED. -->
             <button class="pb-knob" id="pb-config-knob" type="button" aria-label="Impostazioni" title="Impostazioni">&#9881;</button>
             <span class="pb-grille" aria-hidden="true"></span>
-            <!-- The nub doubles as the `✎` editor-mode toggle. It is permanent
-                 bezel furniture — always visible, never `hidden` — but `disabled`
-                 off-sheet and for a sheet viewer without write permission
-                 (driven by chrome.js), which keeps it out of the tab order and
-                 blocks activation natively. -->
-            <button class="pb-nub" id="pb-editor-toggle" type="button" title="Modalità editor" disabled>&#9998;</button>
+            <!-- The second knob, identical to ⚙ but for its glyph, is the `✎`
+                 editor-mode toggle. It is permanent bezel furniture — always
+                 visible, never `hidden` — but `disabled` off-sheet and for a
+                 sheet viewer without write permission (driven by chrome.js),
+                 which keeps it out of the tab order and blocks activation
+                 natively. -->
+            <button class="pb-knob" id="pb-editor-toggle" type="button" title="Modalità editor" disabled>&#9998;</button>
         </div>
     </div>
 

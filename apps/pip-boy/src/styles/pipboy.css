@@ -321,6 +321,11 @@ body {
     flex: none;
 }
 
+/* The bezel's two knobs, identical but for their glyph: `⚙` is the settings
+   control (pipboy-settings), `✎` the editor-mode toggle. Each is a <button>
+   carrying its own glyph. The `✎` knob is permanent case furniture, present on
+   every screen and never `hidden`, but `disabled` (dim, out of the tab order,
+   activation blocked natively) off-sheet or without write permission. */
 .pb-knob {
     width: 38px; height: 38px;
     flex: none;
@@ -328,11 +333,6 @@ body {
     background: radial-gradient(circle at 35% 30%, #3a4030, #14170f);
     border: 1px solid #444a37;
     box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.6);
-}
-
-/* The bezel's one knob is the settings control (pipboy-settings), a <button>
-   carrying its own glyph. */
-#pb-config-knob {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -344,7 +344,11 @@ body {
     color: var(--green-border-strong);
     cursor: pointer;
 }
-#pb-config-knob:hover { background: radial-gradient(circle at 35% 30%, #454c3b, #1a1e13); }
+.pb-knob:hover:not(:disabled) { background: radial-gradient(circle at 35% 30%, #454c3b, #1a1e13); }
+.pb-knob:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
 
 .pb-grille {
     flex: 1;
@@ -352,33 +356,6 @@ body {
     margin: 0 14px;
     border-radius: 3px;
     background: repeating-linear-gradient(90deg, #2a2f22 0 3px, #12140d 3px 6px);
-}
-
-/* .pb-nub is the bezel's ✎ editor-mode toggle: permanent case furniture,
-   present on every screen and never `hidden`, but `disabled` (dim, out of the
-   tab order, activation blocked natively) off-sheet or without write
-   permission. Same 38px height as the knob, so both are full tap targets. */
-.pb-nub {
-    width: 64px; height: 38px;
-    flex: none;
-    border-radius: 6px;
-    background: linear-gradient(#3a4030, #14170f);
-    border: 1px solid #444a37;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    margin: 0;
-    font-family: var(--font-body);
-    font-size: 18px;
-    line-height: 1;
-    color: var(--green-border-strong);
-    cursor: pointer;
-}
-.pb-nub:hover:not(:disabled) { background: linear-gradient(#454c3b, #1a1e13); }
-.pb-nub:disabled {
-    cursor: default;
-    opacity: 0.5;
 }
 
 /* Lit state, shared by both bezel controls: each carries its own "on" light

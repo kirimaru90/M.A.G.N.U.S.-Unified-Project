@@ -4,8 +4,8 @@ import { stubEnvironment, login, makeCharacter, seedDice, seedPrefs, rollAndSett
 /**
  * The only elements permitted a non-zero border-radius. The status LED is
  * round in the reference design (a 9px circle in the case status bar), so it
- * joins the case, screen, and the three bezel parts as case chrome. The bezel
- * knob and nub carry their own lit state directly — there is no separate LED
+ * joins the case, screen, and the three bezel parts as case chrome. The two
+ * bezel knobs carry their own lit state directly — there is no separate LED
  * element for the editor toggle.
  */
 const ROUNDED_ALLOWLIST = [
@@ -15,7 +15,6 @@ const ROUNDED_ALLOWLIST = [
   '.pb-editor-ring',
   '.pb-knob',
   '.pb-grille',
-  '.pb-nub',
   '.pb-statusbar .dot',
 ];
 
@@ -28,23 +27,24 @@ async function openSheet(page: Page) {
 
 // ── 4.T.1 CRT layers + bezel ────────────────────────────────────────
 
-test('the bottom bezel renders exactly one knob, a ridged grille and a slider nub', async ({ page }) => {
+test('the bottom bezel renders the ⚙ knob, a ridged grille and the ✎ knob', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
 
   await expect(page.locator('.pb-bezel')).toBeVisible();
-  // Exactly three children, in order: the ⚙ knob, the grille, the ✎ nub.
+  // Exactly three children, in order: the ⚙ knob, the grille, the ✎ knob.
   const children = await page.locator('.pb-bezel > *').evaluateAll((els) => els.map((el) => el.id || el.className));
   expect(children).toEqual(['pb-config-knob', 'pb-grille', 'pb-editor-toggle']);
-  await expect(page.locator('.pb-bezel .pb-knob')).toHaveCount(1);
+  await expect(page.locator('.pb-bezel .pb-knob')).toHaveCount(2);
 
   const knob = await page.locator('#pb-config-knob').boundingBox();
   expect(knob!.width).toBeCloseTo(38, 0);
   expect(knob!.height).toBeCloseTo(38, 0);
 
-  const nub = await page.locator('#pb-editor-toggle').boundingBox();
-  expect(nub!.width).toBeCloseTo(64, 0);
-  expect(nub!.height).toBeCloseTo(38, 0);
+  // The two knobs are identical but for their glyph.
+  const editKnob = await page.locator('#pb-editor-toggle').boundingBox();
+  expect(editKnob!.width).toBeCloseTo(38, 0);
+  expect(editKnob!.height).toBeCloseTo(38, 0);
 });
 
 test('the bezel controls are at least 36px tap targets on every viewport', async ({ page }) => {
@@ -54,10 +54,11 @@ test('the bezel controls are at least 36px tap targets on every viewport', async
   for (const size of [{ width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1280, height: 800 }]) {
     await page.setViewportSize(size);
     const knob = await page.locator('#pb-config-knob').boundingBox();
-    const nub = await page.locator('#pb-editor-toggle').boundingBox();
+    const editKnob = await page.locator('#pb-editor-toggle').boundingBox();
     expect(knob!.width, `knob width at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
     expect(knob!.height, `knob height at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
-    expect(nub!.height, `nub height at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
+    expect(editKnob!.width, `✎ knob width at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
+    expect(editKnob!.height, `✎ knob height at ${size.width}x${size.height}`).toBeGreaterThanOrEqual(36);
   }
 });
 
@@ -93,7 +94,7 @@ test('the status bar holds only the status and OS labels, no control', async ({ 
   await expect(bar.locator('.pb-status-os')).toHaveText('PIP-BOY OS');
 });
 
-test('the config knob and editor nub glyphs stay fully contained, and swap color when lit', async ({ page }) => {
+test('the config knob and editor knob glyphs stay fully contained, and swap color when lit', async ({ page }) => {
   await stubEnvironment(page);
   await openSheet(page);
 
@@ -218,7 +219,7 @@ test('no element carries a non-zero border-radius except the case, screen, ring 
   expect(offenders).toEqual([]);
 });
 
-test('the case, screen, grille and nub carry their specified radii', async ({ page }) => {
+test('the case, screen, grille and knobs carry their specified radii', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -229,11 +230,11 @@ test('the case, screen, grille and nub carry their specified radii', async ({ pa
   expect(await radius('.pb-case')).toBe('26px');
   expect(await radius('.pb-screen')).toBe('14px');
   expect(await radius('.pb-grille')).toBe('3px');
-  expect(await radius('.pb-nub')).toBe('6px');
-  expect(await radius('.pb-knob')).toBe('50%');
+  expect(await radius('#pb-config-knob')).toBe('50%');
+  expect(await radius('#pb-editor-toggle')).toBe('50%');
 });
 
-test('buttons and inputs are square-cornered, except the bezel knob and the nub', async ({ page }) => {
+test('buttons and inputs are square-cornered, except the two bezel knobs', async ({ page }) => {
   await stubEnvironment(page);
   await page.goto('/index.html');
 
@@ -245,7 +246,7 @@ test('buttons and inputs are square-cornered, except the bezel knob and the nub'
   for (const r of radii) expect(r).toBe('0px');
 
   expect(await page.locator('#pb-config-knob').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
-  expect(await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('6px');
+  expect(await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).borderRadius)).toBe('50%');
 });
 
 // ── 4.T.3 glyphs, not emoji ─────────────────────────────────────────
@@ -440,7 +441,7 @@ test('toggling editor mode adds and removes the phosphor-colored ring and the �
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-editor-ring')).toBeVisible();
   await expect(page.locator('.pb-editor-strip')).toContainText('◉ EDITOR');
-  // The nub itself lights — no separate LED element.
+  // The ✎ knob itself lights — no separate LED element.
   await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
   await expect(page.locator('#pb-editor-led')).toHaveCount(0);
 
@@ -470,12 +471,12 @@ test('the editor LED renders the active (non-green) phosphor theme color while c
   await page.locator('#pb-editor-toggle').click();
   await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
 
-  const nubBg = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).backgroundColor);
-  // Lit, the nub's own body fills with the theme color (amber here) — never
+  const editKnobBg = await page.locator('#pb-editor-toggle').evaluate((el) => getComputedStyle(el).backgroundColor);
+  // Lit, the ✎ knob's own body fills with the theme color (amber here) — never
   // the critical-red token — even while the character is simultaneously
   // critical, so the two indicators are never mistakable for one another.
-  expect(nubBg).toBe('rgb(255, 176, 46)');
-  expect(nubBg).not.toBe('rgb(255, 59, 59)');
+  expect(editKnobBg).toBe('rgb(255, 176, 46)');
+  expect(editKnobBg).not.toBe('rgb(255, 59, 59)');
 });
 
 test('a critical character in editor mode shows the critical-red ring, not the phosphor-colored one', async ({ page }) => {
@@ -490,8 +491,8 @@ test('a critical character in editor mode shows the critical-red ring, not the p
 
   await expect(page.locator('#pb-critical-ring')).toBeVisible();
   await expect(page.locator('#pb-editor-ring')).toBeHidden();
-  // The nub stays lit the active phosphor theme color even while critical — the
-  // critical-red ring and the phosphor-colored nub never share a color, and
+  // The ✎ knob stays lit the active phosphor theme color even while critical — the
+  // critical-red ring and the phosphor-colored ✎ knob never share a color, and
   // both may show at once.
   await expect(page.locator('#pb-editor-toggle')).toHaveClass(/on/);
 });

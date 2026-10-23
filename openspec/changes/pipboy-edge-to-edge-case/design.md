@@ -63,7 +63,7 @@ Inside the existing `@media (display-mode: standalone), (display-mode: fullscree
   proposed: gap  6 + bezel pad  0 + ctrl 38 + bezel pad 0 + case pad 12 = 56
 ```
 
-The case's flex `gap` (10px) also separates the status bar from the screen, which keeps 10px. The bezel therefore gets `margin-top: -4px` (or the case switches from `gap` to per-child margins). The knob is 38×38 (`⚙` glyph ~18px), the nub 64×38 (`✎` ~18px). The decorative `<span class="pb-knob">` and its `.pb-knobs` wrapper go; the grille's `flex: 1` absorbs the width. The new sizes apply unconditionally (no `pointer: coarse` query), as requested.
+The case's flex `gap` (10px) also separates the status bar from the screen, which keeps 10px. The bezel therefore gets `margin-top: -4px` (or the case switches from `gap` to per-child margins). Both controls are 38×38 knobs (glyphs ~18px): the `✎` editor toggle, formerly a 64×38 pill nub, becomes a second knob identical to `⚙` except for its glyph (see §7). The decorative `<span class="pb-knob">` and its `.pb-knobs` wrapper go; the grille's `flex: 1` absorbs the width. The new sizes apply unconditionally (no `pointer: coarse` query), as requested.
 
 ### 4. Screen navigation becomes a registry read by the popup
 
@@ -114,12 +114,19 @@ A new `src/engine/back.js` owns the History API. It keeps at most **one** "guard
 
 ### 6. Exit-nub styling moves to `ESCI`
 
-The critical-red treatment that was on `#pb-nav-exit:not(:disabled)` moves to the popup's `ESCI` action (`color: var(--critical); text-shadow: var(--critical-glow)`). The `.pb-nub` class remains for the `✎` toggle only.
+The critical-red treatment that was on `#pb-nav-exit:not(:disabled)` moves to the popup's `ESCI` action (`color: var(--critical); text-shadow: var(--critical-glow)`). The `.pb-nub` class is then removed (§7).
+
+### 7. The editor toggle is a knob
+
+Added after the first device check: the `✎` toggle takes the `⚙` knob's look (`.pb-knob`: 38px circle, radial-gradient body, same border and glyph styling) and keeps its own glyph, id and behaviour. The shared button styling moves from `#pb-config-knob` to `.pb-knob`; the disabled look (dimmed, no hover) moves with the `✎` control as `.pb-knob:disabled`. `.pb-nub` and its 6px radius go, so the rounded-element allowlist names the two knobs instead of knob + nub. The bezel stays symmetric: knob · grille · knob.
 
 ## Risks / Trade-offs
 
+- **[Revealing the system bars resizes the page]** Found on the device: in the installed fullscreen app, swiping in the auto-hidden Android gesture/status bars makes Chrome lay the page out between them for a moment (measured 387×861 → 387×777, insets → 0), showing black strips top and bottom, then restore it. CSS cannot paint outside the area Chrome gives the page. A spike showed element fullscreen (`requestFullscreen`) behaves the same, and `display: standalone` avoids the jump only by keeping both bars visible permanently, which was rejected. → Accepted as a platform limit; the manifest stays on `fullscreen`.
+- **[Back after back closes the app]** Found on the device: Chrome's history-manipulation intervention skips history entries a page adds without user activation, and a back gesture is not user activation. So the guard re-pushed inside `popstate` does not survive a second back press made without touching the page in between: that second press closes the app. One tap between presses restores protection. The CloseWatcher API has the same anti-abuse rule, so the web cannot guarantee "never closes on back". → Accepted as a platform limit; this corrects the statement in §5 that a guard re-pushed after a back gesture is user-backed.
+
 - **[Corner punch-hole cameras]** A camera at the left or right of the top band can cover part of `M.A.G.N.U.S.` or `PIP-BOY OS`. → Accepted: they are labels, not controls. The critical status (`⚠ CRITICO`) is also shown on-screen by the critical banner and ring, so no information is lost.
-- **[Chrome's history-manipulation intervention]** Chrome may skip a history entry the page pushed without a user gesture, so back could bypass the guard and close the app. The boot-time guard is exactly such an entry. → Once the user has tapped anything, Chrome treats the guard as user-backed; and every guard re-pushed in `popstate` follows a real back gesture. So the only window is "launch, then press back before touching anything", where the app may still close. This is a platform limit that the web cannot override. It is checked manually on the device (task list), since Playwright's `goBack()` does not model the intervention.
+- **[Chrome's history-manipulation intervention]** Chrome may skip a history entry the page pushed without a user gesture, so back could bypass the guard and close the app. The boot-time guard is exactly such an entry. → Once the user has tapped anything, Chrome treats the guard as user-backed. A guard re-pushed in `popstate` is not: a back gesture is not user activation (see "Back after back closes the app" below). So the app may close on back at launch before any tap, and on a second back press with no tap since the first. This is a platform limit that the web cannot override. It is checked manually on the device (task list), since Playwright's `goBack()` does not model the intervention.
 - **[No way out by back]** Installed, the user can no longer leave the app with the back gesture. → Intended. Home and recents gestures still work, and the browser tab keeps normal back behaviour.
 - **[`ignoreNextPop` race]** A programmatic `history.back()` followed immediately by a real back press could drop one press. → Acceptable: it only costs a press. The flag is cleared on the next `popstate`, whatever its origin.
 - **[Two taps instead of one for "back"]** On desktop, where there is no back gesture, changing character now takes ⚙ → CAMBIA PERSONAGGIO. → Accepted by the user. The browser's back button also works.

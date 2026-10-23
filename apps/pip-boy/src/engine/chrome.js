@@ -8,7 +8,7 @@ const statusbar = () => document.getElementById('pb-statusbar');
 const screenEl = () => document.getElementById('pb-screen');
 const ringEl = () => document.getElementById('pb-critical-ring');
 const editorRingEl = () => document.getElementById('pb-editor-ring');
-// The `✎` toggle is the bottom bezel's nub, resolved by id; it carries its own
+// The `✎` toggle is the bottom bezel's second knob, resolved by id; it carries its own
 // lit state directly (no separate LED element).
 const editorToggleEl = () => document.getElementById('pb-editor-toggle');
 // The `⚙` settings control is the bottom bezel's left knob — always rendered,
@@ -33,7 +33,7 @@ export function setEditorToggle({ canEdit, onToggleEdit }) {
     // Re-mounting the sheet re-binds this, so drop the previous handler first.
     if (boundToggleEdit) toggleBtn.removeEventListener('click', boundToggleEdit);
 
-    // The nub is permanent bezel furniture: a viewer who may not write the
+    // The `✎` knob is permanent bezel furniture: a viewer who may not write the
     // character still sees the ✎ glyph, just inert — `disabled` keeps it out of
     // the tab order and blocks activation in one native property, rather than
     // hiding it. Its lit state is reset each mount (editor mode never persists).
@@ -74,10 +74,10 @@ function syncEditorRing() {
     if (ring) ring.hidden = !(editorActive && !criticalActive);
 }
 
-/** Reflect editor mode: the phosphor-colored ring and the nub's own lit state. */
+/** Reflect editor mode: the phosphor-colored ring and the `✎` knob's own lit state. */
 export function setEditorChrome(on) {
     editorActive = !!on;
-    // The nub's lit state mirrors editor mode 1:1 (unlike the ring, it is not
+    // The `✎` knob's lit state mirrors editor mode 1:1 (unlike the ring, it is not
     // suppressed while critical — the active phosphor theme color never
     // collides with the critical-red treatment, so both may show at once).
     editorToggleEl()?.classList.toggle('on', !!on);

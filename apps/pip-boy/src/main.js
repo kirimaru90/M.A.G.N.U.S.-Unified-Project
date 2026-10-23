@@ -17,7 +17,6 @@ import { mount } from './engine/render.js';
 import { setEditorToggle, setCriticalChrome, setEditorChrome } from './engine/chrome.js';
 import { setScreenNav } from './engine/nav.js';
 import { installBackAction } from './engine/back.js';
-import { startFsSpikeReadout } from './engine/fs-spike.js'; // TEMPORARY
 import { getPrefs } from './state/prefs.js';
 import { applyOrientation } from './engine/device.js';
 import { applyPhosphorTheme } from './engine/theme.js';
@@ -302,7 +301,6 @@ async function init() {
     // The back-action guard entry goes in before the first screen renders, so
     // even back on the login screen is consumed when installed.
     installBackAction();
-    startFsSpikeReadout(); // TEMPORARY fullscreen spike (engine/fs-spike.js)
 
     // Before any screen mounts: the orientation lock is a global device state,
     // so it is applied from the persisted preference at boot rather than waiting
