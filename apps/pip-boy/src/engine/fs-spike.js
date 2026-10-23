@@ -1,8 +1,9 @@
 // TEMPORARY — fullscreen spike (pipboy-edge-to-edge-case, task 5.3 follow-up).
 // Answers on the device: does element fullscreen (requestFullscreen) remove the
 // top cutout strip, does revealing the gesture bar still shrink the page, and
-// what does the back gesture do. Remove this file and its two hooks
-// (main.js startFsSpikeReadout, settings-popup.js FULLSCREEN (TEST)) after.
+// what does the back gesture do. Remove this file, manifest-standalone.webmanifest
+// and its two hooks (main.js startFsSpikeReadout, settings-popup.js
+// FULLSCREEN (TEST)) after.
 
 const MAX_EVENTS = 6;
 const events = [];
@@ -33,7 +34,7 @@ function render() {
     if (!readout) return;
     const vv = window.visualViewport;
     readout.textContent = [
-        `fs:${document.fullscreenElement ? 'ON' : 'off'}  dm:${displayMode()}`,
+        `fs:${document.fullscreenElement ? 'ON' : 'off'}  dm:${displayMode()}${STANDALONE ? '  [S-variant]' : ''}`,
         `inset T/R/B/L: ${insets()}`,
         `inner: ${innerWidth}×${innerHeight}  vv: ${vv ? `${Math.round(vv.width)}×${Math.round(vv.height)}` : '-'}`,
         `screen: ${screen.width}×${screen.height}  avail: ${screen.availWidth}×${screen.availHeight}`,
@@ -42,7 +43,19 @@ function render() {
     ].join('\n');
 }
 
+// Standalone variant: opened as `./?standalone`, the page points at a second
+// manifest (own id, display: standalone) so Chrome installs it as a separate
+// app beside the fullscreen one. The status bar takes the case's top colour.
+const STANDALONE = new URLSearchParams(location.search).has('standalone');
+
+function applyStandaloneVariant() {
+    if (!STANDALONE) return;
+    document.querySelector('link[rel="manifest"]')?.setAttribute('href', 'manifest-standalone.webmanifest');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#22261c');
+}
+
 export function startFsSpikeReadout() {
+    applyStandaloneVariant();
     probe = document.createElement('div');
     probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;'
         + 'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) '
